@@ -542,7 +542,7 @@ async function loadConversations() {
     if (!conversations?.length) { container.innerHTML = '<div class="empty-state" style="padding:2rem;"><p>Sin conversaciones</p></div>'; renderEmptyChat(); return; }
     container.innerHTML = conversations.map(c => `
       <div class="conversation-item ${currentConversationId === c.id ? 'active' : ''}" onclick="openConversation(${c.id})">
-        <div class="conversation-avatar">${c.other_user?.username?.charAt(0).toUpperCase()}</div>
+        <div class="conversation-avatar">${c.other_user?.username ? c.other_user.username.charAt(0).toUpperCase() : '?'}</div>
         <div class="conversation-info">
           <div class="conversation-name">${escapeHtml(c.other_user?.username || 'Usuario')}</div>
           <div class="conversation-vehicle">${escapeHtml(c.vehicle?.title || '')}</div>
@@ -584,7 +584,7 @@ async function loadChatMessages(convId, isPolling = false) {
 
       chatView.innerHTML = `
         <div class="chat-active-header">
-          <div class="conversation-avatar">${otherUser?.username?.charAt(0).toUpperCase()}</div>
+          <div class="conversation-avatar">${otherUser?.username ? otherUser.username.charAt(0).toUpperCase() : '?'}</div>
           <div class="chat-header-info">
             <h4>${escapeHtml(otherUser?.username || 'Usuario')}</h4>
             <span id="chatOnlineStatus" style="color:var(--text-secondary);font-size:0.8rem;transition:color 0.3s;font-weight:600;">Calculando...</span>

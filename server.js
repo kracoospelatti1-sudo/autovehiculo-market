@@ -770,8 +770,8 @@ app.get('/api/conversations/:id', authenticateToken, async (req, res) => {
     }
 
     const { data: vehicle } = await supabase.from('vehicles').select('*').eq('id', conversation.vehicle_id).single();
-    const { data: buyer } = await supabase.from('users').select('id, username, profiles(last_seen)').eq('id', conversation.buyer_id).single();
-    const { data: seller } = await supabase.from('users').select('id, username, profiles(last_seen)').eq('id', conversation.seller_id).single();
+    const { data: buyer } = await supabase.from('users').select('id, username, profiles!left(last_seen)').eq('id', conversation.buyer_id).single();
+    const { data: seller } = await supabase.from('users').select('id, username, profiles!left(last_seen)').eq('id', conversation.seller_id).single();
 
     res.json({ ...conversation, vehicle, buyer, seller });
   } catch (error) {
