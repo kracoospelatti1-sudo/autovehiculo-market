@@ -127,6 +127,19 @@ function logout() {
 
 // VEHICLES
 async function loadVehicles(page = 1) {
+  const container = document.getElementById('vehiclesList');
+  if (page === 1 && container) {
+    container.innerHTML = Array(6).fill().map(() => `
+      <div class="vehicle-card" style="padding: 1rem;">
+        <div class="skeleton skeleton-img"></div>
+        <div style="padding: 1rem 0;">
+          <div class="skeleton skeleton-title"></div>
+          <div class="skeleton skeleton-text"></div>
+          <div class="skeleton skeleton-text" style="width: 50%"></div>
+        </div>
+      </div>
+    `).join('');
+  }
   try {
     const params = new URLSearchParams();
     const search = document.getElementById('searchInput')?.value;
@@ -137,7 +150,6 @@ async function loadVehicles(page = 1) {
     });
     params.append('page', page);
     const { vehicles, total } = await request(`/vehicles?${params}`);
-    const container = document.getElementById('vehiclesList');
     document.getElementById('vehiclesCount').textContent = `${total} vehículo${total !== 1 ? 's' : ''} encontrado${total !== 1 ? 's' : ''}`;
     if (!vehicles?.length) {
       container.innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99z"/></svg><h3>No hay vehículos</h3><p>Sé el primero en publicar</p></div>';
@@ -254,14 +266,24 @@ async function viewVehicle(id) {
 
     const content = document.getElementById('vehicleDetailContent');
     content.innerHTML = `
+      <style>
+        .mobile-only { display: none; }
+        @media (max-width: 768px) {
+          .desktop-only { display: none; }
+          .mobile-only { display: flex; }
+        }
+      </style>
       <div class="detail-grid">
-        <div class="detail-gallery">
+        <div class="detail-gallery desktop-only">
           <div class="main-image">
             <img src="${mainImgUrl}" id="detailMainImage" alt="Vehículo">
           </div>
           <div class="thumbnail-list" id="imageThumbnails">
             ${images.map((img, i) => `<img src="${img.url}" class="${i === 0 ? 'active' : ''}" onclick="document.getElementById('detailMainImage').src='${img.url}';this.parentElement.querySelectorAll('img').forEach(x=>x.classList.remove('active'));this.classList.add('active')">`).join('')}
           </div>
+        </div>
+        <div class="mobile-only" style="overflow-x: auto; scroll-snap-type: x mandatory; gap: 0.5rem; padding-bottom: 0.5rem; margin-bottom: 1.5rem;">
+          ${images.map(img => `<img src="${img.url}" style="flex: 0 0 92%; scroll-snap-align: center; height: 350px; object-fit: cover; border-radius: var(--radius-lg);">`).join('')}
         </div>
         <div class="detail-info" id="vehicleDetail">
           <h1>${escapeHtml(vehicle.title)}</h1>

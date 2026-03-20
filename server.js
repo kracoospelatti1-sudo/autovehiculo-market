@@ -54,21 +54,17 @@ const authenticateToken = (req, res, next) => {
 };
 
 const isAdmin = async (userId) => {
-  const { data } = await supabase
-    .from('profiles')
-    .select('is_admin')
-    .eq('user_id', userId)
-    .single();
-  return data?.is_admin === true;
+  try {
+    const { data } = await supabase.from('profiles').select('is_admin').eq('user_id', userId).single();
+    return data?.is_admin === true;
+  } catch { return false; }
 };
 
 const isBanned = async (userId) => {
-  const { data } = await supabase
-    .from('profiles')
-    .select('is_banned')
-    .eq('user_id', userId)
-    .single();
-  return data?.is_banned === true;
+  try {
+    const { data } = await supabase.from('profiles').select('is_banned').eq('user_id', userId).single();
+    return data?.is_banned === true;
+  } catch { return false; }
 };
 
 function formatNumber(num) {

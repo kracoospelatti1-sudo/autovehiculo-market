@@ -230,3 +230,8 @@ CREATE POLICY "Reportes visibles para admins" ON reports FOR SELECT USING (
 PRINT '========================================';
 PRINT 'Migración completada exitosamente!';
 PRINT '========================================';
+
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT false;
+
+UPDATE profiles SET is_admin = true WHERE user_id = '1';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT false;
