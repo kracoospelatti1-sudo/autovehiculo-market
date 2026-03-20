@@ -519,7 +519,7 @@ app.get('/api/profile/:id', async (req, res) => {
 // HEARTBEAT
 app.put('/api/ping', authenticateToken, async (req, res) => {
   try {
-    await supabase.from('profiles').update({ last_seen: new Date().toISOString() }).eq('user_id', req.user.id);
+    await supabase.from('profiles').upsert({ user_id: req.user.id, last_seen: new Date().toISOString() }, { onConflict: 'user_id' });
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: 'Ping fallido' }); }
 });
