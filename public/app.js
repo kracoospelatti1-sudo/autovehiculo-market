@@ -684,17 +684,18 @@ async function pollNewMessages(convId) {
       }
     }
 
-    // Update online status every ~30 seconds (every 10 polls)
-    pollCount++;
-    if (pollCount % 10 === 0) {
-      try {
-        const conv = await request(`/conversations/${convId}`);
-        const otherUser = conv.buyer_id === currentUser?.id ? conv.seller : conv.buyer;
-        updateOnlineStatus(otherUser);
-      } catch {}
-    }
   } catch {}
   isLoadingMessages = false;
+
+  // Update online status every ~15 seconds (every 5 polls)
+  pollCount++;
+  if (pollCount % 5 === 0) {
+    try {
+      const conv = await request(`/conversations/${convId}`);
+      const otherUser = conv.buyer_id === currentUser?.id ? conv.seller : conv.buyer;
+      updateOnlineStatus(otherUser);
+    } catch {}
+  }
 }
 
 function appendMessageToDOM(message, readAt) {
