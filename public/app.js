@@ -158,7 +158,13 @@ async function loadVehicles(page = 1) {
             <span>${formatNumber(v.mileage || 0)} km</span>
             <span>${v.fuel || 'N/A'}</span>
           </div>
-          <div class="vehicle-views"><svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg> ${v.views || 0} vistas</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.75rem;">
+            <div class="vehicle-views" style="margin-top:0;"><svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg> ${v.views || 0} vistas</div>
+            <div style="font-size:0.8rem;color:var(--text-secondary);display:flex;align-items:center;gap:0.25rem;">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+              ${escapeHtml(v.seller_name || 'Anónimo')}
+            </div>
+          </div>
         </div>
       </div>
     `).join('');
@@ -698,6 +704,8 @@ async function markAllRead() {
 async function viewProfile(id) {
   currentProfileId = id;
   const isOwn = currentUser && String(currentUser.id) === String(id);
+  const profileForm = document.getElementById('profileForm');
+  if (profileForm) profileForm.innerHTML = ''; // Limpiar form de edición
   try {
     const profile = await request(`/profile/${id}`);
     const ratings = await request(`/ratings/${id}`);
