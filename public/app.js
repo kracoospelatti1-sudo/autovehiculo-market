@@ -1060,4 +1060,19 @@ function tryPublish() {
 }
 
 initBrandFilters();
+
+function autoFillTitle() {
+  const brand = document.getElementById('publishBrand')?.value || '';
+  const model = document.getElementById('publishModel')?.value || '';
+  const year = document.getElementById('publishYear')?.value || '';
+  const titleInput = document.getElementById('publishTitle');
+  if (titleInput) {
+    titleInput.value = `${brand} ${model} ${year}`.trim();
+  }
+}
+
+document.getElementById('publishBrand')?.addEventListener('change', autoFillTitle);
+document.getElementById('publishModel')?.addEventListener('change', autoFillTitle);
+document.getElementById('publishYear')?.addEventListener('input', autoFillTitle);
+
 showSection('home');
