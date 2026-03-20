@@ -8,6 +8,8 @@ let uploadedImages = [];
 let reportVehicleId = null;
 let rateConversationId = null;
 let rateRecipientId = null;
+let lastMessageId = 0;
+let isLoadingMessages = false;
 
 const API_URL = '/api';
 
@@ -586,94 +588,171 @@ async function loadConversations() {
 
 async function openConversation(convId, el) {
   currentConversationId = convId;
+  lastMessageId = 0;
   document.querySelectorAll('.conversation-item').forEach(e => e.classList.remove('active'));
   const target = el || (event && event.currentTarget);
   if (target) target.classList.add('active');
-  loadChatMessages(convId);
+  await loadChatFull(convId);
   startPolling();
 }
 
-async function loadChatMessages(convId, isPolling = false) {
+async function loadChatFull(convId) {
   try {
+    isLoadingMessages = true;
     const conv = await request(`/conversations/${convId}`);
-    const messages = await request(`/conversations/${convId}/messages`);
+    const { messages, read_receipts } = await request(`/conversations/${convId}/messages`);
     const otherUser = conv.buyer_id === currentUser?.id ? conv.seller : conv.buyer;
     const vehicle = conv.vehicle;
     const chatView = document.getElementById('chatView');
 
-    // Solo reconstruir el layout completo la primera vez (o si el header no existe)
-    if (!isPolling || !chatView.querySelector('.chat-active-header')) {
-      let vehicleImg = 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=120&h=80&fit=crop';
-      try {
-        const vData = await request(`/vehicles/${vehicle?.id}`);
-        vehicleImg = vData.vehicle_images?.[0]?.url || vData.image_url || vehicleImg;
-      } catch {}
+    // Build read_at lookup from receipts
+    const readMap = {};
+    (read_receipts || []).forEach(r => { readMap[r.id] = r.read_at; });
+    // Also use read_at from messages themselves
+    (messages || []).forEach(m => { if (m.read_at) readMap[m.id] = m.read_at; });
 
-      chatView.innerHTML = `
-        <div class="chat-active-header">
-          <div class="conversation-avatar">${otherUser?.avatar_url ? `<img src="${otherUser.avatar_url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (otherUser?.username ? otherUser.username.charAt(0).toUpperCase() : '?')}</div>
-          <div class="chat-header-info">
-            <h4>${escapeHtml(otherUser?.username || 'Usuario')}</h4>
-            <span id="chatOnlineStatus" style="color:var(--text-secondary);font-size:0.8rem;transition:color 0.3s;font-weight:600;">Calculando...</span>
-          </div>
+    let vehicleImg = 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=120&h=80&fit=crop';
+    try {
+      const vData = await request(`/vehicles/${vehicle?.id}`);
+      vehicleImg = vData.vehicle_images?.[0]?.url || vData.image_url || vehicleImg;
+    } catch {}
 
-          ${vehicle ? `
-          <div class="chat-vehicle-ref-inline" onclick="viewVehicle(${vehicle.id})" title="Ver publicación">
-            <img src="${vehicleImg}" onerror="this.src='https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=120&h=80&fit=crop'" alt="">
-            <div class="chat-vehicle-ref-inline-info">
-              <div class="chat-vehicle-ref-title">${escapeHtml(vehicle.title || (vehicle.brand + ' ' + vehicle.model))}</div>
-              <div class="chat-vehicle-ref-price">$${formatNumber(vehicle.price)}</div>
-            </div>
-            <span class="chat-vehicle-ref-arrow">›</span>
-          </div>
-          ` : ''}
-
-          ${conv.buyer_id === currentUser?.id ? `<button class="chat-header-btn" onclick="openRateModal(${convId}, ${otherUser?.id})" title="Calificar">★</button>` : ''}
+    chatView.innerHTML = `
+      <div class="chat-active-header">
+        <div class="conversation-avatar">${otherUser?.avatar_url ? `<img src="${otherUser.avatar_url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (otherUser?.username ? otherUser.username.charAt(0).toUpperCase() : '?')}</div>
+        <div class="chat-header-info">
+          <h4>${escapeHtml(otherUser?.username || 'Usuario')}</h4>
+          <span id="chatOnlineStatus" style="color:var(--text-secondary);font-size:0.8rem;transition:color 0.3s;font-weight:600;">Calculando...</span>
         </div>
 
-        <div class="chat-messages-container" id="chatMessagesContainer"></div>
-        <div class="chat-input-container"><input type="text" id="chatMessageInput" placeholder="Escribe un mensaje..." onkeypress="if(event.key==='Enter')sendMessage()"><button class="btn btn-primary" onclick="sendMessage()"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg></button></div>
-      `;
-    }
+        ${vehicle ? `
+        <div class="chat-vehicle-ref-inline" onclick="viewVehicle(${vehicle.id})" title="Ver publicación">
+          <img src="${vehicleImg}" onerror="this.src='https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=120&h=80&fit=crop'" alt="">
+          <div class="chat-vehicle-ref-inline-info">
+            <div class="chat-vehicle-ref-title">${escapeHtml(vehicle.title || (vehicle.brand + ' ' + vehicle.model))}</div>
+            <div class="chat-vehicle-ref-price">$${formatNumber(vehicle.price)}</div>
+          </div>
+          <span class="chat-vehicle-ref-arrow">›</span>
+        </div>
+        ` : ''}
 
-    // Actualizar solo los mensajes (sin borrar el input)
-    const messagesContainer = document.getElementById('chatMessagesContainer');
-    if (messagesContainer) {
-      const messagesHtml = messages.map(m => `<div class="chat-bubble ${m.sender_id === currentUser?.id ? 'sent' : 'received'}">${m.sender_id !== currentUser?.id ? `<div class="sender">${escapeHtml(m.username)}</div>` : ''}<div class="content">${escapeHtml(m.content)}</div><div class="time">${formatTime(m.created_at)}</div></div>`).join('');
-      messagesContainer.innerHTML = messagesHtml;
-    }
+        ${conv.buyer_id === currentUser?.id ? `<button class="chat-header-btn" onclick="openRateModal(${convId}, ${otherUser?.id})" title="Calificar">★</button>` : ''}
+      </div>
 
-    const onlineStatusEl = document.getElementById('chatOnlineStatus');
-    if (onlineStatusEl) {
-      const lastSeenStr = otherUser?.last_seen || null;
-      if (lastSeenStr) {
-        const diffMinutes = Math.floor((Date.now() - new Date(lastSeenStr)) / 60000);
-        if (diffMinutes < 3) {
-           onlineStatusEl.textContent = 'En línea 🟢';
-           onlineStatusEl.style.color = 'var(--success)';
-        } else {
-           onlineStatusEl.textContent = 'Últ. vez: ' + formatRelTime(lastSeenStr);
-           onlineStatusEl.style.color = 'var(--text-secondary)';
-        }
-      } else {
-        onlineStatusEl.textContent = 'Desconectado';
-        onlineStatusEl.style.color = 'var(--text-secondary)';
+      <div class="chat-messages-container" id="chatMessagesContainer"></div>
+      <div class="chat-input-container"><input type="text" id="chatMessageInput" placeholder="Escribe un mensaje..." onkeypress="if(event.key==='Enter')sendMessage()"><button class="btn btn-primary" onclick="sendMessage()"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg></button></div>
+    `;
+
+    // Render all messages
+    const container = document.getElementById('chatMessagesContainer');
+    (messages || []).forEach(m => appendMessageToDOM(m, readMap[m.id]));
+    lastMessageId = messages?.length ? messages[messages.length - 1].id : 0;
+
+    updateOnlineStatus(otherUser);
+    scrollChat();
+
+    // Mark messages as read (fire-and-forget)
+    request(`/conversations/${convId}/read`, { method: 'PUT' }).catch(() => {});
+  } catch (err) { showToast(err.message, 'error'); }
+  isLoadingMessages = false;
+}
+
+async function pollNewMessages(convId) {
+  if (isLoadingMessages || convId !== currentConversationId) return;
+  isLoadingMessages = true;
+  try {
+    const { messages, read_receipts } = await request(`/conversations/${convId}/messages?after=${lastMessageId}`);
+
+    // Update read receipts on existing sent messages
+    if (read_receipts?.length) updateReadReceipts(read_receipts);
+
+    if (messages?.length) {
+      const isAtBottom = hasUserScrolledToBottom();
+      const incoming = messages.filter(m => m.sender_id !== currentUser?.id);
+
+      messages.forEach(m => appendMessageToDOM(m, m.read_at));
+      lastMessageId = messages[messages.length - 1].id;
+
+      if (isAtBottom) scrollChat();
+
+      // Mark new incoming messages as read
+      if (incoming.length > 0) {
+        request(`/conversations/${convId}/read`, { method: 'PUT' }).catch(() => {});
       }
     }
+  } catch {}
+  isLoadingMessages = false;
+}
 
-    if (!isPolling) scrollChat(); // Only scroll down on initial open or new message
-  } catch (err) { showToast(err.message, 'error'); }
+function appendMessageToDOM(message, readAt) {
+  const container = document.getElementById('chatMessagesContainer');
+  if (!container) return;
+
+  const isSent = message.sender_id === currentUser?.id;
+  const bubble = document.createElement('div');
+  bubble.className = `chat-bubble ${isSent ? 'sent' : 'received'}`;
+  bubble.dataset.messageId = message.id;
+
+  let html = '';
+  if (!isSent) html += `<div class="sender">${escapeHtml(message.username)}</div>`;
+  html += `<div class="content">${escapeHtml(message.content)}</div>`;
+  html += `<div class="time">${formatTime(message.created_at)}`;
+  if (isSent && readAt) {
+    html += ` <span class="read-receipt">Visto ${formatHourMinute(readAt)}</span>`;
+  }
+  html += `</div>`;
+
+  bubble.innerHTML = html;
+  container.appendChild(bubble);
+}
+
+function updateReadReceipts(receipts) {
+  receipts.forEach(r => {
+    if (!r.read_at) return;
+    const bubble = document.querySelector(`[data-message-id="${r.id}"] .time`);
+    if (bubble && !bubble.querySelector('.read-receipt')) {
+      bubble.innerHTML += ` <span class="read-receipt">Visto ${formatHourMinute(r.read_at)}</span>`;
+    }
+  });
+}
+
+function updateOnlineStatus(otherUser) {
+  const el = document.getElementById('chatOnlineStatus');
+  if (!el) return;
+  const lastSeenStr = otherUser?.last_seen || null;
+  if (lastSeenStr) {
+    const diffMinutes = Math.floor((Date.now() - new Date(lastSeenStr)) / 60000);
+    if (diffMinutes < 3) {
+      el.textContent = 'En línea';
+      el.style.color = 'var(--success)';
+    } else {
+      el.textContent = 'Últ. vez: ' + formatRelTime(lastSeenStr);
+      el.style.color = 'var(--text-secondary)';
+    }
+  } else {
+    el.textContent = 'Desconectado';
+    el.style.color = 'var(--text-secondary)';
+  }
+}
+
+function formatHourMinute(d) {
+  return new Date(d).toLocaleString('es-ES', { hour: '2-digit', minute: '2-digit' });
 }
 
 async function sendMessage() {
   const input = document.getElementById('chatMessageInput');
   const content = input?.value.trim();
   if (!content || !currentConversationId) return;
+  input.value = '';
   try {
-    await request(`/conversations/${currentConversationId}/messages`, { method: 'POST', body: JSON.stringify({ content }) });
-    if (input) input.value = '';
-    loadChatMessages(currentConversationId);
-  } catch (err) { showToast(err.message, 'error'); }
+    const message = await request(`/conversations/${currentConversationId}/messages`, { method: 'POST', body: JSON.stringify({ content }) });
+    appendMessageToDOM(message, null);
+    lastMessageId = message.id;
+    scrollChat();
+  } catch (err) {
+    showToast(err.message, 'error');
+    if (input) input.value = content;
+  }
 }
 
 function renderEmptyChat() {
@@ -681,22 +760,17 @@ function renderEmptyChat() {
 }
 
 function scrollChat() { setTimeout(() => { const c = document.getElementById('chatMessagesContainer'); if (c) c.scrollTop = c.scrollHeight; }, 100); }
-function startPolling() { 
-  stopPolling(); 
-  pollingInterval = setInterval(() => { 
-    if (currentConversationId) {
-      const isAtBottom = hasUserScrolledToBottom();
-      loadChatMessages(currentConversationId, true).then(() => {
-        if (isAtBottom) scrollChat();
-      });
-    }
-  }, 3000); 
+function startPolling() {
+  stopPolling();
+  pollingInterval = setInterval(() => {
+    if (currentConversationId) pollNewMessages(currentConversationId);
+  }, 3000);
 }
 function stopPolling() { if (pollingInterval) { clearInterval(pollingInterval); pollingInterval = null; } }
 
 function hasUserScrolledToBottom() {
   const c = document.getElementById('chatMessagesContainer');
-  if(!c) return true; // Default to scroll down if not found
+  if(!c) return true;
   // If user is within 50px of the bottom, consider them at the bottom
   return c.scrollHeight - c.scrollTop - c.clientHeight < 50;
 }

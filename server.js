@@ -672,24 +672,39 @@ app.get('/api/conversations', authenticateToken, async (req, res) => {
 
     if (error) throw error;
     
-    const conversationsWithDetails = await Promise.all(data.map(async c => {
-      const { data: vehicle } = await supabase.from('vehicles').select('id, title, image_url, price, brand, model, user_id').eq('id', c.vehicle_id).single();
-      const { data: buyerUser } = await supabase.from('users').select('id, username').eq('id', c.buyer_id).single();
-      const { data: buyerProfile } = await supabase.from('profiles').select('avatar_url').eq('user_id', c.buyer_id).single();
-      const { data: sellerUser } = await supabase.from('users').select('id, username').eq('id', c.seller_id).single();
-      const { data: sellerProfile } = await supabase.from('profiles').select('avatar_url').eq('user_id', c.seller_id).single();
-      const buyer = { ...buyerUser, avatar_url: buyerProfile?.avatar_url };
-      const seller = { ...sellerUser, avatar_url: sellerProfile?.avatar_url };
-      const { data: messages } = await supabase.from('messages').select('content, created_at, sender_id').eq('conversation_id', c.id).order('created_at', { ascending: false }).limit(1);
+    // Batch queries instead of N+1
+    const vehicleIds = [...new Set(data.map(c => c.vehicle_id))];
+    const userIds = [...new Set(data.flatMap(c => [c.buyer_id, c.seller_id]))];
+    const convIds = data.map(c => c.id);
+
+    const [vehiclesRes, usersRes, profilesRes, messagesRes] = await Promise.all([
+      supabase.from('vehicles').select('id, title, image_url, price, brand, model, user_id').in('id', vehicleIds),
+      supabase.from('users').select('id, username').in('id', userIds),
+      supabase.from('profiles').select('user_id, avatar_url').in('user_id', userIds),
+      supabase.from('messages').select('conversation_id, content, created_at, sender_id').in('conversation_id', convIds).order('created_at', { ascending: false })
+    ]);
+
+    const vehiclesMap = Object.fromEntries((vehiclesRes.data || []).map(v => [v.id, v]));
+    const usersMap = Object.fromEntries((usersRes.data || []).map(u => [u.id, u]));
+    const profilesMap = Object.fromEntries((profilesRes.data || []).map(p => [p.user_id, p]));
+    const lastMessageMap = {};
+    (messagesRes.data || []).forEach(m => {
+      if (!lastMessageMap[m.conversation_id]) lastMessageMap[m.conversation_id] = m;
+    });
+
+    const conversationsWithDetails = data.map(c => {
+      const buyer = { ...usersMap[c.buyer_id], avatar_url: profilesMap[c.buyer_id]?.avatar_url };
+      const seller = { ...usersMap[c.seller_id], avatar_url: profilesMap[c.seller_id]?.avatar_url };
       const otherUser = c.buyer_id === req.user.id ? seller : buyer;
+      const lastMsg = lastMessageMap[c.id];
       return {
         ...c,
-        vehicle,
+        vehicle: vehiclesMap[c.vehicle_id],
         other_user: otherUser,
-        last_message: messages?.[0]?.content,
-        last_message_time: messages?.[0]?.created_at
+        last_message: lastMsg?.content,
+        last_message_time: lastMsg?.created_at
       };
-    }));
+    });
     
     res.json(conversationsWithDetails);
   } catch (error) {
@@ -817,20 +832,40 @@ app.get('/api/conversations/:id/messages', authenticateToken, async (req, res) =
       return res.status(403).json({ error: 'No tienes acceso' });
     }
 
-    const { data: messages, error } = await supabase
+    let msgQuery = supabase
       .from('messages')
       .select('*')
-      .eq('conversation_id', req.params.id)
-      .order('created_at', { ascending: true });
+      .eq('conversation_id', req.params.id);
 
+    // Delta polling: only fetch messages after a given ID
+    const afterId = req.query.after;
+    if (afterId) msgQuery = msgQuery.gt('id', parseInt(afterId));
+
+    const { data: messages, error } = await msgQuery.order('created_at', { ascending: true });
     if (error) throw error;
-    
-    const messagesWithUsers = await Promise.all((messages || []).map(async m => {
-      const { data: user } = await supabase.from('users').select('username').eq('id', m.sender_id).single();
-      return { ...m, username: user?.username };
-    }));
-    
-    res.json(messagesWithUsers);
+
+    // Batch fetch usernames (only 2 unique senders max)
+    const senderIds = [...new Set((messages || []).map(m => m.sender_id))];
+    let usernameMap = {};
+    if (senderIds.length > 0) {
+      const { data: users } = await supabase.from('users').select('id, username').in('id', senderIds);
+      usernameMap = Object.fromEntries((users || []).map(u => [u.id, u.username]));
+    }
+    const messagesWithUsers = (messages || []).map(m => ({ ...m, username: usernameMap[m.sender_id] }));
+
+    // Fetch read receipts for messages sent by current user
+    let readReceipts = [];
+    if (afterId) {
+      const { data: receipts } = await supabase
+        .from('messages')
+        .select('id, read_at')
+        .eq('conversation_id', req.params.id)
+        .eq('sender_id', req.user.id)
+        .not('read_at', 'is', null);
+      readReceipts = receipts || [];
+    }
+
+    res.json({ messages: messagesWithUsers, read_receipts: readReceipts });
   } catch (error) {
     res.status(500).json({ error: 'Error' });
   }
@@ -877,9 +912,38 @@ app.post('/api/conversations/:id/messages', authenticateToken, async (req, res) 
       link: `/messages/${req.params.id}`
     });
 
-    res.json(message);
+    res.json({ ...message, username: message.users?.username });
   } catch (error) {
     console.error(error);
+    res.status(500).json({ error: 'Error' });
+  }
+});
+
+// MARK MESSAGES AS READ
+app.put('/api/conversations/:id/read', authenticateToken, async (req, res) => {
+  try {
+    const { data: conversation } = await supabase
+      .from('conversations')
+      .select('buyer_id, seller_id')
+      .eq('id', req.params.id)
+      .single();
+
+    if (!conversation) return res.status(404).json({ error: 'Conversación no encontrada' });
+    if (conversation.buyer_id !== req.user.id && conversation.seller_id !== req.user.id) {
+      return res.status(403).json({ error: 'No tienes acceso' });
+    }
+
+    const otherUserId = conversation.buyer_id === req.user.id ? conversation.seller_id : conversation.buyer_id;
+
+    await supabase
+      .from('messages')
+      .update({ read_at: new Date().toISOString() })
+      .eq('conversation_id', req.params.id)
+      .eq('sender_id', otherUserId)
+      .is('read_at', null);
+
+    res.json({ success: true });
+  } catch (error) {
     res.status(500).json({ error: 'Error' });
   }
 });

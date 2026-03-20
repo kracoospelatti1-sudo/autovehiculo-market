@@ -842,6 +842,7 @@ select {
 }
 
 .chat-bubble .time { font-size: 0.68rem; color: var(--text-3); }
+.chat-bubble .read-receipt { font-size: 0.62rem; color: var(--primary-light); margin-left: 0.3rem; font-weight: 500; }
 
 .chat-input-container {
   display: flex;
