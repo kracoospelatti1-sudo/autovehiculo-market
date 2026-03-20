@@ -266,13 +266,6 @@ async function viewVehicle(id) {
 
     const content = document.getElementById('vehicleDetailContent');
     content.innerHTML = `
-      <style>
-        .mobile-only { display: none; }
-        @media (max-width: 768px) {
-          .desktop-only { display: none; }
-          .mobile-only { display: flex; }
-        }
-      </style>
       <div class="detail-grid">
         <div class="detail-gallery desktop-only">
           <div class="main-image">
