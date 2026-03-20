@@ -740,6 +740,7 @@ select {
   font-size: 0.9rem;
   color: #000;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
 .conversation-info { flex: 1; min-width: 0; }

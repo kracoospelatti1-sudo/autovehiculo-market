@@ -567,7 +567,7 @@ async function loadConversations() {
     const container = document.getElementById('conversationsListContent');
     if (!conversations?.length) { container.innerHTML = '<div class="empty-state" style="padding:2rem;"><p>Sin conversaciones</p></div>'; renderEmptyChat(); return; }
     container.innerHTML = conversations.map(c => `
-      <div class="conversation-item ${currentConversationId === c.id ? 'active' : ''}" onclick="openConversation(${c.id})">
+      <div class="conversation-item ${currentConversationId === c.id ? 'active' : ''}" onclick="openConversation(${c.id}, this)">
         <div class="conversation-avatar">${c.other_user?.avatar_url ? `<img src="${c.other_user.avatar_url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (c.other_user?.username ? c.other_user.username.charAt(0).toUpperCase() : '?')}</div>
         <div class="conversation-info">
           <div class="conversation-name">${escapeHtml(c.other_user?.username || 'Usuario')}</div>
