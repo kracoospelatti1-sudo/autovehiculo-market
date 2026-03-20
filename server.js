@@ -61,6 +61,15 @@ const isAdmin = async (userId) => {
   return data?.is_admin === true;
 };
 
+const isBanned = async (userId) => {
+  const { data } = await supabase
+    .from('profiles')
+    .select('is_banned')
+    .eq('user_id', userId)
+    .single();
+  return data?.is_banned === true;
+};
+
 function formatNumber(num) {
   if (num == null) return '0';
   return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -262,6 +271,10 @@ app.get('/api/vehicles/:id', async (req, res) => {
 
 app.post('/api/vehicles', authenticateToken, async (req, res) => {
   try {
+    if (await isBanned(req.user.id)) {
+      return res.status(403).json({ error: 'Tu cuenta ha sido restringida. No podés publicar contenido.' });
+    }
+
     const { title, brand, model, year, price, mileage, fuel, transmission, description, city, images } = req.body;
     
     if (!title || !brand || !model || !year || !price) {
@@ -499,6 +512,27 @@ app.put('/api/ping', authenticateToken, async (req, res) => {
     await supabase.from('profiles').update({ last_seen: new Date().toISOString() }).eq('user_id', req.user.id);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: 'Ping fallido' }); }
+});
+
+app.delete('/api/admin/reports/:id', authenticateToken, async (req, res) => {
+  if (!await isAdmin(req.user.id)) return res.status(403).send('Forbidden');
+  try {
+    await supabase.from('reports').delete().eq('id', req.params.id);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: 'Error al borrar' }); }
+});
+
+app.put('/api/admin/users/:id/ban', authenticateToken, async (req, res) => {
+  if (!await isAdmin(req.user.id)) return res.status(403).send('Forbidden');
+  try {
+    const targetUser = req.params.id;
+    const { data: profile } = await supabase.from('profiles').select('is_banned').eq('user_id', targetUser).single();
+    const newStatus = !profile?.is_banned;
+    await supabase.from('profiles').update({ is_banned: newStatus }).eq('user_id', targetUser);
+    res.json({ is_banned: newStatus });
+  } catch (error) {
+    res.status(500).json({ error: 'Error cambiando estado de baneo' });
+  }
 });
 
 app.put('/api/profile', authenticateToken, async (req, res) => {

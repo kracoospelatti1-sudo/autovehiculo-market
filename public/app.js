@@ -242,7 +242,7 @@ async function viewVehicle(id) {
   currentVehicleId = id;
   try {
     const vehicle = await request(`/vehicles/${id}`);
-    const isOwner = currentUser?.id === vehicle.seller_id;
+    const isOwner = currentUser?.id === vehicle.seller_id || currentUser?.profile?.is_admin;
     const isLoggedIn = !!localStorage.getItem('token');
     let isFavorite = false;
     if (isLoggedIn) {
@@ -836,17 +836,19 @@ async function loadAdminUsers() {
   try {
     const users = await request('/admin/users');
     document.getElementById('adminContent').innerHTML = users?.length ? `
-      <table class="admin-table"><thead><tr><th>Usuario</th><th>Email</th><th>Fecha</th><th>Vehículos</th><th>Admin</th></tr></thead><tbody>
+      <table class="admin-table"><thead><tr><th>Usuario</th><th>Email</th><th>Fecha</th><th>Vehículos</th><th>Permisos</th></tr></thead><tbody>
         ${users.map(u => `
           <tr>
             <td>${escapeHtml(u.username)}</td>
             <td>${escapeHtml(u.email)}</td>
             <td>${formatRelTime(u.created_at)}</td>
             <td>${u.vehicles?.[0]?.count || 0}</td>
-            <td>
-              <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;">
-                <input type="checkbox" ${u.profiles?.[0]?.is_admin ? 'checked' : ''} onchange="toggleAdmin(${u.id}, this.checked)">
-                Admin
+            <td style="display:flex;gap:0.75rem;">
+              <label style="display:flex;align-items:center;gap:0.25rem;cursor:pointer;">
+                <input type="checkbox" ${u.profiles?.[0]?.is_admin ? 'checked' : ''} onchange="toggleAdmin(${u.id}, this.checked)"> Admin
+              </label>
+              <label style="display:flex;align-items:center;gap:0.25rem;cursor:pointer;color:var(--danger)">
+                <input type="checkbox" ${u.profiles?.[0]?.is_banned ? 'checked' : ''} onchange="toggleBan(${u.id})"> Bloqueado
               </label>
             </td>
           </tr>
@@ -858,6 +860,13 @@ async function loadAdminUsers() {
 
 async function toggleAdmin(id, isAdmin) {
   try { await request(`/admin/users/${id}/admin`, { method: 'PUT', body: JSON.stringify({ is_admin: isAdmin }) }); showToast('Actualizado', 'success'); } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function toggleBan(id) {
+  try { 
+    const res = await request(`/admin/users/${id}/ban`, { method: 'PUT' }); 
+    showToast(res.is_banned ? 'Usuario bloqueado' : 'Usuario desbloqueado', 'success'); 
+  } catch (err) { showToast(err.message, 'error'); }
 }
 
 // MODALS
@@ -1028,7 +1037,5 @@ function tryPublish() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  initBrandFilters();
-});
+initBrandFilters();
 showSection('home');
