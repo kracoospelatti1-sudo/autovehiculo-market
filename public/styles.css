@@ -482,6 +482,23 @@ select {
   border-radius: 6px;
   border: 1px solid rgba(245,158,11,0.3);
 }
+.vehicle-badge.badge-sold {
+  background: rgba(239,68,68,0.85);
+  color: #fff;
+  border-color: rgba(239,68,68,0.4);
+}
+.sold-banner {
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.3);
+  color: #ef4444;
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+  letter-spacing: 0.05em;
+}
 
 .vehicle-info { padding: 1rem 1.1rem 1.1rem; }
 
@@ -1043,32 +1060,90 @@ select {
 .star:hover, .star.active { color: var(--warning); transform: scale(1.1); }
 
 /* ===== TOAST ===== */
-.toast {
+.toast-container {
   position: fixed;
   bottom: 1.5rem;
   right: 1.5rem;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0.5rem;
+  z-index: 10000;
+  max-width: 340px;
+}
+.toast {
   background: var(--dark-2);
   color: var(--text);
   padding: 0.85rem 1.25rem;
   border-radius: var(--radius-md);
-  display: none;
-  z-index: 10000;
   box-shadow: var(--shadow-lg);
   border-left: 3px solid var(--primary);
   font-size: 0.9rem;
   font-weight: 500;
-  max-width: 320px;
-  animation: toastIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  cursor: pointer;
 }
+.toast.toast-enter { animation: toastIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.toast.toast-exit { animation: toastOut 0.25s ease forwards; }
 @keyframes toastIn { from { opacity: 0; transform: translateX(60px) scale(0.9); } to { opacity: 1; transform: translateX(0) scale(1); } }
+@keyframes toastOut { to { opacity: 0; transform: translateX(60px); } }
 .toast.error { border-color: var(--accent); }
 .toast.success { border-color: var(--success); }
+@media (max-width: 768px) {
+  .toast-container { bottom: 5rem; right: 0.75rem; left: 0.75rem; max-width: none; }
+}
 
 /* ===== EMPTY STATE ===== */
 .empty-state { text-align: center; padding: 4rem 2rem; color: var(--text-3); }
 .empty-state svg { width: 56px; height: 56px; fill: var(--dark-4); margin-bottom: 1rem; }
 .empty-state h3 { color: var(--text-2); font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem; }
 .empty-state p { font-size: 0.88rem; }
+
+/* ===== LIGHTBOX ===== */
+.lightbox-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 2000;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.lightbox-overlay img {
+  max-width: 90vw; max-height: 85vh; object-fit: contain; cursor: default;
+  border-radius: var(--radius-md);
+}
+.lightbox-close {
+  position: absolute; top: 1rem; right: 1.5rem; background: none; border: none;
+  color: #fff; font-size: 2.5rem; cursor: pointer; z-index: 2001; line-height: 1;
+}
+.lightbox-prev, .lightbox-next {
+  position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.1);
+  border: none; color: #fff; font-size: 3rem; cursor: pointer; padding: 0.5rem 1rem;
+  border-radius: var(--radius-md); backdrop-filter: blur(4px); transition: background 0.2s;
+}
+.lightbox-prev:hover, .lightbox-next:hover { background: rgba(255,255,255,0.2); }
+.lightbox-prev { left: 1rem; }
+.lightbox-next { right: 1rem; }
+.lightbox-counter {
+  position: absolute; bottom: 1.5rem; left: 50%; transform: translateX(-50%);
+  color: rgba(255,255,255,0.7); font-size: 0.9rem; font-weight: 500;
+}
+@media (max-width: 768px) {
+  .lightbox-prev, .lightbox-next { font-size: 2rem; padding: 0.3rem 0.7rem; }
+}
+
+/* ===== CONFIRM MODAL ===== */
+.btn-danger {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: #fff; border: none; font-weight: 600;
+}
+.btn-danger:hover { background: linear-gradient(135deg, #dc2626, #b91c1c); }
+
+/* ===== PROFILE COMPLETENESS ===== */
+.profile-completeness {
+  background: var(--dark-2); border: 1px solid rgba(245,158,11,0.2);
+  border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1.5rem;
+}
+.profile-completeness h4 { font-size: 0.95rem; font-weight: 600; color: var(--text); }
+.progress-bar { height: 6px; background: var(--dark-4); border-radius: 99px; overflow: hidden; margin: 0.75rem 0; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--primary-light)); border-radius: 99px; transition: width 0.4s ease; }
+.checklist { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; margin-top: 0.5rem; }
+.checklist .done { color: var(--success); font-size: 0.82rem; }
+.checklist .pending { color: var(--text-3); font-size: 0.82rem; }
 
 /* ===== ANIMATIONS ===== */
 .fade-in { animation: fadeIn 0.35s cubic-bezier(0.4,0,0.2,1); }

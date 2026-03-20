@@ -162,7 +162,7 @@ async function loadVehicles(page = 1) {
     container.innerHTML = vehicles.map(v => `
       <div class="vehicle-card" onclick="viewVehicle(${v.id})">
         <div class="vehicle-image-container">
-          <img src="${v.images?.find(i => i.is_primary)?.url || v.images?.[0]?.url || v.image_url || 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400&h=300&fit=crop'}" class="vehicle-image" alt="${escapeHtml(v.title)}" onerror="this.src='https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400&h=300&fit=crop'">
+          <img src="${v.images?.find(i => i.is_primary)?.url || v.images?.[0]?.url || v.image_url || 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400&h=300&fit=crop'}" class="vehicle-image" alt="${escapeHtml(v.title)}" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400&h=300&fit=crop'">
           <span class="vehicle-badge">${v.year}</span>
           ${localStorage.getItem('token') ? `<button class="favorite-btn ${v.is_favorite ? 'active' : ''}" onclick="toggleFavorite(${v.id}, event)"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>` : ''}
         </div>
@@ -173,6 +173,7 @@ async function loadVehicles(page = 1) {
           <div class="vehicle-meta">
             <span>${formatNumber(v.mileage || 0)} km</span>
             <span>${v.fuel || 'N/A'}</span>
+            ${v.transmission ? `<span>${escapeHtml(v.transmission)}</span>` : ''}
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.75rem;">
             <div class="vehicle-views" style="margin-top:0;"><svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg> ${v.views || 0} vistas</div>
@@ -215,7 +216,8 @@ function clearFilters() {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
-  document.getElementById('filterModel').innerHTML = '<option value="">Todos</option>';
+  const filterModelEl = document.getElementById('filterModel');
+  if (filterModelEl) filterModelEl.innerHTML = '<option value="">Todos</option>';
   loadVehicles(1);
 }
 
@@ -273,16 +275,17 @@ async function viewVehicle(id) {
       <div class="detail-grid">
         <div class="detail-gallery desktop-only">
           <div class="main-image">
-            <img src="${mainImgUrl}" id="detailMainImage" alt="Vehículo">
+            <img src="${mainImgUrl}" id="detailMainImage" alt="Vehículo" style="cursor:pointer;" onclick="openLightbox(window._detailImages, window._detailImages.indexOf(this.src) >= 0 ? window._detailImages.indexOf(this.src) : 0)">
           </div>
           <div class="thumbnail-list" id="imageThumbnails">
-            ${images.map((img, i) => `<img src="${img.url}" class="${i === 0 ? 'active' : ''}" onclick="document.getElementById('detailMainImage').src='${img.url}';this.parentElement.querySelectorAll('img').forEach(x=>x.classList.remove('active'));this.classList.add('active')">`).join('')}
+            ${images.map((img, i) => `<img src="${img.url}" class="${i === 0 ? 'active' : ''}" data-url="${escapeHtml(img.url)}" data-index="${i}" onclick="document.getElementById('detailMainImage').src=this.dataset.url;this.parentElement.querySelectorAll('img').forEach(x=>x.classList.remove('active'));this.classList.add('active')">`).join('')}
           </div>
         </div>
-        <div class="mobile-only" style="overflow-x: auto; scroll-snap-type: x mandatory; gap: 0.5rem; padding-bottom: 0.5rem; margin-bottom: 1.5rem;">
-          ${images.map(img => `<img src="${img.url}" style="flex: 0 0 92%; scroll-snap-align: center; height: 350px; object-fit: cover; border-radius: var(--radius-lg);">`).join('')}
+        <div class="mobile-only" style="overflow-x: auto; scroll-snap-type: x mandatory; gap: 0.5rem; padding-bottom: 0.5rem; margin-bottom: 1.5rem; display:flex;">
+          ${images.map((img, i) => `<img src="${img.url}" style="flex: 0 0 92%; scroll-snap-align: center; height: 350px; object-fit: cover; border-radius: var(--radius-lg); cursor:pointer;" onclick="openLightbox(window._detailImages, ${i})">`).join('')}
         </div>
         <div class="detail-info" id="vehicleDetail">
+          ${vehicle.status === 'sold' ? '<div class="sold-banner">VENDIDO</div>' : vehicle.status === 'paused' ? '<div class="sold-banner" style="border-color:rgba(245,158,11,0.3);color:var(--primary);background:rgba(245,158,11,0.08);">PAUSADO</div>' : ''}
           <h1>${escapeHtml(vehicle.title)}</h1>
           <p class="detail-subtitle">${escapeHtml(vehicle.brand)} ${escapeHtml(vehicle.model)}</p>
           <p class="detail-price">$${formatNumber(vehicle.price)}</p>
@@ -290,6 +293,7 @@ async function viewVehicle(id) {
             <div class="spec-card"><div class="label">Año</div><div class="value">${vehicle.year}</div></div>
             <div class="spec-card"><div class="label">Kilometraje</div><div class="value">${formatNumber(vehicle.mileage || 0)} km</div></div>
             <div class="spec-card"><div class="label">Combustible</div><div class="value">${vehicle.fuel || 'N/A'}</div></div>
+            <div class="spec-card"><div class="label">Transmisión</div><div class="value">${vehicle.transmission || 'N/A'}</div></div>
             <div class="spec-card"><div class="label">Ciudad</div><div class="value">${vehicle.city || 'No especificada'}</div></div>
           </div>
           ${vehicle.description ? `<div class="detail-description"><h4>Descripción</h4><p>${escapeHtml(vehicle.description)}</p></div>` : ''}
@@ -302,7 +306,7 @@ async function viewVehicle(id) {
             </div>
           </div>
           
-          ${isLoggedIn && !isOwner ? `
+          ${isLoggedIn && !isOwner && vehicle.status === 'active' ? `
             <div class="marketplace-chat-box" style="margin-top:1.5rem;background:var(--dark-2);padding:1.5rem;border-radius:var(--radius-lg);border:1px solid var(--border);" id="chatBoxContainer">
               <div id="existingConvBanner" style="display:none;text-align:center;">
                 <p style="margin-bottom:0.75rem;color:var(--text-secondary);">Ya consultaste sobre este vehículo</p>
@@ -324,6 +328,7 @@ async function viewVehicle(id) {
           ` : ''}
 
           <div class="detail-actions" style="margin-top:1.5rem;display:flex;gap:1rem;flex-direction:column;">
+            <button class="btn btn-secondary" onclick="shareVehicle(${vehicle.id}, '${escapeHtml(vehicle.title).replace(/'/g, "\\'")}')"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="margin-right:0.5rem;"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>Compartir</button>
             ${isLoggedIn ? `<button class="btn ${isFavorite ? 'btn-primary' : 'btn-secondary'}" onclick="toggleFavorite(${vehicle.id}, event)"><svg width="18" height="18" viewBox="0 0 24 24" fill="${isFavorite ? 'currentColor' : 'none'}" stroke="currentColor" style="margin-right:0.5rem;"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>${isFavorite ? 'En favoritos' : 'Guardar en favoritos'}</button>` : ''}
             ${isLoggedIn && !isOwner ? `<button class="btn btn-ghost" onclick="openReportModal(${vehicle.id})" style="color:var(--text-3);">Reportar esta publicación</button>` : ''}
             ${!isLoggedIn ? `<button class="btn btn-primary" style="width:100%" onclick="showSection('login')">Inicia sesión para contactar</button>` : ''}
@@ -331,12 +336,14 @@ async function viewVehicle(id) {
         </div>
       </div>
     `;
+    window._detailImages = images.map(img => img.url);
     showSection('vehicle-detail');
 
     // Check if user already has a conversation for this vehicle
     if (isLoggedIn && !isOwner) {
       try {
-        const convs = await request('/conversations');
+        const convRes = await request('/conversations');
+        const convs = convRes.conversations || convRes;
         const existing = convs.find(c => c.vehicle_id === vehicle.id);
         if (existing) {
           const banner = document.getElementById('existingConvBanner');
@@ -444,8 +451,8 @@ async function loadMyVehicles() {
     container.innerHTML = vehicles.map(v => `
       <div class="vehicle-card" onclick="viewVehicle(${v.id})">
         <div class="vehicle-image-container">
-          <img src="${v.images?.find(i => i.is_primary)?.url || v.images?.[0]?.url || v.image_url || 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400&h=300&fit=crop'}" class="vehicle-image" alt="${escapeHtml(v.title)}" onerror="this.src='https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400&h=300&fit=crop'">
-          <span class="vehicle-badge">${v.status === 'active' ? 'Activo' : v.status}</span>
+          <img src="${v.images?.find(i => i.is_primary)?.url || v.images?.[0]?.url || v.image_url || 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400&h=300&fit=crop'}" class="vehicle-image" alt="${escapeHtml(v.title)}" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400&h=300&fit=crop'">
+          <span class="vehicle-badge ${v.status === 'sold' ? 'badge-sold' : ''}">${v.status === 'active' ? 'Activo' : v.status === 'sold' ? 'VENDIDO' : v.status === 'paused' ? 'Pausado' : v.status}</span>
         </div>
         <div class="vehicle-info">
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
@@ -462,10 +469,11 @@ async function loadMyVehicles() {
   } catch (err) { showToast(err.message, 'error'); }
 }
 
-async function deleteVehicle(id, e) {
+function deleteVehicle(id, e) {
   e.stopPropagation();
-  if (!confirm('¿Eliminar este vehículo?')) return;
-  try { await request(`/vehicles/${id}`, { method: 'DELETE' }); showToast('Eliminado', 'success'); loadMyVehicles(); } catch (err) { showToast(err.message, 'error'); }
+  showConfirmModal('Eliminar vehículo', 'Esta acción no se puede deshacer. Se eliminarán todas las imágenes, conversaciones y favoritos asociados.', 'Eliminar', async () => {
+    try { await request(`/vehicles/${id}`, { method: 'DELETE' }); showToast('Eliminado', 'success'); loadMyVehicles(); } catch (err) { showToast(err.message, 'error'); }
+  });
 }
 
 async function openEditModal(id, e) {
@@ -565,12 +573,15 @@ async function handleQuickMessage(vehicleId) {
   } catch (err) { showToast(err.message, 'error'); }
 }
 
-async function loadConversations() {
+let conversationsPage = 1;
+async function loadConversations(page = 1) {
   try {
-    const conversations = await request('/conversations');
+    const res = await request(`/conversations?page=${page}`);
+    const conversations = res.conversations || res;
+    const total = res.total || conversations.length;
     const container = document.getElementById('conversationsListContent');
-    if (!conversations?.length) { container.innerHTML = '<div class="empty-state" style="padding:2rem;"><p>Sin conversaciones</p></div>'; renderEmptyChat(); return; }
-    container.innerHTML = conversations.map(c => `
+    if (page === 1 && !conversations?.length) { container.innerHTML = '<div class="empty-state" style="padding:2rem;"><p>Sin conversaciones</p></div>'; renderEmptyChat(); return; }
+    const html = conversations.map(c => `
       <div class="conversation-item ${currentConversationId === c.id ? 'active' : ''}" onclick="openConversation(${c.id}, this)">
         <div class="conversation-avatar">${c.other_user?.avatar_url ? `<img src="${c.other_user.avatar_url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (c.other_user?.username ? c.other_user.username.charAt(0).toUpperCase() : '?')}</div>
         <div class="conversation-info">
@@ -583,8 +594,12 @@ async function loadConversations() {
         </div>
       </div>
     `).join('');
-    if (currentConversationId) loadChatFull(currentConversationId);
-    else renderEmptyChat();
+    if (page === 1) container.innerHTML = html; else { const old = container.querySelector('.load-more-btn'); if (old) old.remove(); container.insertAdjacentHTML('beforeend', html); }
+    conversationsPage = page;
+    if (total > page * 20) {
+      container.insertAdjacentHTML('beforeend', `<button class="btn btn-ghost btn-sm load-more-btn" style="width:100%;margin-top:0.5rem;" onclick="loadConversations(${page + 1})">Cargar más</button>`);
+    }
+    if (page === 1) { if (currentConversationId) loadChatFull(currentConversationId); else renderEmptyChat(); }
   } catch (err) { console.error(err); }
 }
 
@@ -685,7 +700,6 @@ async function pollNewMessages(convId) {
     }
 
   } catch {}
-  isLoadingMessages = false;
 
   // Update online status every ~15 seconds (every 5 polls)
   pollCount++;
@@ -696,6 +710,7 @@ async function pollNewMessages(convId) {
       updateOnlineStatus(otherUser);
     } catch {}
   }
+  isLoadingMessages = false;
 }
 
 function appendMessageToDOM(message, readAt) {
@@ -846,7 +861,27 @@ async function viewProfile(id) {
   try {
     const profile = await request(`/profile/${id}`);
     const ratings = await request(`/ratings/${id}`);
+    let completenessHtml = '';
+    if (isOwn) {
+      const fields = [
+        { name: 'Nombre', done: !!profile.username },
+        { name: 'Foto', done: !!profile.avatar_url },
+        { name: 'Teléfono', done: !!profile.phone },
+        { name: 'Ciudad', done: !!profile.city },
+        { name: 'Bio', done: !!profile.bio }
+      ];
+      const completed = fields.filter(f => f.done).length;
+      const pct = Math.round((completed / fields.length) * 100);
+      if (pct < 100) {
+        completenessHtml = `<div class="profile-completeness">
+          <h4>Completá tu perfil (${pct}%)</h4>
+          <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+          <div class="checklist">${fields.map(f => `<span class="${f.done ? 'done' : 'pending'}">${f.done ? '✓' : '○'} ${f.name}</span>`).join('')}</div>
+        </div>`;
+      }
+    }
     document.getElementById('profileHeader').innerHTML = `
+      ${completenessHtml}
       <div class="profile-avatar">${profile.avatar_url ? `<img src="${profile.avatar_url}" alt="">` : profile.username?.charAt(0).toUpperCase()}</div>
       <h2>${escapeHtml(profile.username)}</h2>
       ${profile.rating ? `<div class="rating">${'★'.repeat(Math.round(profile.rating))}${'☆'.repeat(5-Math.round(profile.rating))} <span>(${profile.ratings_count} reseñas)</span></div>` : '<p style="color:var(--text-secondary)">Sin reseñas</p>'}
@@ -1071,6 +1106,52 @@ async function submitRating() {
 function closeAllModals() {
   document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
   document.getElementById('modalOverlay').style.display = 'none';
+  closeLightbox();
+}
+
+// Lightbox
+let lightboxImages = [];
+let lightboxIndex = 0;
+function openLightbox(images, startIndex) {
+  lightboxImages = images;
+  lightboxIndex = startIndex || 0;
+  const modal = document.getElementById('lightboxModal');
+  document.getElementById('lightboxImage').src = lightboxImages[lightboxIndex];
+  document.getElementById('lightboxCounter').textContent = `${lightboxIndex + 1} / ${lightboxImages.length}`;
+  modal.style.display = 'flex';
+}
+function closeLightbox(e) {
+  if (e && e.target && e.target.tagName === 'IMG') return;
+  document.getElementById('lightboxModal').style.display = 'none';
+}
+function lightboxNav(dir) {
+  lightboxIndex = (lightboxIndex + dir + lightboxImages.length) % lightboxImages.length;
+  document.getElementById('lightboxImage').src = lightboxImages[lightboxIndex];
+  document.getElementById('lightboxCounter').textContent = `${lightboxIndex + 1} / ${lightboxImages.length}`;
+}
+document.addEventListener('keydown', e => {
+  if (document.getElementById('lightboxModal').style.display === 'none') return;
+  if (e.key === 'Escape') closeLightbox();
+  if (e.key === 'ArrowLeft') lightboxNav(-1);
+  if (e.key === 'ArrowRight') lightboxNav(1);
+});
+
+// Confirm Modal
+let confirmCallback = null;
+function showConfirmModal(title, message, buttonText, callback) {
+  document.getElementById('confirmModalTitle').textContent = title;
+  document.getElementById('confirmModalMessage').textContent = message;
+  const btn = document.getElementById('confirmModalAction');
+  btn.textContent = buttonText;
+  confirmCallback = callback;
+  btn.onclick = () => { closeConfirmModal(); if (confirmCallback) confirmCallback(); };
+  document.getElementById('confirmModal').style.display = 'block';
+  document.getElementById('modalOverlay').style.display = 'block';
+}
+function closeConfirmModal() {
+  document.getElementById('confirmModal').style.display = 'none';
+  document.getElementById('modalOverlay').style.display = 'none';
+  confirmCallback = null;
 }
 
 // UTILS
@@ -1087,12 +1168,32 @@ function formatRelTime(d) {
 }
 function escapeHtml(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
 
+async function shareVehicle(id, title) {
+  const url = `${window.location.origin}${window.location.pathname}?vehicle=${id}`;
+  if (navigator.share) {
+    try { await navigator.share({ title, url }); } catch {}
+  } else {
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast('Enlace copiado al portapapeles', 'success');
+    } catch { showToast('No se pudo copiar el enlace', 'error'); }
+  }
+}
+
 function showToast(msg, type = 'info') {
-  const toast = document.getElementById('toast');
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+  const toast = document.createElement('div');
+  toast.className = `toast ${type} toast-enter`;
   toast.textContent = msg;
-  toast.className = `toast ${type}`;
-  toast.style.display = 'block';
-  setTimeout(() => toast.style.display = 'none', 3000);
+  toast.onclick = () => removeToast(toast);
+  container.appendChild(toast);
+  setTimeout(() => removeToast(toast), 3500);
+}
+function removeToast(toast) {
+  if (!toast.parentElement) return;
+  toast.classList.add('toast-exit');
+  toast.addEventListener('animationend', () => toast.remove());
 }
 
 function updateNav() {
@@ -1169,7 +1270,15 @@ async function checkAuth() {
   updateNav();
 }
 
-checkAuth();
+checkAuth().then(() => {
+  // Deep linking: ?vehicle=ID
+  const params = new URLSearchParams(window.location.search);
+  const vehicleId = params.get('vehicle');
+  if (vehicleId) {
+    window.history.replaceState({}, '', window.location.pathname);
+    viewVehicle(parseInt(vehicleId));
+  }
+});
 
 // Poll notification count every 30 seconds
 setInterval(() => {

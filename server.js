@@ -176,7 +176,7 @@ app.get('/api/vehicles', async (req, res) => {
   try {
     let query = supabase
       .from('vehicles')
-      .select('*, users!vehicles_user_id_fkey(id, username)')
+      .select('*, users!vehicles_user_id_fkey(id, username)', { count: 'exact' })
       .eq('status', 'active');
 
     const { brand, model, minPrice, maxPrice, minYear, maxYear, minMileage, maxMileage, fuel, city, search, sort, page = 1 } = req.query;
@@ -202,6 +202,7 @@ app.get('/api/vehicles', async (req, res) => {
     else if (sort === 'price_desc') query = query.order('price', { ascending: false });
     else if (sort === 'year_desc') query = query.order('year', { ascending: false });
     else if (sort === 'views') query = query.order('view_count', { ascending: false });
+    else if (sort === 'oldest') query = query.order('created_at', { ascending: true });
     else query = query.order('created_at', { ascending: false });
 
     query = query.range(offset, offset + limit - 1);
@@ -664,11 +665,16 @@ app.get('/api/favorites/:vehicleId/check', authenticateToken, async (req, res) =
 // CONVERSATIONS
 app.get('/api/conversations', authenticateToken, async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const page = parseInt(req.query.page) || 1;
+    const limit = 20;
+    const offset = (page - 1) * limit;
+
+    const { data, error, count } = await supabase
       .from('conversations')
-      .select('*')
+      .select('*', { count: 'exact' })
       .or(`buyer_id.eq.${req.user.id},seller_id.eq.${req.user.id}`)
-      .order('updated_at', { ascending: false });
+      .order('updated_at', { ascending: false })
+      .range(offset, offset + limit - 1);
 
     if (error) throw error;
     
@@ -706,7 +712,7 @@ app.get('/api/conversations', authenticateToken, async (req, res) => {
       };
     });
     
-    res.json(conversationsWithDetails);
+    res.json({ conversations: conversationsWithDetails, total: count || conversationsWithDetails.length });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Error al obtener conversaciones' });
@@ -723,12 +729,16 @@ app.post('/api/conversations', authenticateToken, async (req, res) => {
 
     const { data: vehicle, error: vehicleError } = await supabase
       .from('vehicles')
-      .select('user_id, title')
+      .select('user_id, title, status')
       .eq('id', vehicle_id)
       .single();
 
     if (vehicleError || !vehicle) {
       return res.status(404).json({ error: 'Vehículo no encontrado' });
+    }
+
+    if (vehicle.status === 'sold') {
+      return res.status(400).json({ error: 'Este vehículo ya fue vendido' });
     }
 
     if (vehicle.user_id === req.user.id) {
