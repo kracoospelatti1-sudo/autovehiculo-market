@@ -340,9 +340,9 @@ async function uploadImages() {
 function renderImagePreviews() {
   const container = document.getElementById('imagePreview');
   container.innerHTML = uploadedImages.map((img, i) => `
-    <div class="image-preview-item ${i === 0 ? 'primary' : ''}">
+    <div class="preview-item ${i === 0 ? 'primary' : ''}">
       <img src="${img.preview || img.url}" alt="">
-      <button class="remove-btn" onclick="removeImage(${i})">&times;</button>
+      <button class="preview-remove" onclick="removeImage(${i})">&times;</button>
     </div>
   `).join('');
 }
