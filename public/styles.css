@@ -2,6 +2,7 @@
 
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+img { max-width: 100%; height: auto; display: block; }
 
 :root {
   /* New palette: dark slate + electric amber/orange */
@@ -551,9 +552,14 @@ select {
 .detail-gallery .main-image {
   grid-column: span 3;
   aspect-ratio: 16/9;
-  object-fit: cover;
   width: 100%;
+}
+.detail-gallery .main-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   cursor: pointer;
+  border-radius: var(--radius-sm);
 }
 
 .detail-gallery img:not(.main-image) {
