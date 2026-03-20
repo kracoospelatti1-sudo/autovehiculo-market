@@ -82,11 +82,19 @@ app.post('/api/register', async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     
-    const { data: existingUser } = await supabase
+    const { data: existingByUsername } = await supabase
       .from('users')
       .select('id')
-      .or(`username.ilike.${username},email.ilike.${email}`)
+      .ilike('username', username)
       .single();
+
+    const { data: existingByEmail } = await supabase
+      .from('users')
+      .select('id')
+      .ilike('email', email)
+      .single();
+
+    const existingUser = existingByUsername || existingByEmail;
 
     if (existingUser) {
       return res.status(400).json({ error: 'El usuario o email ya existe' });
@@ -176,7 +184,8 @@ app.get('/api/vehicles', async (req, res) => {
     const offset = (page - 1) * limit;
 
     if (search) {
-      query = query.or(`title.ilike.%${search}%,brand.ilike.%${search}%,model.ilike.%${search}%`);
+      const s = search.replace(/[%_\\]/g, '');
+      query = query.or(`title.ilike.%${s}%,brand.ilike.%${s}%,model.ilike.%${s}%`);
     }
     if (brand) query = query.eq('brand', brand);
     if (model) query = query.ilike('model', `%${model}%`);
@@ -393,7 +402,11 @@ app.delete('/api/vehicles/:id', authenticateToken, async (req, res) => {
       }
     }
 
-    await supabase.from('messages').delete().eq('vehicle_id', req.params.id);
+    const { data: convs } = await supabase.from('conversations').select('id').eq('vehicle_id', req.params.id);
+    if (convs?.length) {
+      const convIds = convs.map(c => c.id);
+      await supabase.from('messages').delete().in('conversation_id', convIds);
+    }
     await supabase.from('conversations').delete().eq('vehicle_id', req.params.id);
     await supabase.from('vehicle_images').delete().eq('vehicle_id', req.params.id);
     await supabase.from('favorites').delete().eq('vehicle_id', req.params.id);
@@ -1105,7 +1118,7 @@ app.get('/api/admin/users', authenticateToken, async (req, res) => {
       .from('users')
       .select(`
         *,
-        profiles(is_admin),
+        profiles(is_admin, is_banned),
         vehicles(count)
       `)
       .order('created_at', { ascending: false });

@@ -568,7 +568,7 @@ async function loadConversations() {
     if (!conversations?.length) { container.innerHTML = '<div class="empty-state" style="padding:2rem;"><p>Sin conversaciones</p></div>'; renderEmptyChat(); return; }
     container.innerHTML = conversations.map(c => `
       <div class="conversation-item ${currentConversationId === c.id ? 'active' : ''}" onclick="openConversation(${c.id})">
-        <div class="conversation-avatar">${c.other_user?.avatar_url ? `<img src="${c.other_user.profiles.avatar_url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (c.other_user?.username ? c.other_user.username.charAt(0).toUpperCase() : '?')}</div>
+        <div class="conversation-avatar">${c.other_user?.avatar_url ? `<img src="${c.other_user.avatar_url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (c.other_user?.username ? c.other_user.username.charAt(0).toUpperCase() : '?')}</div>
         <div class="conversation-info">
           <div class="conversation-name">${escapeHtml(c.other_user?.username || 'Usuario')}</div>
           <div class="conversation-vehicle">${escapeHtml(c.vehicle?.title || '')}</div>
@@ -584,10 +584,11 @@ async function loadConversations() {
   } catch (err) { console.error(err); }
 }
 
-async function openConversation(convId) {
+async function openConversation(convId, el) {
   currentConversationId = convId;
-  document.querySelectorAll('.conversation-item').forEach(el => el.classList.remove('active'));
-  event.currentTarget.classList.add('active');
+  document.querySelectorAll('.conversation-item').forEach(e => e.classList.remove('active'));
+  const target = el || (event && event.currentTarget);
+  if (target) target.classList.add('active');
   loadChatMessages(convId);
   startPolling();
 }
@@ -610,7 +611,7 @@ async function loadChatMessages(convId, isPolling = false) {
 
       chatView.innerHTML = `
         <div class="chat-active-header">
-          <div class="conversation-avatar">${otherUser?.avatar_url ? `<img src="${otherUser.profiles.avatar_url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (otherUser?.username ? otherUser.username.charAt(0).toUpperCase() : '?')}</div>
+          <div class="conversation-avatar">${otherUser?.avatar_url ? `<img src="${otherUser.avatar_url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (otherUser?.username ? otherUser.username.charAt(0).toUpperCase() : '?')}</div>
           <div class="chat-header-info">
             <h4>${escapeHtml(otherUser?.username || 'Usuario')}</h4>
             <span id="chatOnlineStatus" style="color:var(--text-secondary);font-size:0.8rem;transition:color 0.3s;font-weight:600;">Calculando...</span>
@@ -952,8 +953,12 @@ function closeRateModal() {
 
 document.addEventListener('click', e => {
   if (e.target.classList.contains('star') && e.target.closest('#starRating')) {
-    e.target.closest('#starRating').querySelectorAll('.star').forEach(s => s.classList.remove('active'));
-    e.target.classList.add('active');
+    const stars = e.target.closest('#starRating').querySelectorAll('.star');
+    const clickedIndex = Array.from(stars).indexOf(e.target);
+    stars.forEach((s, i) => {
+      if (i <= clickedIndex) s.classList.add('active');
+      else s.classList.remove('active');
+    });
   }
 });
 
