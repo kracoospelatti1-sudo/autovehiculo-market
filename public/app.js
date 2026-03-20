@@ -299,16 +299,22 @@ async function viewVehicle(id) {
           </div>
           
           ${isLoggedIn && !isOwner ? `
-            <div class="marketplace-chat-box" style="margin-top:1.5rem;background:var(--dark-2);padding:1.5rem;border-radius:var(--radius-lg);border:1px solid var(--border);">
-              <h4 style="margin-bottom:1rem;font-size:1.1rem;">Preguntar al vendedor</h4>
-              <div class="quick-messages" style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
-                <button class="btn btn-ghost btn-sm" onclick="document.getElementById('quickMsgInput').value = '¿Sigue disponible?'">¿Sigue disponible?</button>
-                <button class="btn btn-ghost btn-sm" onclick="document.getElementById('quickMsgInput').value = '¿Cuál es el precio final?'">¿Precio final?</button>
-                <button class="btn btn-ghost btn-sm" onclick="document.getElementById('quickMsgInput').value = '¿Aceptas permutas?'">¿Permutas?</button>
+            <div class="marketplace-chat-box" style="margin-top:1.5rem;background:var(--dark-2);padding:1.5rem;border-radius:var(--radius-lg);border:1px solid var(--border);" id="chatBoxContainer">
+              <div id="existingConvBanner" style="display:none;text-align:center;">
+                <p style="margin-bottom:0.75rem;color:var(--text-secondary);">Ya consultaste sobre este vehículo</p>
+                <button class="btn btn-primary" id="goToChatBtn" style="width:100%;">Ir al chat</button>
               </div>
-              <div class="chat-input-row" style="display:flex;gap:0.5rem;">
-                <input type="text" id="quickMsgInput" placeholder="Envía un mensaje..." style="flex:1;">
-                <button class="btn btn-primary" onclick="handleQuickMessage(${vehicle.id})">Enviar</button>
+              <div id="newMessageBox">
+                <h4 style="margin-bottom:1rem;font-size:1.1rem;">Preguntar al vendedor</h4>
+                <div class="quick-messages" style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
+                  <button class="btn btn-ghost btn-sm" onclick="document.getElementById('quickMsgInput').value = '¿Sigue disponible?'">¿Sigue disponible?</button>
+                  <button class="btn btn-ghost btn-sm" onclick="document.getElementById('quickMsgInput').value = '¿Cuál es el precio final?'">¿Precio final?</button>
+                  <button class="btn btn-ghost btn-sm" onclick="document.getElementById('quickMsgInput').value = '¿Aceptas permutas?'">¿Permutas?</button>
+                </div>
+                <div class="chat-input-row" style="display:flex;gap:0.5rem;">
+                  <input type="text" id="quickMsgInput" placeholder="Envía un mensaje..." style="flex:1;">
+                  <button class="btn btn-primary" onclick="handleQuickMessage(${vehicle.id})">Enviar</button>
+                </div>
               </div>
             </div>
           ` : ''}
@@ -322,6 +328,26 @@ async function viewVehicle(id) {
       </div>
     `;
     showSection('vehicle-detail');
+
+    // Check if user already has a conversation for this vehicle
+    if (isLoggedIn && !isOwner) {
+      try {
+        const convs = await request('/conversations');
+        const existing = convs.find(c => c.vehicle_id === vehicle.id);
+        if (existing) {
+          const banner = document.getElementById('existingConvBanner');
+          const msgBox = document.getElementById('newMessageBox');
+          if (banner && msgBox) {
+            banner.style.display = 'block';
+            msgBox.style.display = 'none';
+            document.getElementById('goToChatBtn').onclick = () => {
+              currentConversationId = existing.id;
+              showSection('messages');
+            };
+          }
+        }
+      } catch {}
+    }
   } catch (err) { showToast(err.message, 'error'); }
 }
 
