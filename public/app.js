@@ -583,7 +583,7 @@ async function loadConversations() {
         </div>
       </div>
     `).join('');
-    if (currentConversationId) loadChatMessages(currentConversationId);
+    if (currentConversationId) loadChatFull(currentConversationId);
     else renderEmptyChat();
   } catch (err) { console.error(err); }
 }
@@ -735,16 +735,12 @@ function updateReadReceipts(receipts) {
 function updateOnlineStatus(otherUser) {
   const el = document.getElementById('chatOnlineStatus');
   if (!el) return;
-  const lastSeenStr = otherUser?.last_seen || null;
-  if (lastSeenStr) {
-    const diffMinutes = Math.floor((Date.now() - new Date(lastSeenStr)) / 60000);
-    if (diffMinutes < 3) {
-      el.textContent = 'En línea';
-      el.style.color = 'var(--success)';
-    } else {
-      el.textContent = 'Últ. vez: ' + formatRelTime(lastSeenStr);
-      el.style.color = 'var(--text-secondary)';
-    }
+  if (otherUser?.is_online) {
+    el.textContent = 'En línea';
+    el.style.color = 'var(--success)';
+  } else if (otherUser?.last_seen) {
+    el.textContent = 'Últ. vez: ' + formatRelTime(otherUser.last_seen);
+    el.style.color = 'var(--text-secondary)';
   } else {
     el.textContent = 'Desconectado';
     el.style.color = 'var(--text-secondary)';
@@ -821,12 +817,17 @@ async function loadNotificationCount() {
   } catch {}
 }
 
-function handleNotificationClick(link, id) {
+async function handleNotificationClick(link, id) {
   request(`/notifications/${id}/read`, { method: 'PUT' }).catch(() => {});
   loadNotificationCount();
   if (link.includes('messages/')) {
-    currentConversationId = parseInt(link.split('/').pop());
+    const convId = parseInt(link.split('/').pop());
+    currentConversationId = convId;
+    lastMessageId = 0;
+    pollCount = 0;
     showSection('messages');
+    await loadChatFull(convId);
+    startPolling();
   } else if (link.includes('vehicle/')) {
     viewVehicle(parseInt(link.split('/').pop()));
   }
@@ -1162,6 +1163,7 @@ async function checkAuth() {
       if (currentUser.profile?.is_admin) document.getElementById('navAdmin').style.display = 'inline';
       updateNav();
       loadNotificationCount();
+      request('/ping', { method: 'PUT' }).catch(() => {});
     } catch { localStorage.removeItem('token'); currentUser = null; }
   }
   updateNav();

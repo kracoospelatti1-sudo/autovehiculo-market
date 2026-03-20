@@ -807,8 +807,14 @@ app.get('/api/conversations/:id', authenticateToken, async (req, res) => {
     const { data: sellerUser } = await supabase.from('users').select('id, username').eq('id', conversation.seller_id).single();
     const { data: sellerProfile } = await supabase.from('profiles').select('avatar_url, last_seen').eq('user_id', conversation.seller_id).single();
 
-    const buyer = { ...buyerUser, avatar_url: buyerProfile?.avatar_url, last_seen: buyerProfile?.last_seen };
-    const seller = { ...sellerUser, avatar_url: sellerProfile?.avatar_url, last_seen: sellerProfile?.last_seen };
+    const now = Date.now();
+    const calcStatus = (lastSeen) => {
+      if (!lastSeen) return { last_seen: null, is_online: false };
+      const diffMin = Math.floor((now - new Date(lastSeen).getTime()) / 60000);
+      return { last_seen: lastSeen, is_online: diffMin < 3 };
+    };
+    const buyer = { ...buyerUser, avatar_url: buyerProfile?.avatar_url, ...calcStatus(buyerProfile?.last_seen) };
+    const seller = { ...sellerUser, avatar_url: sellerProfile?.avatar_url, ...calcStatus(sellerProfile?.last_seen) };
 
     res.json({ ...conversation, vehicle, buyer, seller });
   } catch (error) {
@@ -854,16 +860,13 @@ app.get('/api/conversations/:id/messages', authenticateToken, async (req, res) =
     const messagesWithUsers = (messages || []).map(m => ({ ...m, username: usernameMap[m.sender_id] }));
 
     // Fetch read receipts for messages sent by current user
-    let readReceipts = [];
-    if (afterId) {
-      const { data: receipts } = await supabase
-        .from('messages')
-        .select('id, read_at')
-        .eq('conversation_id', req.params.id)
-        .eq('sender_id', req.user.id)
-        .not('read_at', 'is', null);
-      readReceipts = receipts || [];
-    }
+    const { data: receipts } = await supabase
+      .from('messages')
+      .select('id, read_at')
+      .eq('conversation_id', req.params.id)
+      .eq('sender_id', req.user.id)
+      .not('read_at', 'is', null);
+    const readReceipts = receipts || [];
 
     res.json({ messages: messagesWithUsers, read_receipts: readReceipts });
   } catch (error) {
