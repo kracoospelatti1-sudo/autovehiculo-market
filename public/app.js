@@ -824,8 +824,12 @@ async function loadNotificationCount() {
 function handleNotificationClick(link, id) {
   request(`/notifications/${id}/read`, { method: 'PUT' }).catch(() => {});
   loadNotificationCount();
-  if (link.includes('messages/')) openConversation(parseInt(link.split('/').pop()), event?.currentTarget);
-  else if (link.includes('vehicle/')) viewVehicle(parseInt(link.split('/').pop()));
+  if (link.includes('messages/')) {
+    currentConversationId = parseInt(link.split('/').pop());
+    showSection('messages');
+  } else if (link.includes('vehicle/')) {
+    viewVehicle(parseInt(link.split('/').pop()));
+  }
 }
 
 async function markAllRead() {
@@ -1157,12 +1161,18 @@ async function checkAuth() {
       currentUser = await request('/user');
       if (currentUser.profile?.is_admin) document.getElementById('navAdmin').style.display = 'inline';
       updateNav();
+      loadNotificationCount();
     } catch { localStorage.removeItem('token'); currentUser = null; }
   }
   updateNav();
 }
 
 checkAuth();
+
+// Poll notification count every 30 seconds
+setInterval(() => {
+  if (currentUser) loadNotificationCount();
+}, 30000);
 
 function tryPublish() {
   if (currentUser) {
