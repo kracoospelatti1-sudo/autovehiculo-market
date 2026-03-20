@@ -687,6 +687,8 @@ async function pollNewMessages(convId) {
 function appendMessageToDOM(message, readAt) {
   const container = document.getElementById('chatMessagesContainer');
   if (!container) return;
+  // Skip if already rendered
+  if (container.querySelector(`[data-message-id="${message.id}"]`)) return;
 
   const isSent = message.sender_id === currentUser?.id;
   const bubble = document.createElement('div');
