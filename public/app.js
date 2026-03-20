@@ -10,6 +10,8 @@ let rateConversationId = null;
 let rateRecipientId = null;
 let lastMessageId = 0;
 let isLoadingMessages = false;
+let onlineStatusInterval = null;
+let pollCount = 0;
 
 const API_URL = '/api';
 
@@ -589,6 +591,7 @@ async function loadConversations() {
 async function openConversation(convId, el) {
   currentConversationId = convId;
   lastMessageId = 0;
+  pollCount = 0;
   document.querySelectorAll('.conversation-item').forEach(e => e.classList.remove('active'));
   const target = el || (event && event.currentTarget);
   if (target) target.classList.add('active');
@@ -679,6 +682,16 @@ async function pollNewMessages(convId) {
       if (incoming.length > 0) {
         request(`/conversations/${convId}/read`, { method: 'PUT' }).catch(() => {});
       }
+    }
+
+    // Update online status every ~30 seconds (every 10 polls)
+    pollCount++;
+    if (pollCount % 10 === 0) {
+      try {
+        const conv = await request(`/conversations/${convId}`);
+        const otherUser = conv.buyer_id === currentUser?.id ? conv.seller : conv.buyer;
+        updateOnlineStatus(otherUser);
+      } catch {}
     }
   } catch {}
   isLoadingMessages = false;
