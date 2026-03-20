@@ -661,8 +661,12 @@ app.get('/api/conversations', authenticateToken, async (req, res) => {
     
     const conversationsWithDetails = await Promise.all(data.map(async c => {
       const { data: vehicle } = await supabase.from('vehicles').select('id, title, image_url, price, brand, model, user_id').eq('id', c.vehicle_id).single();
-      const { data: buyer } = await supabase.from('users').select('id, username, profiles!left(avatar_url)').eq('id', c.buyer_id).single();
-      const { data: seller } = await supabase.from('users').select('id, username, profiles!left(avatar_url)').eq('id', c.seller_id).single();
+      const { data: buyerUser } = await supabase.from('users').select('id, username').eq('id', c.buyer_id).single();
+      const { data: buyerProfile } = await supabase.from('profiles').select('avatar_url').eq('user_id', c.buyer_id).single();
+      const { data: sellerUser } = await supabase.from('users').select('id, username').eq('id', c.seller_id).single();
+      const { data: sellerProfile } = await supabase.from('profiles').select('avatar_url').eq('user_id', c.seller_id).single();
+      const buyer = { ...buyerUser, avatar_url: buyerProfile?.avatar_url };
+      const seller = { ...sellerUser, avatar_url: sellerProfile?.avatar_url };
       const { data: messages } = await supabase.from('messages').select('content, created_at, sender_id').eq('conversation_id', c.id).order('created_at', { ascending: false }).limit(1);
       const otherUser = c.buyer_id === req.user.id ? seller : buyer;
       return {
@@ -770,8 +774,13 @@ app.get('/api/conversations/:id', authenticateToken, async (req, res) => {
     }
 
     const { data: vehicle } = await supabase.from('vehicles').select('*').eq('id', conversation.vehicle_id).single();
-    const { data: buyer } = await supabase.from('users').select('id, username, profiles!left(avatar_url, last_seen)').eq('id', conversation.buyer_id).single();
-    const { data: seller } = await supabase.from('users').select('id, username, profiles!left(avatar_url, last_seen)').eq('id', conversation.seller_id).single();
+    const { data: buyerUser } = await supabase.from('users').select('id, username').eq('id', conversation.buyer_id).single();
+    const { data: buyerProfile } = await supabase.from('profiles').select('avatar_url, last_seen').eq('user_id', conversation.buyer_id).single();
+    const { data: sellerUser } = await supabase.from('users').select('id, username').eq('id', conversation.seller_id).single();
+    const { data: sellerProfile } = await supabase.from('profiles').select('avatar_url, last_seen').eq('user_id', conversation.seller_id).single();
+
+    const buyer = { ...buyerUser, avatar_url: buyerProfile?.avatar_url, last_seen: buyerProfile?.last_seen };
+    const seller = { ...sellerUser, avatar_url: sellerProfile?.avatar_url, last_seen: sellerProfile?.last_seen };
 
     res.json({ ...conversation, vehicle, buyer, seller });
   } catch (error) {
