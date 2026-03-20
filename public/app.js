@@ -1018,4 +1018,17 @@ async function checkAuth() {
 }
 
 checkAuth();
+
+function tryPublish() {
+  if (currentUser) {
+    showSection('publish');
+  } else {
+    showToast('Debes iniciar sesión para publicar', 'warning');
+    showSection('login');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  initBrandFilters();
+});
 showSection('home');
