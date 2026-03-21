@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 
@@ -46,6 +47,14 @@ const upload = multer({
 });
 
 app.use(express.static('public'));
+
+// Rate limiting
+const globalLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 500, message: { error: 'Demasiadas solicitudes, intenta en 15 minutos' } });
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 15, message: { error: 'Demasiados intentos. Esperá 15 minutos.' } });
+const messageLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, message: { error: 'Enviás mensajes demasiado rápido' } });
+app.use('/api/', globalLimiter);
+app.use('/api/login', authLimiter);
+app.use('/api/register', authLimiter);
 
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -94,6 +103,12 @@ app.post('/api/register', async (req, res) => {
     const { username, email, password } = req.body;
     if (!username || !email || !password) {
       return res.status(400).json({ error: 'Todos los campos son requeridos' });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+    }
+    if (username.trim().length < 3) {
+      return res.status(400).json({ error: 'El nombre de usuario debe tener al menos 3 caracteres' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -499,7 +514,7 @@ app.delete('/api/vehicles/:id', authenticateToken, async (req, res) => {
       }
     }
 
-    const vid = parseInt(req.params.id);
+    const vid = req.params.id;
     const safeDelete = async (table, filter) => {
       try { const r = await filter(supabase.from(table)); if (r?.error) console.error(`${table} cleanup:`, r.error.message); }
       catch (e) { console.error(`${table} cleanup threw:`, e.message); }
@@ -695,7 +710,7 @@ app.delete('/api/admin/reports/:id', authenticateToken, async (req, res) => {
 app.put('/api/admin/users/:id/ban', authenticateToken, async (req, res) => {
   if (!await isAdmin(req.user.id)) return res.status(403).json({ error: 'Acceso denegado' });
   try {
-    const targetUser = parseInt(req.params.id);
+    const targetUser = req.params.id;
     const { data: profile } = await supabase.from('profiles').select('is_banned').eq('user_id', targetUser).maybeSingle();
     const newStatus = !profile?.is_banned;
     const { error } = await supabase.from('profiles').update({ is_banned: newStatus }).eq('user_id', targetUser);
@@ -709,7 +724,7 @@ app.put('/api/admin/users/:id/ban', authenticateToken, async (req, res) => {
 app.put('/api/admin/users/:id/verify', authenticateToken, async (req, res) => {
   if (!await isAdmin(req.user.id)) return res.status(403).json({ error: 'Acceso denegado' });
   try {
-    const targetUser = parseInt(req.params.id);
+    const targetUser = req.params.id;
     const { data: profile } = await supabase.from('profiles').select('is_verified').eq('user_id', targetUser).maybeSingle();
     const newStatus = !profile?.is_verified;
     const { error } = await supabase.from('profiles').update({
@@ -913,6 +928,32 @@ app.get('/api/conversations', authenticateToken, async (req, res) => {
   }
 });
 
+// Unread messages count (for nav badge)
+app.get('/api/messages/unread-count', authenticateToken, async (req, res) => {
+  try {
+    // Get all conversations where user participates
+    const { data: convs } = await supabase
+      .from('conversations')
+      .select('id')
+      .or(`buyer_id.eq.${req.user.id},seller_id.eq.${req.user.id}`);
+
+    if (!convs?.length) return res.json({ count: 0 });
+
+    const convIds = convs.map(c => c.id);
+    const { count, error } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .in('conversation_id', convIds)
+      .neq('sender_id', req.user.id)
+      .is('read_at', null);
+
+    if (error) throw error;
+    res.json({ count: count || 0 });
+  } catch (error) {
+    res.json({ count: 0 });
+  }
+});
+
 app.post('/api/conversations', authenticateToken, async (req, res) => {
   try {
     const { vehicle_id, initial_message } = req.body;
@@ -1078,7 +1119,7 @@ app.get('/api/conversations/:id/messages', authenticateToken, async (req, res) =
   }
 });
 
-app.post('/api/conversations/:id/messages', authenticateToken, async (req, res) => {
+app.post('/api/conversations/:id/messages', authenticateToken, messageLimiter, async (req, res) => {
   try {
     const { content } = req.body;
     if (!content) return res.status(400).json({ error: 'Mensaje requerido' });
@@ -1721,7 +1762,7 @@ app.put('/api/admin/users/:id/admin', authenticateToken, async (req, res) => {
     const { error } = await supabase
       .from('profiles')
       .update({ is_admin: !!is_admin })
-      .eq('user_id', parseInt(req.params.id));
+      .eq('user_id', req.params.id);
 
     if (error) throw error;
     res.json({ success: true });

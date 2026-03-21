@@ -1963,6 +1963,7 @@ async function checkAuth() {
       if (currentUser.profile?.is_admin) document.getElementById('navAdmin').style.display = 'inline';
       updateNav();
       loadNotificationCount();
+      loadUnreadMessageCount();
       request('/ping', { method: 'PUT' }).catch(() => {});
     } catch { localStorage.removeItem('token'); currentUser = null; }
   }
@@ -1979,10 +1980,21 @@ checkAuth().then(() => {
   }
 });
 
-// Poll notification count every 30 seconds
+// Poll notification + unread messages count every 30 seconds
 let notifInterval = setInterval(() => {
-  if (currentUser) loadNotificationCount();
+  if (currentUser) {
+    loadNotificationCount();
+    loadUnreadMessageCount();
+  }
 }, 30000);
+
+async function loadUnreadMessageCount() {
+  try {
+    const { count } = await request('/messages/unread-count');
+    const badge = document.getElementById('messagesBadge');
+    if (badge) { badge.textContent = count; badge.style.display = count > 0 ? 'inline' : 'none'; }
+  } catch {}
+}
 
 function tryPublish() {
   if (currentUser) {
