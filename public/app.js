@@ -1,5 +1,6 @@
 let currentUser = null;
 let currentVehicleId = null;
+let vehicleMapInstance = null;
 let currentConversationId = null;
 let currentProfileId = null;
 let pollingInterval = null;
@@ -47,6 +48,32 @@ const carBrands = {
   'Volkswagen': ['Amarok', 'Arteon', 'Gol', 'Golf', 'Jetta', 'Nivus', 'Passat', 'Polo', 'T-Cross', 'Taos', 'Tiguan', 'Virtus', 'ID.4'],
   'Volvo': ['C40', 'EX30', 'XC40', 'XC60', 'XC90', 'S60', 'S90']
 };
+
+async function initVehicleMap(city) {
+  if (!window.L) return;
+  if (vehicleMapInstance) { vehicleMapInstance.remove(); vehicleMapInstance = null; }
+  const el = document.getElementById('vehicleMap');
+  if (!el) return;
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city + ', Argentina')}&format=json&limit=1`);
+    const data = await res.json();
+    if (!data?.length) { el.parentElement.style.display = 'none'; return; }
+    const { lat, lon, display_name } = data[0];
+    vehicleMapInstance = L.map('vehicleMap', { zoomControl: true, scrollWheelZoom: false }).setView([parseFloat(lat), parseFloat(lon)], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxZoom: 19
+    }).addTo(vehicleMapInstance);
+    const icon = L.divIcon({
+      html: `<div style="background:var(--primary,#f59e0b);width:14px;height:14px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.5);"></div>`,
+      iconSize: [14, 14],
+      className: ''
+    });
+    L.marker([parseFloat(lat), parseFloat(lon)], { icon }).addTo(vehicleMapInstance)
+      .bindPopup(`<b>${city}</b><br><span style="font-size:0.78rem;color:#555">${display_name.split(',').slice(0, 3).join(',')}</span>`)
+      .openPopup();
+  } catch { el?.parentElement && (el.parentElement.style.display = 'none'); }
+}
 
 function verifiedBadge() {
   return `<span class="verified-badge"><svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>Verificado</span>`;
@@ -302,6 +329,15 @@ async function viewVehicle(id) {
             <div class="spec-card"><div class="label">Ciudad</div><div class="value">${vehicle.city || 'No especificada'}</div></div>
           </div>
           ${vehicle.description ? `<div class="detail-description"><h4>Descripción</h4><p>${escapeHtml(vehicle.description)}</p></div>` : ''}
+          ${vehicle.city ? `
+            <div class="detail-map-section">
+              <h4 style="margin-bottom:0.75rem;font-size:0.9rem;color:var(--text-2);display:flex;align-items:center;gap:0.4rem;">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                Ubicación: ${escapeHtml(vehicle.city)}
+              </h4>
+              <div id="vehicleMap" class="vehicle-map"></div>
+            </div>
+          ` : ''}
           <div class="seller-card">
             <div class="seller-avatar">${vehicle.seller_profile?.avatar_url ? `<img src="${vehicle.seller_profile.avatar_url}" alt="">` : vehicle.seller_name?.charAt(0).toUpperCase()}</div>
             <div class="seller-info">
@@ -359,6 +395,7 @@ async function viewVehicle(id) {
     `;
     window._detailImages = images.map(img => img.url);
     showSection('vehicle-detail');
+    if (vehicle.city) initVehicleMap(vehicle.city);
 
     // Check if user already has a conversation for this vehicle
     if (isLoggedIn && !isOwner) {

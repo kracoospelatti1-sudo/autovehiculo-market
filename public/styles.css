@@ -1531,3 +1531,21 @@ select {
 }
 .verified-badge svg { flex-shrink: 0; }
 .seller-name-row { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+
+/* VEHICLE MAP */
+.detail-map-section { margin-bottom: 1.5rem; }
+.vehicle-map {
+  height: 220px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--dark-3);
+}
+.vehicle-map .leaflet-popup-content-wrapper {
+  background: var(--dark-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+  border-radius: var(--radius-md);
+}
+.vehicle-map .leaflet-popup-tip { background: var(--dark-2); }
