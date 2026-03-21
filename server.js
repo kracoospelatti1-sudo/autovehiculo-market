@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const compression = require('compression');
 const { createClient } = require('@supabase/supabase-js');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -27,6 +28,7 @@ if (!SECRET_KEY) {
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+app.use(compression());
 app.use(cors({ origin: ALLOWED_ORIGIN }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -1981,6 +1983,11 @@ app.get('/api/stats/public', async (_req, res) => {
   } catch (error) {
     res.status(500).json({ error: 'Error' });
   }
+});
+
+// Health check endpoint para keep-alive pings (UptimeRobot, etc.)
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 const PORT = process.env.PORT || 3000;
