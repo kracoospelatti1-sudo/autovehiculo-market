@@ -267,7 +267,7 @@ async function viewVehicle(id) {
       try { const r = await request(`/favorites/${id}/check`); isFavorite = r.favorited; } catch {}
     }
 
-    const images = [{ url: vehicle.vehicle_images?.[0]?.url || vehicle.image_url || 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=800&h=600&fit=crop' }, ...(vehicle.vehicle_images || [])].filter((v, i, a) => v.url && a.findIndex(x => x.url === v.url) === i);
+    const images = vehicle.vehicle_images?.length ? vehicle.vehicle_images : [{ url: vehicle.image_url || 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=800&h=600&fit=crop' }];
     const mainImgUrl = images[0].url;
 
     const content = document.getElementById('vehicleDetailContent');
