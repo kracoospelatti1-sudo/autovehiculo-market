@@ -423,6 +423,7 @@ async function loadVehicles(page = 1) {
             <span>${formatNumber(v.mileage || 0)} km</span>
             <span>${escapeHtml(v.fuel || '') || 'N/A'}</span>
             ${v.transmission ? `<span>${escapeHtml(v.transmission)}</span>` : ''}
+            <span style="background:${v.accepts_trade ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.08)'};color:${v.accepts_trade ? '#22c55e' : '#ef4444'};padding:1px 6px;border-radius:4px;font-size:0.75rem;font-weight:600;">${v.accepts_trade ? '🔄 Permuta' : 'Sin permuta'}</span>
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.75rem;">
             <div class="vehicle-views" style="margin-top:0;"><svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg> ${v.view_count || 0} vistas</div>
@@ -1408,6 +1409,9 @@ async function viewProfile(id) {
         <div class="vehicle-info">
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
           <p class="vehicle-price">$${formatNumber(v.price)}</p>
+          <div class="vehicle-meta" style="margin-top:0.4rem;">
+            <span style="background:${v.accepts_trade ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.08)'};color:${v.accepts_trade ? '#22c55e' : '#ef4444'};padding:1px 6px;border-radius:4px;font-size:0.75rem;font-weight:600;">${v.accepts_trade ? '🔄 Permuta' : 'Sin permuta'}</span>
+          </div>
           ${isViewerAdmin && !isOwn ? `<button class="btn btn-sm btn-danger" style="margin-top:0.5rem;width:100%;" data-vid="${v.id}" data-title="${escapeHtml(v.title)}" onclick="event.stopPropagation(); adminDeleteVehicle(+this.dataset.vid, this.dataset.title)">🗑 Eliminar</button>` : ''}
         </div>
       </div>
