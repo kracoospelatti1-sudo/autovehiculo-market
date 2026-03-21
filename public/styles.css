@@ -1549,3 +1549,30 @@ select {
   border-radius: var(--radius-md);
 }
 .vehicle-map .leaflet-popup-tip { background: var(--dark-2); }
+
+/* CITY AUTOCOMPLETE */
+.city-autocomplete-wrap { position: relative; }
+.city-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0; right: 0;
+  background: var(--dark-2);
+  border: 1px solid var(--border-hover);
+  border-radius: var(--radius-md);
+  z-index: 200;
+  max-height: 220px;
+  overflow-y: auto;
+  box-shadow: var(--shadow-md);
+}
+.city-option {
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--text);
+  transition: background 0.15s;
+}
+.city-option:hover, .city-option.active {
+  background: rgba(245,158,11,0.12);
+  color: var(--primary-light);
+}

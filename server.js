@@ -446,28 +446,23 @@ app.delete('/api/vehicles/:id', authenticateToken, async (req, res) => {
     }
 
     const vid = parseInt(req.params.id);
+    const safeDelete = async (table, filter) => {
+      try { const r = await filter(supabase.from(table)); if (r?.error) console.error(`${table} cleanup:`, r.error.message); }
+      catch (e) { console.error(`${table} cleanup threw:`, e.message); }
+    };
 
-    // Delete child rows one by one so errors surface clearly
+    // Delete messages first (FK from messages → conversations)
     const { data: convs } = await supabase.from('conversations').select('id').eq('vehicle_id', vid);
     if (convs?.length) {
-      const convIds = convs.map(c => c.id);
-      const { error: msgErr } = await supabase.from('messages').delete().in('conversation_id', convIds);
-      if (msgErr) console.error('messages delete error:', msgErr.message);
+      await safeDelete('messages', t => t.delete().in('conversation_id', convs.map(c => c.id)));
     }
 
-    const cleanups = [
-      supabase.from('conversations').delete().eq('vehicle_id', vid),
-      supabase.from('vehicle_images').delete().eq('vehicle_id', vid),
-      supabase.from('favorites').delete().eq('vehicle_id', vid),
-      supabase.from('reports').delete().eq('vehicle_id', vid),
-      supabase.from('notifications').delete().ilike('link', `vehicle/${vid}`),
-    ];
-    // trade_offers may not exist yet — ignore its error
-    const results = await Promise.all(cleanups);
-    results.forEach((r, i) => { if (r.error) console.error(`cleanup[${i}] error:`, r.error.message); });
-
-    // Try to delete trade_offers (table might not exist yet)
-    await supabase.from('trade_offers').delete().or(`vehicle_id.eq.${vid},offered_vehicle_id.eq.${vid}`).catch(() => {});
+    // Clean up all related tables — each failure is isolated
+    await safeDelete('conversations',   t => t.delete().eq('vehicle_id', vid));
+    await safeDelete('vehicle_images',  t => t.delete().eq('vehicle_id', vid));
+    await safeDelete('favorites',       t => t.delete().eq('vehicle_id', vid));
+    await safeDelete('reports',         t => t.delete().eq('vehicle_id', vid));
+    await safeDelete('trade_offers',    t => t.delete().or(`vehicle_id.eq.${vid},offered_vehicle_id.eq.${vid}`));
 
     const { error: delErr } = await supabase.from('vehicles').delete().eq('id', vid);
     if (delErr) {

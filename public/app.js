@@ -49,6 +49,72 @@ const carBrands = {
   'Volvo': ['C40', 'EX30', 'XC40', 'XC60', 'XC90', 'S60', 'S90']
 };
 
+const AR_CITIES = [
+  'Buenos Aires','Córdoba','Rosario','Mendoza','San Miguel de Tucumán','La Plata','Mar del Plata','Salta',
+  'Santa Fe','San Juan','Resistencia','Santiago del Estero','Corrientes','Posadas','Bahía Blanca',
+  'San Salvador de Jujuy','Paraná','Neuquén','Formosa','San Luis','Río Cuarto','Comodoro Rivadavia',
+  'La Rioja','Santa Rosa','Concordia','San Rafael','Tandil','Río Gallegos','Ushuaia','Viedma','Rawson',
+  'Trelew','Puerto Madryn','Cipolletti','General Roca','Zárate','San Nicolás de los Arroyos','Pergamino',
+  'Junín','Olavarría','Azul','Necochea','Pinamar','Villa Gesell','Miramar','Quilmes','Lanús','Lomas de Zamora',
+  'Avellaneda','San Isidro','Vicente López','Tres de Febrero','Morón','La Matanza','Merlo','Moreno',
+  'Florencio Varela','Berazategui','Tigre','San Fernando','Escobar','Pilar','Luján','Mercedes',
+  'San Pedro','Campana','Lobos','Chascomús','Dolores','Mafra','Pehuajó','Trenque Lauquen','Bolívar',
+  'Villarino','Punta Alta','Coronel Suárez','Tres Arroyos','Coronel Pringles','Benito Juárez',
+  'Balcarce','General Pueyrredón','Villa María','Río Tercero','Villa Carlos Paz','Alta Gracia',
+  'Bell Ville','San Francisco','Río Ceballos','Cosquín','La Falda','Cruz del Eje','Dean Funes',
+  'Monteros','Concepción','Aguilares','Yerba Buena','Rafaela','Reconquista','Venado Tuerto',
+  'San Lorenzo','Villa Constitución','Casilda','Cañada de Gómez','Esperanza','Santo Tomé',
+  'Gualeguaychú','Gualeguay','Colón','Federación','Chajarí','Villaguay','Paso de los Libres',
+  'Goya','Curuzú Cuatiá','Mercedes','Eldorado','Oberá','Apóstoles','Leandro N. Alem',
+  'Tartagal','Orán','Metán','Cafayate','San Ramón de la Nueva Orán','Palpalá','Libertador General San Martín',
+  'Humahuaca','Tinogasta','Chilecito','Aimogasta','Belén','Andalgalá','Caleta Olivia','Río Mayo',
+  'Esquel','Bariloche','San Carlos de Bariloche','El Bolsón','Cutral-Có','Plaza Huincul',
+  'Zapala','San Martín de los Andes','Junín de los Andes','Chos Malal','Catriel','Allen',
+  'Roca','Villa Regina','Cinco Saltos','Centenario','Plottier','Las Grutas','Sierra Grande',
+  'Maquinchao','Ingeniero Jacobacci','Puerto Deseado','Calafate','El Calafate','El Chaltén',
+  'Río Turbio','28 de Noviembre','Tolhuin','Río Grande'
+].sort();
+
+function setupCityAutocomplete(inputId, dropdownId) {
+  const input = document.getElementById(inputId);
+  const dropdown = document.getElementById(dropdownId);
+  if (!input || !dropdown) return;
+
+  let activeIndex = -1;
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
+    activeIndex = -1;
+    if (q.length < 1) { dropdown.style.display = 'none'; return; }
+    const matches = AR_CITIES.filter(c => c.toLowerCase().startsWith(q)).slice(0, 8);
+    if (!matches.length) { dropdown.style.display = 'none'; return; }
+    dropdown.innerHTML = matches.map((c, i) => `<div class="city-option" data-value="${c}">${c}</div>`).join('');
+    dropdown.style.display = 'block';
+    dropdown.querySelectorAll('.city-option').forEach(opt => {
+      opt.addEventListener('mousedown', e => { e.preventDefault(); input.value = opt.dataset.value; dropdown.style.display = 'none'; });
+    });
+  });
+
+  input.addEventListener('keydown', e => {
+    const opts = dropdown.querySelectorAll('.city-option');
+    if (!opts.length || dropdown.style.display === 'none') return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); activeIndex = Math.min(activeIndex + 1, opts.length - 1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); activeIndex = Math.max(activeIndex - 1, 0); }
+    else if (e.key === 'Enter' && activeIndex >= 0) { e.preventDefault(); input.value = opts[activeIndex].dataset.value; dropdown.style.display = 'none'; return; }
+    else if (e.key === 'Escape') { dropdown.style.display = 'none'; return; }
+    opts.forEach((o, i) => o.classList.toggle('active', i === activeIndex));
+    if (activeIndex >= 0) opts[activeIndex].scrollIntoView({ block: 'nearest' });
+  });
+
+  input.addEventListener('blur', () => setTimeout(() => { dropdown.style.display = 'none'; }, 150));
+}
+
+// Init autocompletes when DOM ready
+document.addEventListener('DOMContentLoaded', () => {
+  setupCityAutocomplete('publishCity', 'publishCityDropdown');
+  setupCityAutocomplete('editCity', 'editCityDropdown');
+});
+
 async function detectCity(inputId, btn) {
   if (!navigator.geolocation) return showToast('Tu navegador no soporta geolocalización', 'error');
   const input = document.getElementById(inputId);
