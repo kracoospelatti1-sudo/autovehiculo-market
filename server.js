@@ -164,13 +164,15 @@ app.get('/api/user', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
     
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
       .eq('user_id', req.user.id)
-      .single();
-    
-    res.json({ ...data, profile });
+      .maybeSingle();
+
+    if (profileError) console.error('[/api/user] profile error:', profileError.message, 'user_id:', req.user.id);
+
+    res.json({ ...data, profile: profile || null });
   } catch (error) {
     res.status(500).json({ error: 'Error en el servidor' });
   }
