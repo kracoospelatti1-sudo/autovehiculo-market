@@ -366,7 +366,7 @@ body::before {
   margin-bottom: 0.4rem;
 }
 
-input, select, textarea {
+input:not([type="checkbox"]):not([type="radio"]), select, textarea {
   width: 100%;
   background: var(--dark-3);
   border: 1px solid var(--border);
@@ -378,6 +378,14 @@ input, select, textarea {
   transition: var(--transition);
   outline: none;
   appearance: none;
+}
+
+input[type="checkbox"], input[type="radio"] {
+  width: auto;
+  height: auto;
+  padding: 0;
+  appearance: auto;
+  cursor: pointer;
 }
 
 input::placeholder, textarea::placeholder { color: var(--text-3); }
