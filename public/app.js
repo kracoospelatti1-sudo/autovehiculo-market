@@ -409,7 +409,7 @@ async function loadVehicles(page = 1) {
     const params = new URLSearchParams();
     const search = document.getElementById('searchInput')?.value;
     if (search) params.append('search', search);
-    ['brand', 'model', 'minPrice', 'maxPrice', 'minYear', 'maxYear', 'fuel', 'city', 'sort'].forEach(key => {
+    ['brand', 'model', 'minPrice', 'maxPrice', 'minYear', 'maxYear', 'fuel', 'city', 'province', 'sort'].forEach(key => {
       const el = document.getElementById('filter' + key.charAt(0).toUpperCase() + key.slice(1));
       if (el?.value) params.append(key, el.value);
     });
@@ -429,7 +429,7 @@ async function loadVehicles(page = 1) {
         </div>
         <div class="vehicle-info">
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
-          <p class="vehicle-brand">${escapeHtml(v.brand)} ${escapeHtml(v.model)}${v.city ? ` - ${escapeHtml(v.city)}` : ''}</p>
+          <p class="vehicle-brand">${escapeHtml(v.brand)} ${escapeHtml(v.model)}${v.city ? ` · 📍 ${escapeHtml(v.city)}${v.province ? ', ' + escapeHtml(v.province.replace(/\s*\(.*?\)/g,'').trim()) : ''}` : ''}</p>
           <p class="vehicle-price">$${formatNumber(v.price)}</p>
           <div class="vehicle-meta">
             <span>${formatNumber(v.mileage || 0)} km</span>
@@ -474,7 +474,7 @@ function toggleFilters() {
 function applyFilters() { loadVehicles(1); }
 
 function clearFilters() {
-  ['filterMinPrice', 'filterMaxPrice', 'filterMinYear', 'filterMaxYear', 'filterBrand', 'filterModel', 'filterFuel', 'filterCity', 'filterSort'].forEach(id => {
+  ['filterMinPrice', 'filterMaxPrice', 'filterMinYear', 'filterMaxYear', 'filterBrand', 'filterModel', 'filterFuel', 'filterCity', 'filterProvince', 'filterSort'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -486,6 +486,15 @@ function clearFilters() {
 function initBrandFilters() {
   const select = document.getElementById('filterBrand');
   if (!select || select.options.length > 1) return;
+  const provinceSelect = document.getElementById('filterProvince');
+  if (provinceSelect && provinceSelect.options.length <= 1) {
+    AR_PROVINCES.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p;
+      opt.textContent = p;
+      provinceSelect.appendChild(opt);
+    });
+  }
   Object.keys(carBrands).sort().forEach(brand => {
     const opt = document.createElement('option');
     opt.value = brand;
@@ -557,6 +566,7 @@ async function viewVehicle(id) {
             <div class="spec-card"><div class="label">Combustible</div><div class="value">${vehicle.fuel || 'N/A'}</div></div>
             <div class="spec-card"><div class="label">Transmisión</div><div class="value">${vehicle.transmission || 'N/A'}</div></div>
             <div class="spec-card"><div class="label">Ciudad</div><div class="value">${vehicle.city || 'No especificada'}</div></div>
+            ${vehicle.province ? `<div class="spec-card"><div class="label">Provincia</div><div class="value">${escapeHtml(vehicle.province.replace(/\s*\(.*?\)/g,'').trim())}</div></div>` : ''}
           </div>
           ${vehicle.description ? `<div class="detail-description"><h4>Descripción</h4><p>${escapeHtml(vehicle.description)}</p></div>` : ''}
           ${vehicle.city ? `
@@ -1509,8 +1519,18 @@ async function submitTradeOffer() {
   if (!offered) return showToast('Seleccioná un vehículo para ofrecer', 'error');
   try {
     await request(`/vehicles/${tradeTargetVehicleId}/trade-offer`, { method: 'POST', body: JSON.stringify({ offered_vehicle_id: offered, message }) });
-    showToast('¡Propuesta enviada!', 'success');
+    showToast('¡Propuesta enviada! Mirá el chat con el vendedor.', 'success');
     closeTradeModal();
+    // Ir al chat para que el comprador vea la card enviada
+    const conversations = await request('/conversations');
+    const conv = (conversations.conversations || []).find(c =>
+      c.vehicle?.id === tradeTargetVehicleId || c.vehicle_id === tradeTargetVehicleId
+    );
+    if (conv) {
+      setTimeout(() => openChat(conv.id), 400);
+    } else {
+      showSection('messages');
+    }
   } catch (err) { showToast(err.message, 'error'); }
 }
 

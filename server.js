@@ -126,7 +126,7 @@ app.post('/api/register', async (req, res) => {
 
     const { error: profileError } = await supabase
       .from('profiles')
-      .insert({ user_id: data.id, username, city: '', bio: '', phone: '' });
+      .insert({ user_id: data.id, city: '', bio: '', phone: '' });
     if (profileError) {
       // Rollback user creation if profile fails
       await supabase.from('users').delete().eq('id', data.id);
@@ -202,7 +202,7 @@ app.get('/api/vehicles', async (req, res) => {
       .select('*, users!vehicles_user_id_fkey(id, username)', { count: 'exact' })
       .eq('status', 'active');
 
-    const { brand, model, minPrice, maxPrice, minYear, maxYear, minMileage, maxMileage, fuel, city, search, sort, user_id, page = 1 } = req.query;
+    const { brand, model, minPrice, maxPrice, minYear, maxYear, minMileage, maxMileage, fuel, city, province, search, sort, user_id, page = 1 } = req.query;
     const limit = 12;
     const offset = (page - 1) * limit;
 
@@ -221,6 +221,7 @@ app.get('/api/vehicles', async (req, res) => {
     if (maxMileage) query = query.lte('mileage', parseInt(maxMileage));
     if (fuel) query = query.eq('fuel', fuel);
     if (city) query = query.ilike('city', `%${city}%`);
+    if (province) query = query.ilike('province', `%${province}%`);
 
     if (sort === 'price_asc') query = query.order('price', { ascending: true });
     else if (sort === 'price_desc') query = query.order('price', { ascending: false });
@@ -292,7 +293,7 @@ app.get('/api/vehicles/:id', optionalAuth, async (req, res) => {
     const [userRes, imagesRes, profileRes, sellerVehiclesRes, sellerRatingsRes, followersRes] = await Promise.all([
       supabase.from('users').select('id, username').eq('id', vehicle.user_id).single(),
       supabase.from('vehicle_images').select('*').eq('vehicle_id', vehicle.id),
-      supabase.from('profiles').select('*').eq('user_id', vehicle.user_id).single(),
+      supabase.from('profiles').select('*').eq('user_id', vehicle.user_id).maybeSingle(),
       supabase.from('vehicles').select('id').eq('user_id', vehicle.user_id).eq('status', 'active'),
       supabase.from('ratings').select('stars').eq('to_user_id', vehicle.user_id),
       supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', vehicle.user_id)
@@ -598,7 +599,7 @@ app.get('/api/profile/:id', async (req, res) => {
     }
 
     const [profileRes, vehiclesRes, ratingsRes, followersRes, followingRes, isFollowingRes] = await Promise.all([
-      supabase.from('profiles').select('*').eq('user_id', targetId).single(),
+      supabase.from('profiles').select('*').eq('user_id', targetId).maybeSingle(),
       supabase.from('vehicles').select('*', { count: 'exact', head: true }).eq('user_id', targetId).eq('status', 'active'),
       supabase.from('ratings').select('stars').eq('to_user_id', targetId),
       supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', targetId),
@@ -994,9 +995,9 @@ app.get('/api/conversations/:id', authenticateToken, async (req, res) => {
 
     const { data: vehicle } = await supabase.from('vehicles').select('*').eq('id', conversation.vehicle_id).single();
     const { data: buyerUser } = await supabase.from('users').select('id, username').eq('id', conversation.buyer_id).single();
-    const { data: buyerProfile } = await supabase.from('profiles').select('avatar_url, last_seen').eq('user_id', conversation.buyer_id).single();
+    const { data: buyerProfile } = await supabase.from('profiles').select('avatar_url, last_seen').eq('user_id', conversation.buyer_id).maybeSingle();
     const { data: sellerUser } = await supabase.from('users').select('id, username').eq('id', conversation.seller_id).single();
-    const { data: sellerProfile } = await supabase.from('profiles').select('avatar_url, last_seen').eq('user_id', conversation.seller_id).single();
+    const { data: sellerProfile } = await supabase.from('profiles').select('avatar_url, last_seen').eq('user_id', conversation.seller_id).maybeSingle();
 
     const now = Date.now();
     const calcStatus = (lastSeen) => {
@@ -1315,7 +1316,7 @@ app.put('/api/trade-offers/:id', authenticateToken, async (req, res) => {
     if (status === 'accepted') {
       // Create or get conversation between both parties
       const { data: existingConv } = await supabase.from('conversations').select('id')
-        .eq('vehicle_id', offer.vehicle_id).eq('buyer_id', offer.proposer_id).maybeSingle();
+        .eq('vehicle_id', offer.vehicle_id).eq('buyer_id', offer.proposer_id).eq('seller_id', offer.owner_id).maybeSingle();
 
       if (existingConv) {
         conversationId = existingConv.id;
