@@ -249,7 +249,8 @@ app.get('/api/vehicles/:id', async (req, res) => {
       return res.status(404).json({ error: 'Vehículo no encontrado' });
     }
 
-    await supabase.rpc('increment_view_count', { vehicle_id: req.params.id });
+    const newViewCount = (vehicle.view_count || 0) + 1;
+    await supabase.from('vehicles').update({ view_count: newViewCount }).eq('id', vehicle.id);
 
     const { data: user } = await supabase.from('users').select('id, username').eq('id', vehicle.user_id).single();
     const { data: images } = await supabase.from('vehicle_images').select('*').eq('vehicle_id', vehicle.id);
