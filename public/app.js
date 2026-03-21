@@ -1324,11 +1324,16 @@ async function viewProfile(id) {
       ` : ''}
       ${isOwn ? `<button class="btn btn-secondary" style="margin-top:1rem" onclick="showSection('profile'); editProfile()">Editar perfil</button>` : ''}
     `;
+    const isViewerAdmin = !!currentUser?.profile?.is_admin;
     const vehicles = await request(`/vehicles?user_id=${id}`).catch(() => ({ vehicles: [] }));
     document.getElementById('profileVehiclesList').innerHTML = vehicles.vehicles?.length ? vehicles.vehicles.map(v => `
       <div class="vehicle-card" onclick="viewVehicle(${v.id})">
         <div class="vehicle-image-container"><img src="${v.images?.[0]?.url || v.image_url || 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400&h=300&fit=crop'}" class="vehicle-image" onerror="this.src='https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400&h=300&fit=crop'"></div>
-        <div class="vehicle-info"><h3 class="vehicle-title">${escapeHtml(v.title)}</h3><p class="vehicle-price">$${formatNumber(v.price)}</p></div>
+        <div class="vehicle-info">
+          <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
+          <p class="vehicle-price">$${formatNumber(v.price)}</p>
+          ${isViewerAdmin && !isOwn ? `<button class="btn btn-sm btn-danger" style="margin-top:0.5rem;width:100%;" onclick="event.stopPropagation(); adminDeleteVehicle(${v.id}, '${escapeHtml(v.title).replace(/'/g, "\\\\'")}')">🗑 Eliminar</button>` : ''}
+        </div>
       </div>
     `).join('') : '<p style="color:var(--text-secondary)">Sin vehículos publicados</p>';
     document.getElementById('profileReviewsList').innerHTML = ratings?.length ? ratings.map(r => `
@@ -1445,7 +1450,16 @@ async function adminDeleteVehicle(id, title) {
       try {
         await request(`/vehicles/${id}`, { method: 'DELETE' });
         showToast('Publicación eliminada', 'success');
-        showAdminTab('reports');
+        // Recargar la vista actual
+        const profileSection = document.getElementById('profile');
+        if (profileSection && profileSection.style.display !== 'none' && currentProfileId) {
+          viewProfile(currentProfileId);
+        } else {
+          // Estamos en admin
+          const activeTab = document.querySelector('.admin-tab.active');
+          if (activeTab?.textContent?.includes('Vehículos')) loadAdminVehicles(adminVehiclesPage);
+          else loadAdminReports();
+        }
       } catch (err) { showToast(err.message, 'error'); }
     }
   );
