@@ -892,10 +892,11 @@ app.get('/api/conversations', authenticateToken, async (req, res) => {
 
     if (!data.length) return res.json({ conversations: [], total: 0 });
 
-    const [vehiclesRes, usersRes, profilesRes, ...messagesResArr] = await Promise.all([
+    const [vehiclesRes, usersRes, profilesRes, unreadRes, ...messagesResArr] = await Promise.all([
       supabase.from('vehicles').select('id, title, image_url, price, brand, model, user_id').in('id', vehicleIds),
       supabase.from('users').select('id, username').in('id', userIds),
       supabase.from('profiles').select('user_id, avatar_url').in('user_id', userIds),
+      supabase.from('messages').select('conversation_id').in('conversation_id', convIds).neq('sender_id', req.user.id).is('read_at', null),
       ...convIds.map(id => supabase.from('messages').select('conversation_id, content, created_at, sender_id').eq('conversation_id', id).order('created_at', { ascending: false }).limit(1).maybeSingle())
     ]);
 
@@ -905,6 +906,11 @@ app.get('/api/conversations', authenticateToken, async (req, res) => {
     const lastMessageMap = {};
     messagesResArr.forEach(res => {
       if (res.data) lastMessageMap[res.data.conversation_id] = res.data;
+    });
+
+    const unreadMap = {};
+    (unreadRes.data || []).forEach(m => {
+      unreadMap[m.conversation_id] = (unreadMap[m.conversation_id] || 0) + 1;
     });
 
     const conversationsWithDetails = data.map(c => {
@@ -917,7 +923,8 @@ app.get('/api/conversations', authenticateToken, async (req, res) => {
         vehicle: vehiclesMap[c.vehicle_id],
         other_user: otherUser,
         last_message: lastMsg?.content,
-        last_message_time: lastMsg?.created_at
+        last_message_time: lastMsg?.created_at,
+        unread_count: unreadMap[c.id] || 0
       };
     });
     

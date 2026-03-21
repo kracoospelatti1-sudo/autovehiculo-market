@@ -966,9 +966,9 @@ async function loadConversations(page = 1) {
           <div class="conversation-name">${escapeHtml(c.other_user?.username || 'Usuario')}</div>
           <div class="conversation-vehicle">${escapeHtml(c.vehicle?.title || '')}</div>
           <div class="conversation-preview">${escapeHtml(c.last_message || '')}</div>
-        </div>
-        <div class="conversation-meta">
+        <div class="conversation-meta" style="display:flex;flex-direction:column;align-items:flex-end;">
           <span class="conversation-time">${formatRelTime(c.updated_at)}</span>
+          ${c.unread_count > 0 ? `<div style="background:#ef4444;color:#fff;font-size:0.75rem;font-weight:800;border-radius:99px;min-width:20px;height:20px;display:flex;align-items:center;justify-content:center;margin-top:0.3rem;padding:0 5px;">${c.unread_count}</div>` : ''}
         </div>
       </div>
     `).join('');
