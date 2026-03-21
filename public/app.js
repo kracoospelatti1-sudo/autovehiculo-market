@@ -49,6 +49,30 @@ const carBrands = {
   'Volvo': ['C40', 'EX30', 'XC40', 'XC60', 'XC90', 'S60', 'S90']
 };
 
+async function detectCity(inputId, btn) {
+  if (!navigator.geolocation) return showToast('Tu navegador no soporta geolocalización', 'error');
+  const input = document.getElementById(inputId);
+  const btnEl = typeof btn === 'string' ? document.getElementById(btn) : btn;
+  if (btnEl) { btnEl.disabled = true; btnEl.style.opacity = '0.5'; }
+  navigator.geolocation.getCurrentPosition(
+    async ({ coords }) => {
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${coords.latitude}&lon=${coords.longitude}&format=json`);
+        const data = await res.json();
+        const city = data.address?.city || data.address?.town || data.address?.village || data.address?.county || '';
+        if (city && input) { input.value = city; showToast(`Ubicación detectada: ${city}`, 'success'); }
+        else showToast('No se pudo determinar la ciudad', 'error');
+      } catch { showToast('Error al obtener ubicación', 'error'); }
+      finally { if (btnEl) { btnEl.disabled = false; btnEl.style.opacity = '1'; } }
+    },
+    () => {
+      showToast('Permiso de ubicación denegado', 'error');
+      if (btnEl) { btnEl.disabled = false; btnEl.style.opacity = '1'; }
+    },
+    { timeout: 8000 }
+  );
+}
+
 async function initVehicleMap(city) {
   if (!window.L) return;
   if (vehicleMapInstance) { vehicleMapInstance.remove(); vehicleMapInstance = null; }
