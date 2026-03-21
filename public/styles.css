@@ -1164,7 +1164,7 @@ select {
   .hero-stats { gap: 1.5rem; flex-wrap: wrap; }
   .form-row { grid-template-columns: 1fr; }
   .vehicles-grid { grid-template-columns: 1fr; }
-  .messages-container { grid-template-columns: 1fr; height: auto; }
+  .messages-container { grid-template-columns: 1fr; height: calc(100vh - 62px - 65px - 1rem); }
   .messages-container.chat-open .conversations-list { display: none; }
   .messages-container.chat-open .chat-view { display: flex; }
   .messages-container:not(.chat-open) .conversations-list { display: block; }

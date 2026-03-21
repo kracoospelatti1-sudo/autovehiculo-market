@@ -773,12 +773,21 @@ async function sendMessage() {
   const content = input?.value.trim();
   if (!content || !currentConversationId) return;
   input.value = '';
+
+  // Show message immediately (optimistic)
+  const optimisticId = 'opt-' + Date.now();
+  appendMessageToDOM({ id: optimisticId, content, sender_id: currentUser.id, username: currentUser.username, created_at: new Date().toISOString() }, null);
+  scrollChat();
+
   try {
     const message = await request(`/conversations/${currentConversationId}/messages`, { method: 'POST', body: JSON.stringify({ content }) });
+    // Replace optimistic bubble with real message
+    document.querySelector(`[data-message-id="${optimisticId}"]`)?.remove();
     appendMessageToDOM(message, null);
     lastMessageId = message.id;
     scrollChat();
   } catch (err) {
+    document.querySelector(`[data-message-id="${optimisticId}"]`)?.remove();
     showToast(err.message, 'error');
     if (input) input.value = content;
   }
