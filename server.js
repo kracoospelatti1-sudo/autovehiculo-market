@@ -1046,14 +1046,16 @@ app.get('/api/conversations/:id', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'No tienes acceso' });
     }
 
-    const [vehicleRes, buyerUserRes, buyerProfileRes, sellerUserRes, sellerProfileRes] = await Promise.all([
+    const [vehicleRes, vehicleImagesRes, buyerUserRes, buyerProfileRes, sellerUserRes, sellerProfileRes] = await Promise.all([
       supabase.from('vehicles').select('*').eq('id', conversation.vehicle_id).single(),
+      supabase.from('vehicle_images').select('url').eq('vehicle_id', conversation.vehicle_id).order('order_index', { ascending: true }).limit(1),
       supabase.from('users').select('id, username').eq('id', conversation.buyer_id).single(),
       supabase.from('profiles').select('avatar_url, last_seen').eq('user_id', conversation.buyer_id).maybeSingle(),
       supabase.from('users').select('id, username').eq('id', conversation.seller_id).single(),
       supabase.from('profiles').select('avatar_url, last_seen').eq('user_id', conversation.seller_id).maybeSingle()
     ]);
-    const vehicle = vehicleRes.data;
+    const vehicleUrl = vehicleImagesRes.data?.[0]?.url;
+    const vehicle = { ...vehicleRes.data, image_url: vehicleUrl || vehicleRes.data?.image_url };
     const buyerUser = buyerUserRes.data;
     const buyerProfile = buyerProfileRes.data;
     const sellerUser = sellerUserRes.data;

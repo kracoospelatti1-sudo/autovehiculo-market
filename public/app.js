@@ -963,8 +963,12 @@ async function loadChatFull(convId) {
   pollCount = 0;
   try {
     isLoadingMessages = true;
-    const conv = await request(`/conversations/${convId}`);
-    const { messages, read_receipts } = await request(`/conversations/${convId}/messages`);
+    const [conv, messagesData] = await Promise.all([
+      request(`/conversations/${convId}`),
+      request(`/conversations/${convId}/messages`)
+    ]);
+    const { messages, read_receipts } = messagesData;
+
     const otherUser = conv.buyer_id === currentUser?.id ? conv.seller : conv.buyer;
     const vehicle = conv.vehicle;
     const chatView = document.getElementById('chatView');
@@ -975,11 +979,7 @@ async function loadChatFull(convId) {
     // Also use read_at from messages themselves
     (messages || []).forEach(m => { if (m.read_at) readMap[m.id] = m.read_at; });
 
-    let vehicleImg = 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=120&h=80&fit=crop';
-    try {
-      const vData = await request(`/vehicles/${vehicle?.id}`);
-      vehicleImg = vData.vehicle_images?.[0]?.url || vData.image_url || vehicleImg;
-    } catch {}
+    const vehicleImg = vehicle?.image_url || 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=120&h=80&fit=crop';
 
     chatView.innerHTML = `
       <div class="chat-active-header">
