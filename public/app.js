@@ -170,57 +170,44 @@ const AR_CITIES = (() => {
   return result.sort((a, b) => a.city.localeCompare(b.city, 'es'));
 })();
 
-function setupCityAutocomplete(inputId, dropdownId) {
-  const input = document.getElementById(inputId);
-  const dropdown = document.getElementById(dropdownId);
-  if (!input || !dropdown) return;
+const AR_PROVINCES = [...new Set(AR_CITIES.map(c => c.prov))].sort((a, b) => a.localeCompare(b, 'es'));
 
-  let activeIndex = -1;
+function setupProvinceCity(provinceId, cityId) {
+  const provSelect = document.getElementById(provinceId);
+  const citySelect = document.getElementById(cityId);
+  if (!provSelect || !citySelect) return;
 
-  const showMatches = () => {
-    const q = input.value.trim().toLowerCase();
-    activeIndex = -1;
-    if (q.length < 1) { dropdown.style.display = 'none'; return; }
-    const matches = AR_CITIES.filter(c =>
-      c.city.toLowerCase().startsWith(q) || c.label.toLowerCase().includes(q)
-    ).slice(0, 10);
-    if (!matches.length) { dropdown.style.display = 'none'; return; }
-    dropdown.innerHTML = matches.map(c =>
-      `<div class="city-option" data-value="${c.label}">
-        <span class="city-name">${c.city}</span>
-        <span class="city-prov">${c.prov}</span>
-      </div>`
-    ).join('');
-    dropdown.style.display = 'block';
-    dropdown.querySelectorAll('.city-option').forEach(opt => {
-      opt.addEventListener('mousedown', e => {
-        e.preventDefault();
-        input.value = opt.dataset.value;
-        dropdown.style.display = 'none';
-      });
-    });
-  };
-
-  input.addEventListener('input', showMatches);
-
-  input.addEventListener('keydown', e => {
-    const opts = dropdown.querySelectorAll('.city-option');
-    if (!opts.length || dropdown.style.display === 'none') return;
-    if (e.key === 'ArrowDown') { e.preventDefault(); activeIndex = Math.min(activeIndex + 1, opts.length - 1); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); activeIndex = Math.max(activeIndex - 1, 0); }
-    else if (e.key === 'Enter' && activeIndex >= 0) { e.preventDefault(); input.value = opts[activeIndex].dataset.value; dropdown.style.display = 'none'; return; }
-    else if (e.key === 'Escape') { dropdown.style.display = 'none'; return; }
-    opts.forEach((o, i) => o.classList.toggle('active', i === activeIndex));
-    if (activeIndex >= 0) opts[activeIndex].scrollIntoView({ block: 'nearest' });
+  // Poblar provincias
+  AR_PROVINCES.forEach(prov => {
+    const opt = document.createElement('option');
+    opt.value = prov;
+    opt.textContent = prov;
+    provSelect.appendChild(opt);
   });
 
-  input.addEventListener('blur', () => setTimeout(() => { dropdown.style.display = 'none'; }, 150));
+  // Al cambiar provincia, poblar ciudades
+  provSelect.addEventListener('change', () => {
+    const selectedProv = provSelect.value;
+    citySelect.innerHTML = '<option value="">Seleccioná una ciudad</option>';
+    if (!selectedProv) {
+      citySelect.disabled = true;
+      return;
+    }
+    const cities = AR_CITIES.filter(c => c.prov === selectedProv).sort((a, b) => a.city.localeCompare(b.city, 'es'));
+    cities.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.city;
+      opt.textContent = c.city;
+      citySelect.appendChild(opt);
+    });
+    citySelect.disabled = false;
+  });
 }
 
-// Init autocompletes when DOM ready
+// Init province/city selects when DOM ready
 document.addEventListener('DOMContentLoaded', () => {
-  setupCityAutocomplete('publishCity', 'publishCityDropdown');
-  setupCityAutocomplete('editCity', 'editCityDropdown');
+  setupProvinceCity('publishProvince', 'publishCity');
+  setupProvinceCity('editProvince', 'editCity');
 });
 
 async function detectCity(inputId, btn) {
@@ -679,6 +666,14 @@ async function handlePublish(e) {
   btn.disabled = true;
   btn.textContent = 'Publicando...';
   try {
+    const province = document.getElementById('publishProvince').value;
+    const city = document.getElementById('publishCity').value;
+    if (!province || !city) {
+      showToast('Seleccioná la provincia y la ciudad', 'error');
+      btn.disabled = false;
+      btn.textContent = 'Publicar Vehículo';
+      return;
+    }
     const urls = await uploadImages();
     const data = {
       title: document.getElementById('publishTitle').value,
@@ -689,7 +684,8 @@ async function handlePublish(e) {
       transmission: document.getElementById('publishTransmission').value,
       mileage: document.getElementById('publishMileage').value || 0,
       fuel: document.getElementById('publishFuel').value,
-      city: document.getElementById('publishCity').value,
+      city: city,
+      province: province,
       description: document.getElementById('publishDescription').value,
       accepts_trade: document.getElementById('publishAcceptsTrade').checked,
       images: urls
@@ -698,6 +694,9 @@ async function handlePublish(e) {
     showToast('¡Vehículo publicado!', 'success');
     uploadedImages = [];
     e.target.reset();
+    document.getElementById('publishProvince').value = '';
+    document.getElementById('publishCity').innerHTML = '<option value="">Primero seleccioná una provincia</option>';
+    document.getElementById('publishCity').disabled = true;
     showSection('my-vehicles');
   } catch (err) { showToast(err.message, 'error'); }
   btn.disabled = false;
@@ -757,7 +756,11 @@ async function openEditModal(id, e) {
     document.getElementById('editMileage').value = v.mileage || '';
     document.getElementById('editFuel').value = v.fuel || '';
     document.getElementById('editTransmission').value = v.transmission || '';
-    document.getElementById('editCity').value = v.city || '';
+    const editProvSelect = document.getElementById('editProvince');
+    const editCitySelect = document.getElementById('editCity');
+    editProvSelect.value = v.province || '';
+    editProvSelect.dispatchEvent(new Event('change'));
+    editCitySelect.value = v.city || '';
     document.getElementById('editStatus').value = v.status || 'active';
     document.getElementById('editDescription').value = v.description || '';
     document.getElementById('editAcceptsTrade').checked = !!v.accepts_trade;
@@ -778,6 +781,14 @@ async function handleEditVehicle(e) {
   btn.textContent = 'Guardando...';
   const id = document.getElementById('editVehicleId').value;
   try {
+    const province = document.getElementById('editProvince').value;
+    const city = document.getElementById('editCity').value;
+    if (!province || !city) {
+      showToast('Seleccioná la provincia y la ciudad', 'error');
+      btn.disabled = false;
+      btn.textContent = 'Guardar cambios';
+      return;
+    }
     await request(`/vehicles/${id}`, {
       method: 'PUT',
       body: JSON.stringify({
@@ -786,7 +797,8 @@ async function handleEditVehicle(e) {
         mileage: document.getElementById('editMileage').value,
         fuel: document.getElementById('editFuel').value,
         transmission: document.getElementById('editTransmission').value,
-        city: document.getElementById('editCity').value,
+        city: city,
+        province: province,
         status: document.getElementById('editStatus').value,
         description: document.getElementById('editDescription').value,
         accepts_trade: document.getElementById('editAcceptsTrade').checked

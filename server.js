@@ -332,11 +332,13 @@ app.post('/api/vehicles', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'Tu cuenta ha sido restringida. No podés publicar contenido.' });
     }
 
-    const { title, brand, model, year, price, mileage, fuel, transmission, description, city, images, accepts_trade } = req.body;
+    const { title, brand, model, year, price, mileage, fuel, transmission, description, city, province, images, accepts_trade } = req.body;
 
     if (!title || !brand || !model || !year || !price) {
       return res.status(400).json({ error: 'Campos requeridos faltantes' });
     }
+    if (!city || !city.trim()) return res.status(400).json({ error: 'La ciudad es obligatoria' });
+    if (!province || !province.trim()) return res.status(400).json({ error: 'La provincia es obligatoria' });
 
     const { data, error } = await supabase
       .from('vehicles')
@@ -351,7 +353,8 @@ app.post('/api/vehicles', authenticateToken, async (req, res) => {
         fuel: fuel || '',
         transmission: transmission || '',
         description: description || '',
-        city: city || '',
+        city: city.trim(),
+        province: province.trim(),
         status: 'active',
         view_count: 0,
         accepts_trade: !!accepts_trade
@@ -410,7 +413,7 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'No tienes permiso' });
     }
 
-    const { title, brand, model, year, price, mileage, fuel, transmission, description, city, status } = req.body;
+    const { title, brand, model, year, price, mileage, fuel, transmission, description, city, province, status } = req.body;
 
     let updates = { updated_at: new Date().toISOString() };
     if (title !== undefined) updates.title = title;
@@ -422,7 +425,14 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
     if (fuel !== undefined) updates.fuel = fuel;
     if (transmission !== undefined) updates.transmission = transmission;
     if (description !== undefined) updates.description = description;
-    if (city !== undefined) updates.city = city;
+    if (city !== undefined) {
+      if (!city.trim()) return res.status(400).json({ error: 'La ciudad no puede estar vacía' });
+      updates.city = city.trim();
+    }
+    if (province !== undefined) {
+      if (!province.trim()) return res.status(400).json({ error: 'La provincia no puede estar vacía' });
+      updates.province = province.trim();
+    }
     if (status !== undefined) {
       const validStatuses = ['active', 'sold', 'inactive', 'paused', 'reserved'];
       if (!validStatuses.includes(status)) {

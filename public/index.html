@@ -274,16 +274,18 @@
               </select>
             </div>
             <div class="form-group">
-              <label>Ciudad</label>
-              <div style="display:flex;gap:0.5rem;">
-                <div class="city-autocomplete-wrap" style="flex:1;position:relative;">
-                  <input type="text" id="publishCity" placeholder="Ej: Buenos Aires" autocomplete="off" style="width:100%;">
-                  <div class="city-dropdown" id="publishCityDropdown"></div>
-                </div>
-                <button type="button" id="detectLocationBtn" onclick="detectCity('publishCity', 'detectLocationBtn')" title="Detectar mi ubicación" style="padding:0 0.75rem;background:var(--dark-3);border:1px solid var(--border);border-radius:var(--radius-md);cursor:pointer;color:var(--text-2);transition:var(--transition);white-space:nowrap;">
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0 0 13 3.06V1h-2v2.06A8.994 8.994 0 0 0 3.06 11H1v2h2.06A8.994 8.994 0 0 0 11 20.94V23h2v-2.06A8.994 8.994 0 0 0 20.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
-                </button>
-              </div>
+              <label for="publishProvince">Provincia *</label>
+              <select id="publishProvince" required>
+                <option value="">Seleccioná una provincia</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="publishCity">Ciudad *</label>
+              <select id="publishCity" required disabled>
+                <option value="">Primero seleccioná una provincia</option>
+              </select>
             </div>
           </div>
           <div class="form-group">
@@ -438,17 +440,19 @@
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label>Ciudad</label>
-              <div style="display:flex;gap:0.5rem;">
-                <div class="city-autocomplete-wrap" style="flex:1;position:relative;">
-                  <input type="text" id="editCity" placeholder="Ej: Buenos Aires" autocomplete="off" style="width:100%;">
-                  <div class="city-dropdown" id="editCityDropdown"></div>
-                </div>
-                <button type="button" onclick="detectCity('editCity', this)" title="Detectar mi ubicación" style="padding:0 0.75rem;background:var(--dark-3);border:1px solid var(--border);border-radius:var(--radius-md);cursor:pointer;color:var(--text-2);transition:var(--transition);">
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0 0 13 3.06V1h-2v2.06A8.994 8.994 0 0 0 3.06 11H1v2h2.06A8.994 8.994 0 0 0 11 20.94V23h2v-2.06A8.994 8.994 0 0 0 20.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
-                </button>
-              </div>
+              <label for="editProvince">Provincia *</label>
+              <select id="editProvince" required>
+                <option value="">Seleccioná una provincia</option>
+              </select>
             </div>
+            <div class="form-group">
+              <label for="editCity">Ciudad *</label>
+              <select id="editCity" required disabled>
+                <option value="">Primero seleccioná una provincia</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
             <div class="form-group">
               <label>Estado</label>
               <select id="editStatus">
