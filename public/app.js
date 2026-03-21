@@ -9,6 +9,7 @@ let uploadedImages = [];
 let reportVehicleId = null;
 let rateConversationId = null;
 let rateRecipientId = null;
+let rateVehicleId = null;
 let lastMessageId = 0;
 let isLoadingMessages = false;
 let onlineStatusInterval = null;
@@ -236,31 +237,6 @@ document.addEventListener('DOMContentLoaded', () => {
   setupProvinceCity('editProvince', 'editCity');
 });
 
-async function detectCity(inputId, btn) {
-  if (!navigator.geolocation) return showToast('Tu navegador no soporta geolocalización', 'error');
-  const input = document.getElementById(inputId);
-  const btnEl = typeof btn === 'string' ? document.getElementById(btn) : btn;
-  if (btnEl) { btnEl.disabled = true; btnEl.style.opacity = '0.5'; }
-  navigator.geolocation.getCurrentPosition(
-    async ({ coords }) => {
-      try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${coords.latitude}&lon=${coords.longitude}&format=json&zoom=10&addressdetails=1`);
-        const data = await res.json();
-        const a = data.address || {};
-        // Prefer the most specific populated place name, avoid neighborhoods/counties
-        const city = a.city || a.municipality || a.town || a.village || a.state_district || a.state || '';
-        if (city && input) { input.value = city; showToast(`Ubicación detectada: ${city}`, 'success'); }
-        else showToast('No se pudo determinar la ciudad', 'error');
-      } catch { showToast('Error al obtener ubicación', 'error'); }
-      finally { if (btnEl) { btnEl.disabled = false; btnEl.style.opacity = '1'; } }
-    },
-    () => {
-      showToast('Permiso de ubicación denegado', 'error');
-      if (btnEl) { btnEl.disabled = false; btnEl.style.opacity = '1'; }
-    },
-    { timeout: 8000 }
-  );
-}
 
 async function initVehicleMap(city, province) {
   if (!window.L) return;
@@ -353,8 +329,10 @@ async function handleRegister(e) {
     showToast('Registro exitoso. ¡Bienvenido!', 'success');
     showSection('home');
   } catch (err) { showToast(err.message, 'error'); }
-  btn.disabled = false;
-  btn.textContent = originalText;
+  finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
 }
 
 async function handleLogin(e) {
@@ -374,8 +352,10 @@ async function handleLogin(e) {
     showToast('¡Bienvenido!', 'success');
     showSection('home');
   } catch (err) { showToast(err.message, 'error'); }
-  btn.disabled = false;
-  btn.textContent = originalText;
+  finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
 }
 
 function logout() {
@@ -625,7 +605,7 @@ async function viewVehicle(id) {
           ` : ''}
 
           <div class="detail-actions" style="margin-top:1.5rem;display:flex;gap:1rem;flex-direction:column;">
-            <button class="btn btn-secondary" onclick="shareVehicle(${vehicle.id}, '${escapeHtml(vehicle.title).replace(/'/g, "\\'")}')"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="margin-right:0.5rem;"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>Compartir</button>
+            <button class="btn btn-secondary" onclick="shareVehicle(${vehicle.id}, ${JSON.stringify(escapeHtml(vehicle.title))})"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="margin-right:0.5rem;"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>Compartir</button>
             ${isLoggedIn ? `<button class="btn ${isFavorite ? 'btn-primary' : 'btn-secondary'}" onclick="toggleFavorite(${vehicle.id}, event)"><svg width="18" height="18" viewBox="0 0 24 24" fill="${isFavorite ? 'currentColor' : 'none'}" stroke="currentColor" style="margin-right:0.5rem;"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>${isFavorite ? 'En favoritos' : 'Guardar en favoritos'}</button>` : ''}
             ${isLoggedIn && !isOwner ? `<button class="btn btn-ghost" onclick="openReportModal(${vehicle.id})" style="color:var(--text-3);">Reportar esta publicación</button>` : ''}
             ${!isLoggedIn ? `<button class="btn btn-primary" style="width:100%" onclick="showSection('login')">Inicia sesión para contactar</button>` : ''}
@@ -634,6 +614,7 @@ async function viewVehicle(id) {
       </div>
     `;
     window._detailImages = images.map(img => img.url);
+    if (currentVehicleId !== id) return;
     showSection('vehicle-detail');
     if (vehicle.city) initVehicleMap(vehicle.city, vehicle.province);
 
@@ -687,6 +668,7 @@ async function compressImage(file, maxWidth = 1920, maxHeight = 1080, quality = 
         ctx.drawImage(img, 0, 0, width, height);
 
         canvas.toBlob((blob) => {
+          if (!blob) { reject(new Error('Error al comprimir la imagen')); return; }
           const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", { type: 'image/jpeg', lastModified: Date.now() });
           resolve({ file: compressedFile, preview: canvas.toDataURL('image/jpeg', quality) });
         }, 'image/jpeg', quality);
@@ -751,6 +733,12 @@ async function handlePublish(e) {
     const city = document.getElementById('publishCity').value;
     if (!province || !city) {
       showToast('Seleccioná la provincia y la ciudad', 'error');
+      btn.disabled = false;
+      btn.textContent = 'Publicar Vehículo';
+      return;
+    }
+    if (!uploadedImages.length) {
+      showToast('Agregá al menos una imagen del vehículo', 'error');
       btn.disabled = false;
       btn.textContent = 'Publicar Vehículo';
       return;
@@ -1037,7 +1025,7 @@ async function loadChatFull(convId) {
         </div>
         ` : ''}
 
-        ${conv.buyer_id === currentUser?.id ? `<button class="chat-header-btn" onclick="openRateModal(${convId}, ${otherUser?.id})" title="Calificar">★</button>` : ''}
+        ${conv.buyer_id === currentUser?.id ? `<button class="chat-header-btn" onclick="openRateModal(${convId}, ${otherUser?.id}, ${vehicle?.id || 'null'})" title="Calificar">★</button>` : ''}
       </div>
 
       <div class="chat-messages-container" id="chatMessagesContainer"></div>
@@ -1114,10 +1102,12 @@ function appendMessageToDOM(message, readAt) {
 
   // Detectar mensaje de permuta
   if (message.content?.startsWith('__TRADE_CARD__')) {
-    const parts = message.content.slice('__TRADE_CARD__'.length).split('\n');
-    const extraText = parts.slice(1).join('\n').trim();
+    const raw = message.content.slice('__TRADE_CARD__'.length);
+    const firstNewline = raw.indexOf('\n');
+    const jsonPart = firstNewline === -1 ? raw : raw.slice(0, firstNewline);
+    const extraText = firstNewline === -1 ? '' : raw.slice(firstNewline + 1).trim();
     try {
-      const v = JSON.parse(parts[0]);
+      const v = JSON.parse(jsonPart);
       const fallbackImg = 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400&h=220&fit=crop';
       html += `
         <div class="trade-card" onclick="viewVehicle(${v.id})">
@@ -1135,7 +1125,7 @@ function appendMessageToDOM(message, readAt) {
         </div>`;
       if (extraText) html += `<div class="content" style="margin-top:0.5rem;">${escapeHtml(extraText)}</div>`;
     } catch {
-      html += `<div class="content">${escapeHtml(message.content)}</div>`;
+      html += `<div class="content" style="color:var(--text-3);">[Propuesta de permuta no disponible]</div>`;
     }
   } else {
     html += `<div class="content">${escapeHtml(message.content)}</div>`;
@@ -1311,7 +1301,10 @@ async function handleNotificationClick(link, id) {
     try {
       await loadChatFull(convId);
       startPolling();
-    } catch {}
+    } catch (err) {
+      showToast('No se pudo cargar la conversación', 'error');
+      currentConversationId = null;
+    }
   } else if (link.includes('vehicle/')) {
     viewVehicle(link.split('/').pop());
   } else if (link.includes('profile/')) {
@@ -1378,11 +1371,11 @@ async function viewProfile(id) {
     const vehicles = await request(`/vehicles?user_id=${id}`).catch(() => ({ vehicles: [] }));
     document.getElementById('profileVehiclesList').innerHTML = vehicles.vehicles?.length ? vehicles.vehicles.map(v => `
       <div class="vehicle-card" onclick="viewVehicle(${v.id})">
-        <div class="vehicle-image-container"><img src="${v.images?.[0]?.url || v.image_url || 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400&h=300&fit=crop'}" class="vehicle-image" onerror="this.src='https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400&h=300&fit=crop'"></div>
+        <div class="vehicle-image-container"><img src="${v.images?.[0]?.url || v.image_url || 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400&h=300&fit=crop'}" class="vehicle-image" alt="${escapeHtml(v.title)}" onerror="this.src='https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400&h=300&fit=crop'"></div>
         <div class="vehicle-info">
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
           <p class="vehicle-price">$${formatNumber(v.price)}</p>
-          ${isViewerAdmin && !isOwn ? `<button class="btn btn-sm btn-danger" style="margin-top:0.5rem;width:100%;" onclick="event.stopPropagation(); adminDeleteVehicle(${v.id}, '${escapeHtml(v.title).replace(/'/g, "\\\\'")}')">🗑 Eliminar</button>` : ''}
+          ${isViewerAdmin && !isOwn ? `<button class="btn btn-sm btn-danger" style="margin-top:0.5rem;width:100%;" onclick="event.stopPropagation(); adminDeleteVehicle(${v.id}, ${JSON.stringify(escapeHtml(v.title))})">🗑 Eliminar</button>` : ''}
         </div>
       </div>
     `).join('') : '<p style="color:var(--text-secondary)">Sin vehículos publicados</p>';
@@ -1395,6 +1388,7 @@ async function viewProfile(id) {
 
 function editProfile() {
   if (!currentUser) return;
+  pendingAvatarFile = null;
   document.getElementById('profileForm').innerHTML = `
     <h3 style="font-size:1.1rem;margin-bottom:1rem;">Editar perfil</h3>
     <form onsubmit="saveProfile(event)" style="background:var(--dark-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem;">
@@ -1510,7 +1504,7 @@ async function loadAdminReports() {
                   <button class="btn btn-sm btn-secondary" onclick="resolveReport(${r.id}, 'resolved')">Resolver</button>
                   <button class="btn btn-sm btn-ghost" onclick="resolveReport(${r.id}, 'dismissed')">Descartar</button>
                 ` : ''}
-                ${r.vehicle?.id ? `<button class="btn btn-sm btn-danger" onclick="adminDeleteVehicle(${r.vehicle.id}, '${escapeHtml(r.vehicle.title || '').replace(/'/g, "\\'")}')">🗑 Eliminar pub.</button>` : ''}
+                ${r.vehicle?.id ? `<button class="btn btn-sm btn-danger" onclick="adminDeleteVehicle(${r.vehicle.id}, ${JSON.stringify(escapeHtml(r.vehicle.title || ''))})">🗑 Eliminar pub.</button>` : ''}
               </td>
             </tr>
           `).join('')}
@@ -1583,7 +1577,7 @@ async function loadAdminVehicles(page = 1) {
                   <td style="font-size:0.78rem;color:var(--text-3);">${formatRelTime(v.created_at)}</td>
                   <td>
                     <button class="btn btn-sm btn-danger"
-                      onclick="adminDeleteVehicle(${v.id}, '${escapeHtml(v.title).replace(/'/g, "\\'")}')">Eliminar</button>
+                      onclick="adminDeleteVehicle(${v.id}, ${JSON.stringify(escapeHtml(v.title))})">Eliminar</button>
                   </td>
                 </tr>
               `).join('')}
@@ -1629,7 +1623,7 @@ async function loadAdminUsers() {
                     }
                   </td>
                   <td style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-                    <button class="btn btn-sm ${isBanned ? 'btn-secondary' : 'btn-danger'}" onclick="toggleBan('${u.id}', ${!isBanned})">
+                    <button class="btn btn-sm ${isBanned ? 'btn-secondary' : 'btn-danger'}" onclick="toggleBan('${u.id}')">
                       ${isBanned ? 'Reactivar' : 'Suspender'}
                     </button>
                     ${!isAdm ? `<button class="btn btn-sm btn-ghost" onclick="toggleAdmin('${u.id}', true)">Hacer admin</button>` : `<button class="btn btn-sm btn-ghost" onclick="toggleAdmin('${u.id}', false)">Quitar admin</button>`}
@@ -1709,7 +1703,7 @@ async function submitTradeOffer() {
       c.vehicle?.id === tradeTargetVehicleId || c.vehicle_id === tradeTargetVehicleId
     );
     if (conv) {
-      setTimeout(() => openChat(conv.id), 400);
+      setTimeout(() => openConversation(conv.id, null), 400);
     } else {
       showSection('messages');
     }
@@ -1837,9 +1831,10 @@ async function submitReport() {
   } catch (err) { showToast(err.message, 'error'); }
 }
 
-function openRateModal(convId, recipientId) {
+function openRateModal(convId, recipientId, vehicleId) {
   rateConversationId = convId;
   rateRecipientId = recipientId;
+  rateVehicleId = vehicleId || null;
   document.getElementById('starRating').querySelectorAll('.star').forEach(s => s.classList.remove('active'));
   document.getElementById('rateReview').value = '';
   document.getElementById('rateModal').style.display = 'block';
@@ -1851,6 +1846,7 @@ function closeRateModal() {
   document.getElementById('modalOverlay').style.display = 'none';
   rateConversationId = null;
   rateRecipientId = null;
+  rateVehicleId = null;
 }
 
 document.addEventListener('click', e => {
@@ -1869,7 +1865,7 @@ async function submitRating() {
   const review = document.getElementById('rateReview').value;
   if (!stars) { showToast('Selecciona estrellas', 'error'); return; }
   try {
-    await request('/ratings', { method: 'POST', body: JSON.stringify({ to_user_id: rateRecipientId, vehicle_id: currentVehicleId, stars, review }) });
+    await request('/ratings', { method: 'POST', body: JSON.stringify({ to_user_id: rateRecipientId, vehicle_id: rateVehicleId ?? currentVehicleId, stars, review }) });
     showToast('Calificación enviada', 'success');
     closeRateModal();
   } catch (err) { showToast(err.message, 'error'); }
@@ -1879,6 +1875,7 @@ function closeAllModals() {
   document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
   document.getElementById('modalOverlay').style.display = 'none';
   closeLightbox();
+  confirmCallback = null;
 }
 
 // Lightbox
@@ -2103,6 +2100,8 @@ document.getElementById('publishBrand')?.addEventListener('change', autoFillTitl
 document.getElementById('publishModel')?.addEventListener('change', autoFillTitle);
 document.getElementById('publishYear')?.addEventListener('input', autoFillTitle);
 
+const yearInput = document.getElementById('publishYear');
+if (yearInput) yearInput.max = new Date().getFullYear() + 1;
 showSection('home');
 
 // MOBILE ACCOUNT MENU
@@ -2120,3 +2119,14 @@ function toggleMobileMenu() {
 function closeMobileMenu() {
   document.getElementById('mobileAccountMenu').style.display = 'none';
 }
+
+async function loadPublicStats() {
+  try {
+    const data = await request('/stats/public');
+    const ve = document.getElementById('statVehicles');
+    const us = document.getElementById('statUsers');
+    if (ve) ve.textContent = data.active_vehicles?.toLocaleString('es-AR') || '—';
+    if (us) us.textContent = data.total_users?.toLocaleString('es-AR') || '—';
+  } catch { /* silencioso */ }
+}
+loadPublicStats();

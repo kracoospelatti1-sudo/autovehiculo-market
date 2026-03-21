@@ -13,7 +13,7 @@ const app = express();
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
 const SECRET_KEY = process.env.JWT_SECRET;
-const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'http://localhost:3001';
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'http://localhost:3000';
 
 if (!supabaseUrl || !supabaseServiceKey) {
   console.error('❌ ERROR: SUPABASE_URL y SUPABASE_SERVICE_KEY son requeridos en el archivo .env');
@@ -164,7 +164,7 @@ app.post('/api/login', async (req, res) => {
       .from('users')
       .select('*')
       .eq('email', email)
-      .single();
+      .maybeSingle();
 
     if (error || !user) {
       return res.status(401).json({ error: 'Credenciales inválidas' });
@@ -314,8 +314,9 @@ app.get('/api/vehicles/:id', optionalAuth, async (req, res) => {
       return res.status(404).json({ error: 'Vehículo no encontrado' });
     }
 
-    const newViewCount = (vehicle.view_count || 0) + 1;
-    await supabase.from('vehicles').update({ view_count: newViewCount }).eq('id', vehicle.id);
+    if (!isOwner && !admin) {
+      await supabase.rpc('increment_view_count', { vehicle_id: vehicle.id });
+    }
 
     const [userRes, imagesRes, profileRes, sellerVehiclesRes, sellerRatingsRes, followersRes] = await Promise.all([
       supabase.from('users').select('id, username').eq('id', vehicle.user_id).single(),
@@ -514,7 +515,8 @@ app.delete('/api/vehicles/:id', authenticateToken, async (req, res) => {
       }
     }
 
-    const vid = req.params.id;
+    const vid = parseInt(req.params.id);
+    if (isNaN(vid)) return res.status(400).json({ error: 'ID inválido' });
     const safeDelete = async (table, filter) => {
       try { const r = await filter(supabase.from(table)); if (r?.error) console.error(`${table} cleanup:`, r.error.message); }
       catch (e) { console.error(`${table} cleanup threw:`, e.message); }
@@ -525,6 +527,10 @@ app.delete('/api/vehicles/:id', authenticateToken, async (req, res) => {
     if (convs?.length) {
       await safeDelete('messages', t => t.delete().in('conversation_id', convs.map(c => c.id)));
     }
+    if (convs?.length) {
+      const convLinks = convs.map(c => `messages/${c.id}`);
+      await safeDelete('notifications', t => t.delete().in('link', convLinks));
+    }
 
     // Clean up all related tables — each failure is isolated
     await safeDelete('conversations',   t => t.delete().eq('vehicle_id', vid));
@@ -532,6 +538,7 @@ app.delete('/api/vehicles/:id', authenticateToken, async (req, res) => {
     await safeDelete('favorites',       t => t.delete().eq('vehicle_id', vid));
     await safeDelete('reports',         t => t.delete().eq('vehicle_id', vid));
     await safeDelete('trade_offers',    t => t.delete().or(`vehicle_id.eq.${vid},offered_vehicle_id.eq.${vid}`));
+    await safeDelete('notifications',   t => t.delete().eq('link', `vehicle/${vid}`));
 
     const { error: delErr } = await supabase.from('vehicles').delete().eq('id', vid);
     if (delErr) {
@@ -616,6 +623,7 @@ app.get('/api/profile/:id', async (req, res) => {
     }
 
     const targetId = parseInt(req.params.id);
+    if (isNaN(targetId)) return res.status(400).json({ error: 'ID de usuario inválido' });
 
     // Resolve optional auth for is_following
     let viewerId = null;
@@ -667,6 +675,10 @@ app.post('/api/users/:id/follow', authenticateToken, async (req, res) => {
 
     if (existing) {
       await supabase.from('follows').delete().eq('follower_id', followerId).eq('following_id', followingId);
+      await supabase.from('notifications').delete()
+        .eq('user_id', followingId)
+        .eq('type', 'follow')
+        .like('link', `profile/${followerId}`);
       const { count } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', followingId);
       return res.json({ following: false, followers_count: count || 0 });
     }
@@ -829,8 +841,9 @@ app.post('/api/favorites/:vehicleId', authenticateToken, async (req, res) => {
       return res.json({ favorited: false });
     }
 
-    await supabase.from('favorites').insert({ user_id: req.user.id, vehicle_id: vehicleId });
-    
+    const { error: insertError } = await supabase.from('favorites').insert({ user_id: req.user.id, vehicle_id: vehicleId });
+    if (insertError && insertError.code !== '23505') throw insertError;
+
     const { data: vehicle } = await supabase
       .from('vehicles')
       .select('user_id')
@@ -843,7 +856,7 @@ app.post('/api/favorites/:vehicleId', authenticateToken, async (req, res) => {
         type: 'favorite',
         title: 'Nuevo favorito',
         message: 'Alguien agregó tu vehículo a favoritos',
-        link: `/vehicle/${vehicleId}`
+        link: `vehicle/${vehicleId}`
       });
     }
 
@@ -885,12 +898,12 @@ app.get('/api/conversations', authenticateToken, async (req, res) => {
 
     if (error) throw error;
     
+    if (!data.length) return res.json({ conversations: [], total: 0 });
+
     // Batch queries instead of N+1
     const vehicleIds = [...new Set(data.map(c => c.vehicle_id))];
     const userIds = [...new Set(data.flatMap(c => [c.buyer_id, c.seller_id]))];
     const convIds = data.map(c => c.id);
-
-    if (!data.length) return res.json({ conversations: [], total: 0 });
 
     const [vehiclesRes, usersRes, profilesRes, unreadRes, ...messagesResArr] = await Promise.all([
       supabase.from('vehicles').select('id, title, image_url, price, brand, model, user_id').in('id', vehicleIds),
@@ -969,6 +982,7 @@ app.get('/api/messages/unread-count', authenticateToken, async (req, res) => {
 
 app.post('/api/conversations', authenticateToken, async (req, res) => {
   try {
+    if (await isBanned(req.user.id)) return res.status(403).json({ error: 'Tu cuenta está suspendida' });
     const { vehicle_id, initial_message } = req.body;
     
     if (!vehicle_id || !initial_message) {
@@ -1153,8 +1167,9 @@ app.get('/api/conversations/:id/messages', authenticateToken, async (req, res) =
 
 app.post('/api/conversations/:id/messages', authenticateToken, messageLimiter, async (req, res) => {
   try {
+    if (await isBanned(req.user.id)) return res.status(403).json({ error: 'Tu cuenta está suspendida' });
     const { content } = req.body;
-    if (!content) return res.status(400).json({ error: 'Mensaje requerido' });
+    if (!content || !content.trim()) return res.status(400).json({ error: 'Mensaje requerido' });
     if (content.trim().length > 5000) return res.status(400).json({ error: 'El mensaje no puede superar los 5000 caracteres' });
 
     const { data: conversation } = await supabase
@@ -1264,9 +1279,11 @@ app.put('/api/conversations/:id/read', authenticateToken, async (req, res) => {
 // TRADE OFFERS
 app.post('/api/vehicles/:id/trade-offer', authenticateToken, async (req, res) => {
   try {
+    if (await isBanned(req.user.id)) return res.status(403).json({ error: 'Tu cuenta está suspendida' });
     const targetVehicleId = req.params.id;
     const { offered_vehicle_id, message } = req.body;
     if (!offered_vehicle_id) return res.status(400).json({ error: 'Seleccioná un vehículo para ofrecer' });
+    if (message && message.length > 1000) return res.status(400).json({ error: 'El mensaje no puede superar los 1000 caracteres' });
 
     const { data: target } = await supabase.from('vehicles').select('user_id, title, accepts_trade, status').eq('id', targetVehicleId).single();
     if (!target) return res.status(404).json({ error: 'Vehículo no encontrado' });
@@ -1420,6 +1437,16 @@ app.put('/api/trade-offers/:id', authenticateToken, async (req, res) => {
     if (!offer) return res.status(404).json({ error: 'Oferta no encontrada' });
     if (offer.owner_id !== req.user.id) return res.status(403).json({ error: 'Sin permiso' });
     if (offer.status !== 'pending') return res.status(400).json({ error: 'Esta oferta ya fue respondida' });
+
+    if (status === 'accepted') {
+      const { data: offeredVehicle } = await supabase.from('vehicles').select('status, user_id').eq('id', offer.offered_vehicle_id).maybeSingle();
+      if (!offeredVehicle || offeredVehicle.status !== 'active') {
+        return res.status(400).json({ error: 'El vehículo ofrecido ya no está disponible' });
+      }
+      if (offeredVehicle.user_id !== offer.proposer_id) {
+        return res.status(400).json({ error: 'El vehículo ofrecido ya no pertenece al proponente' });
+      }
+    }
 
     await supabase.from('trade_offers').update({ status }).eq('id', req.params.id);
 
@@ -1589,7 +1616,8 @@ app.get('/api/ratings/:userId', async (req, res) => {
       .from('ratings')
       .select('*')
       .eq('to_user_id', req.params.userId)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(50);
 
     if (error) throw error;
     
@@ -1741,10 +1769,11 @@ app.get('/api/admin/reports', authenticateToken, async (req, res) => {
     const { data, error } = await supabase
       .from('reports')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(200);
 
     if (error) throw error;
-    
+
     const vehicleIds = [...new Set((data || []).map(r => r.vehicle_id))];
     const reporterIds = [...new Set((data || []).map(r => r.reporter_id))];
     const [vehiclesRes, reportersRes] = await Promise.all([
@@ -1899,7 +1928,23 @@ app.get('/api/admin/debug-vehicle/:id', authenticateToken, async (req, res) => {
   });
 });
 
-const PORT = process.env.PORT || 3001;
+// Public stats for hero section
+app.get('/api/stats/public', async (_req, res) => {
+  try {
+    const [vehiclesRes, usersRes] = await Promise.all([
+      supabase.from('vehicles').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+      supabase.from('users').select('*', { count: 'exact', head: true })
+    ]);
+    res.json({
+      active_vehicles: vehiclesRes.count || 0,
+      total_users: usersRes.count || 0
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Error' });
+  }
+});
+
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`);
 });
