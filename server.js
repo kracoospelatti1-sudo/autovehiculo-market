@@ -197,10 +197,21 @@ app.get('/api/user', authenticateToken, async (req, res) => {
 // VEHICLES with SEARCH and FILTERS
 app.get('/api/vehicles', async (req, res) => {
   try {
+    // Obtener IDs de usuarios baneados para excluirlos
+    const { data: bannedProfiles } = await supabase
+      .from('profiles')
+      .select('user_id')
+      .eq('is_banned', true);
+    const bannedIds = (bannedProfiles || []).map(p => p.user_id).filter(Boolean);
+
     let query = supabase
       .from('vehicles')
       .select('*, users!vehicles_user_id_fkey(id, username)', { count: 'exact' })
       .eq('status', 'active');
+
+    if (bannedIds.length > 0) {
+      query = query.not('user_id', 'in', `(${bannedIds.join(',')})`);
+    }
 
     const { brand, model, minPrice, maxPrice, minYear, maxYear, minMileage, maxMileage, fuel, city, province, search, sort, user_id, page = 1 } = req.query;
     const limit = 12;
@@ -1100,12 +1111,15 @@ app.post('/api/conversations/:id/messages', authenticateToken, async (req, res) 
 
     await supabase.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', req.params.id);
 
+    // Obtener username del remitente para la notificación
+    const { data: senderUser } = await supabase.from('users').select('username').eq('id', req.user.id).single();
+    const preview = content.length > 60 ? content.slice(0, 60) + '…' : content;
     await supabase.from('notifications').insert({
       user_id: recipientId,
       type: 'message',
-      title: 'Nuevo mensaje',
-      message: 'Recibiste un nuevo mensaje',
-      link: `/messages/${req.params.id}`
+      title: `Mensaje de ${senderUser?.username || 'alguien'}`,
+      message: preview,
+      link: `messages/${req.params.id}`
     });
 
     res.json({ ...message, username: message.users?.username });
@@ -1556,6 +1570,54 @@ app.get('/api/stats', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error(error);
+    res.status(500).json({ error: 'Error' });
+  }
+});
+
+// ADMIN — listar todos los vehículos
+app.get('/api/admin/vehicles', authenticateToken, async (req, res) => {
+  try {
+    const admin = await isAdmin(req.user.id);
+    if (!admin) return res.status(403).json({ error: 'Acceso denegado' });
+
+    const { page = 1, search = '' } = req.query;
+    const limit = 20;
+    const offset = (page - 1) * limit;
+
+    let query = supabase
+      .from('vehicles')
+      .select('id, title, brand, model, year, price, status, view_count, created_at, user_id, city, province', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (search) {
+      const s = search.replace(/[%_\\]/g, '');
+      query = query.or(`title.ilike.%${s}%,brand.ilike.%${s}%`);
+    }
+
+    const { data, error, count } = await query;
+    if (error) throw error;
+
+    const userIds = [...new Set((data || []).map(v => v.user_id))];
+    const { data: users } = userIds.length
+      ? await supabase.from('users').select('id, username').in('id', userIds)
+      : { data: [] };
+    const { data: profiles } = userIds.length
+      ? await supabase.from('profiles').select('user_id, is_banned').in('user_id', userIds)
+      : { data: [] };
+    const userMap = Object.fromEntries((users || []).map(u => [u.id, u]));
+    const profileMap = Object.fromEntries((profiles || []).map(p => [p.user_id, p]));
+
+    res.json({
+      vehicles: (data || []).map(v => ({
+        ...v,
+        seller_username: userMap[v.user_id]?.username || 'Desconocido',
+        seller_banned: profileMap[v.user_id]?.is_banned || false
+      })),
+      total: count || 0
+    });
+  } catch (error) {
+    console.error('[/api/admin/vehicles]', error.message);
     res.status(500).json({ error: 'Error' });
   }
 });

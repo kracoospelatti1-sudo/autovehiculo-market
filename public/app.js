@@ -1213,6 +1213,22 @@ let heartbeatInterval = setInterval(() => {
 }, 60000);
 
 // NOTIFICATIONS
+const NOTIF_ICONS = {
+  message:       `<svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>`,
+  trade_offer:   `<svg viewBox="0 0 24 24"><path d="M7.5 21H2V9h5.5v12zm7.25-18h-5.5v18h5.5V3zM22 11h-5.5v10H22V11z"/></svg>`,
+  trade_accepted:`<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>`,
+  trade_rejected:`<svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>`,
+  follow:        `<svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>`,
+  new_vehicle:   `<svg viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99z"/></svg>`,
+  rating:        `<svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>`,
+};
+function notifIcon(type) {
+  const svg = NOTIF_ICONS[type] || `<svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>`;
+  const colors = { message:'#60a5fa', trade_offer:'#f59e0b', trade_accepted:'#22c55e', trade_rejected:'#ef4444', follow:'#a78bfa', new_vehicle:'#f59e0b', rating:'#facc15' };
+  const bg = colors[type] || 'var(--text-3)';
+  return `<div class="notification-icon" style="background:${bg}22;color:${bg};">${svg}</div>`;
+}
+
 async function loadNotifications() {
   try {
     const notifications = await request('/notifications');
@@ -1220,7 +1236,7 @@ async function loadNotifications() {
     if (!notifications?.length) { container.innerHTML = '<div class="empty-state"><p>Sin notificaciones</p></div>'; return; }
     container.innerHTML = notifications.map(n => `
       <div class="notification-item ${n.read ? '' : 'unread'}" onclick="handleNotificationClick('${n.link || ''}', ${n.id})">
-        <div class="notification-icon"><svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg></div>
+        ${notifIcon(n.type)}
         <div class="notification-content"><h4>${escapeHtml(n.title)}</h4><p>${escapeHtml(n.message)}</p><div class="notification-time">${formatRelTime(n.created_at)}</div></div>
       </div>
     `).join('');
@@ -1388,9 +1404,10 @@ async function loadAdmin() {
 
 function showAdminTab(tab) {
   document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
-  event?.currentTarget?.classList?.add('active') || document.querySelector(`.admin-tab[onclick*="${tab}"]`)?.classList.add('active');
+  event?.currentTarget?.classList?.add('active') || document.querySelector(`.admin-tab[onclick*="'${tab}'"]`)?.classList.add('active');
   if (tab === 'reports') loadAdminReports();
   else if (tab === 'users') loadAdminUsers();
+  else if (tab === 'vehicles') loadAdminVehicles(1);
 }
 
 async function loadAdminReports() {
@@ -1405,16 +1422,86 @@ async function loadAdminReports() {
             <td>${escapeHtml(r.reporter?.username || 'N/A')}</td>
             <td>${escapeHtml(r.reason)}</td>
             <td><span style="color:${r.status === 'pending' ? 'var(--warning)' : 'var(--success)'}">${r.status}</span></td>
-            <td>
+            <td style="display:flex;gap:0.4rem;flex-wrap:wrap;">
               ${r.status === 'pending' ? `
-                <button class="btn btn-secondary" onclick="resolveReport(${r.id}, 'resolved')">Resolver</button>
-                <button class="btn btn-danger" onclick="resolveReport(${r.id}, 'dismissed')">Descartar</button>
+                <button class="btn btn-sm btn-secondary" onclick="resolveReport(${r.id}, 'resolved')">Resolver</button>
+                <button class="btn btn-sm btn-ghost" onclick="resolveReport(${r.id}, 'dismissed')">Descartar</button>
               ` : ''}
+              ${r.vehicle?.id ? `<button class="btn btn-sm btn-danger" onclick="adminDeleteVehicle(${r.vehicle.id}, '${escapeHtml(r.vehicle.title || '').replace(/'/g, "\\'")}')">🗑 Eliminar pub.</button>` : ''}
             </td>
           </tr>
         `).join('')}
       </tbody></table>
     ` : '<p>Sin reportes</p>';
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function adminDeleteVehicle(id, title) {
+  showConfirmModal(
+    '¿Eliminar publicación?',
+    `Se eliminará permanentemente "${title}" y todas sus imágenes y conversaciones. Esta acción no se puede deshacer.`,
+    'Eliminar',
+    async () => {
+      try {
+        await request(`/vehicles/${id}`, { method: 'DELETE' });
+        showToast('Publicación eliminada', 'success');
+        showAdminTab('reports');
+      } catch (err) { showToast(err.message, 'error'); }
+    }
+  );
+}
+
+let adminVehiclesPage = 1;
+async function loadAdminVehicles(page = 1) {
+  adminVehiclesPage = page;
+  const searchVal = document.getElementById('adminVehicleSearch')?.value || '';
+  try {
+    const { vehicles, total } = await request(`/admin/vehicles?page=${page}&search=${encodeURIComponent(searchVal)}`);
+    const pages = Math.ceil(total / 20);
+    document.getElementById('adminContent').innerHTML = `
+      <div style="display:flex;gap:0.75rem;margin-bottom:1rem;align-items:center;flex-wrap:wrap;">
+        <input type="text" id="adminVehicleSearch" placeholder="Buscar por título o marca..."
+          value="${escapeHtml(searchVal)}"
+          style="flex:1;min-width:200px;padding:0.45rem 0.8rem;background:var(--dark-3);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--text);font-size:0.85rem;"
+          onkeydown="if(event.key==='Enter') loadAdminVehicles(1)">
+        <button class="btn btn-sm btn-secondary" onclick="loadAdminVehicles(1)">🔍 Buscar</button>
+        <span style="color:var(--text-3);font-size:0.8rem;">${total} publicaciones totales</span>
+      </div>
+      ${vehicles?.length ? `
+        <table class="admin-table">
+          <thead><tr><th>Título</th><th>Vendedor</th><th>Precio</th><th>Estado</th><th>Vistas</th><th>Fecha</th><th>Acción</th></tr></thead>
+          <tbody>
+            ${vehicles.map(v => `
+              <tr>
+                <td><a href="#" onclick="viewVehicle(${v.id})" style="color:var(--primary-light);">${escapeHtml(v.title)}</a></td>
+                <td style="font-size:0.82rem;">
+                  ${escapeHtml(v.seller_username)}
+                  ${v.seller_banned ? '<span style="background:rgba(239,68,68,0.15);color:#ef4444;padding:1px 5px;border-radius:4px;font-size:0.72rem;margin-left:4px;">BAN</span>' : ''}
+                </td>
+                <td style="font-size:0.82rem;">$${formatNumber(v.price)}</td>
+                <td>
+                  <span style="font-size:0.75rem;padding:2px 7px;border-radius:5px;font-weight:600;
+                    background:${v.status==='active'?'rgba(34,197,94,0.12)':v.status==='sold'?'rgba(239,68,68,0.12)':'rgba(245,158,11,0.12)'};
+                    color:${v.status==='active'?'#22c55e':v.status==='sold'?'#ef4444':'#f59e0b'};"
+                  >${v.status}</span>
+                </td>
+                <td style="text-align:center;font-size:0.82rem;">${v.view_count || 0}</td>
+                <td style="font-size:0.78rem;color:var(--text-3);">${formatRelTime(v.created_at)}</td>
+                <td>
+                  <button class="btn btn-sm btn-danger"
+                    onclick="adminDeleteVehicle(${v.id}, '${escapeHtml(v.title).replace(/'/g, "\\'")}')">Eliminar</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        ${pages > 1 ? `<div style="display:flex;gap:0.5rem;justify-content:center;margin-top:1rem;flex-wrap:wrap;">
+          ${Array.from({length: pages}, (_, i) => `
+            <button class="btn btn-sm ${i+1===page?'btn-primary':'btn-ghost'}" onclick="loadAdminVehicles(${i+1})">${i+1}</button>
+          `).join('')}
+        </div>` : ''}
+      ` : '<p style="padding:2rem;color:var(--text-3);">Sin publicaciones</p>'}
+    `;
   } catch (err) { showToast(err.message, 'error'); }
 }
 
@@ -1569,13 +1656,28 @@ async function loadTradeOffers() {
         <div style="font-size:0.75rem;color:var(--text-3);margin-top:0.5rem;">${formatRelTime(o.created_at)}</div>
       </div>`;
 
-    document.getElementById('tradeOffersList').innerHTML = received?.length
-      ? received.map(o => renderOffer(o, true)).join('')
-      : '<p style="color:var(--text-3);font-size:0.9rem;">Sin permutas recibidas</p>';
+    // Renderizar con colapso si hay más de 3
+    function renderCollapsible(containerId, offers, isReceived, emptyMsg) {
+      const MAX_VISIBLE = 3;
+      const container = document.getElementById(containerId);
+      if (!offers?.length) { container.innerHTML = `<p style="color:var(--text-3);font-size:0.9rem;">${emptyMsg}</p>`; return; }
+      const visible = offers.slice(0, MAX_VISIBLE);
+      const hidden = offers.slice(MAX_VISIBLE);
+      const hiddenId = containerId + '_hidden';
+      container.innerHTML = visible.map(o => renderOffer(o, isReceived)).join('')
+        + (hidden.length ? `
+          <div id="${hiddenId}" style="display:none;">${hidden.map(o => renderOffer(o, isReceived)).join('')}</div>
+          <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:0.25rem;" onclick="
+            const h = document.getElementById('${hiddenId}');
+            const open = h.style.display !== 'none';
+            h.style.display = open ? 'none' : 'block';
+            this.textContent = open ? 'Ver ${hidden.length} más ▾' : 'Ver menos ▴';
+          ">Ver ${hidden.length} más ▾</button>
+        ` : '');
+    }
 
-    document.getElementById('tradeSentList').innerHTML = sent?.length
-      ? sent.map(o => renderOffer(o, false)).join('')
-      : '<p style="color:var(--text-3);font-size:0.9rem;">Sin permutas enviadas</p>';
+    renderCollapsible('tradeOffersList', received, true,  'Sin permutas recibidas');
+    renderCollapsible('tradeSentList',   sent,     false, 'Sin permutas enviadas');
   } catch { section.style.display = 'none'; }
 }
 

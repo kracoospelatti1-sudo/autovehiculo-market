@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh repo:*)",
+      "Read(//c/Users/Lucas Pelatti/Desktop/**)",
+      "Read(//c/Users/Lucas Pelatti/**)",
+      "Bash(cd /c/Users/\"Lucas Pelatti\"/Desktop)",
+      "Bash(cd /c/Users/\"Lucas Pelatti\"/Desktop/autovehiculo-market)",
+      "Bash(node -e \":*)",
+      "Bash(npm install:*)",
+      "Bash(curl:*)",
+      "Bash(npx supabase:*)",
+      "Bash(npm list:*)",
+      "Bash(find '/c/Users/Lucas Pelatti/Desktop/autovehiculo-market' -type f -name *.sql -o -name *schema* -o -name *migration*)",
+      "Bash(grep -E '\\\\.\\(html|js|css\\)$')",
+      "Bash(find 'C:\\\\Users\\\\Lucas Pelatti\\\\Desktop\\\\Pagina' -maxdepth 1 -name *.js -o -maxdepth 1 -name *.ts)",
+      "Bash(wc -l *.js *.html *.css)",
+      "Bash(node:*)",
+      "Bash(node server.js:*)",
+      "Bash(claude skills:*)",
+      "Bash(supabase --version)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(node -e \"const d=JSON.parse\\(require\\(''''fs''''\\).readFileSync\\(''''C:/Users/Lucas Pelatti/Desktop/Pagina/tmp_login.json'''',''''utf8''''\\)\\); console.log\\(''''token ok:'''', !!d.token, ''''| user:'''', d.user?.username\\)\")",
+      "Bash(node -e \"console.log\\(require\\(''crypto''\\).randomBytes\\(48\\).toString\\(''hex''\\)\\)\")"
+    ]
+  }
+}
