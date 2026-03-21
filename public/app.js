@@ -57,9 +57,11 @@ async function detectCity(inputId, btn) {
   navigator.geolocation.getCurrentPosition(
     async ({ coords }) => {
       try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${coords.latitude}&lon=${coords.longitude}&format=json`);
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${coords.latitude}&lon=${coords.longitude}&format=json&zoom=10&addressdetails=1`);
         const data = await res.json();
-        const city = data.address?.city || data.address?.town || data.address?.village || data.address?.county || '';
+        const a = data.address || {};
+        // Prefer the most specific populated place name, avoid neighborhoods/counties
+        const city = a.city || a.municipality || a.town || a.village || a.state_district || a.state || '';
         if (city && input) { input.value = city; showToast(`Ubicación detectada: ${city}`, 'success'); }
         else showToast('No se pudo determinar la ciudad', 'error');
       } catch { showToast('Error al obtener ubicación', 'error'); }
@@ -79,7 +81,7 @@ async function initVehicleMap(city) {
   const el = document.getElementById('vehicleMap');
   if (!el) return;
   try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city + ', Argentina')}&format=json&limit=1`);
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city)}&format=json&limit=1&countrycodes=ar&addressdetails=1`);
     const data = await res.json();
     if (!data?.length) { el.parentElement.style.display = 'none'; return; }
     const { lat, lon, display_name } = data[0];
