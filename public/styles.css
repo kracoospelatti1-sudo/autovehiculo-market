@@ -762,7 +762,7 @@ select {
   border-bottom: 1px solid rgba(255,255,255,0.03);
 }
 .conversation-item:hover { background: rgba(255,255,255,0.04); }
-.conversation-item.active { background: rgba(245,158,11,0.08); border-left: 2px solid var(--primary); }
+.conversation-item.active { background: rgba(245,158,11,0.12); border-left: 3px solid var(--primary); }
 
 .conversation-avatar {
   width: 40px;
