@@ -1598,3 +1598,79 @@ select {
   color: inherit;
   opacity: 0.75;
 }
+
+/* Trade Card en chat */
+.trade-card {
+  background: var(--dark-3);
+  border: 1px solid rgba(245,158,11,0.3);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  cursor: pointer;
+  transition: var(--transition);
+  max-width: 280px;
+  margin: 0.25rem 0;
+}
+.trade-card:hover {
+  border-color: rgba(245,158,11,0.6);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+.trade-card-badge {
+  background: rgba(245,158,11,0.15);
+  color: var(--primary);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0.3rem 0.75rem;
+  border-bottom: 1px solid rgba(245,158,11,0.2);
+}
+.trade-card-img {
+  width: 100%;
+  height: 140px;
+  overflow: hidden;
+  background: var(--dark-4, #111);
+}
+.trade-card-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.3s ease;
+}
+.trade-card:hover .trade-card-img img {
+  transform: scale(1.03);
+}
+.trade-card-body {
+  padding: 0.65rem 0.75rem 0.5rem;
+}
+.trade-card-title {
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 0.15rem;
+}
+.trade-card-sub {
+  font-size: 0.75rem;
+  color: var(--text-2);
+  margin-bottom: 0.25rem;
+}
+.trade-card-price {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 0.2rem;
+}
+.trade-card-location {
+  font-size: 0.72rem;
+  color: var(--text-3);
+  margin-bottom: 0.35rem;
+}
+.trade-card-cta {
+  font-size: 0.75rem;
+  color: var(--primary);
+  font-weight: 600;
+  opacity: 0.8;
+}

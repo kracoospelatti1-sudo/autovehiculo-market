@@ -1065,7 +1065,36 @@ function appendMessageToDOM(message, readAt) {
 
   let html = '';
   if (!isSent) html += `<div class="sender">${escapeHtml(message.username)}</div>`;
-  html += `<div class="content">${escapeHtml(message.content)}</div>`;
+
+  // Detectar mensaje de permuta
+  if (message.content?.startsWith('__TRADE_CARD__')) {
+    const parts = message.content.slice('__TRADE_CARD__'.length).split('\n');
+    const extraText = parts.slice(1).join('\n').trim();
+    try {
+      const v = JSON.parse(parts[0]);
+      const fallbackImg = 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400&h=220&fit=crop';
+      html += `
+        <div class="trade-card" onclick="viewVehicle(${v.id})">
+          <div class="trade-card-badge">🔄 Propuesta de permuta</div>
+          <div class="trade-card-img">
+            <img src="${escapeHtml(v.image || fallbackImg)}" onerror="this.src='${fallbackImg}'" alt="${escapeHtml(v.title)}">
+          </div>
+          <div class="trade-card-body">
+            <div class="trade-card-title">${escapeHtml(v.title)}</div>
+            <div class="trade-card-sub">${escapeHtml(v.brand)} ${escapeHtml(v.model)} · ${v.year}</div>
+            <div class="trade-card-price">$${formatNumber(v.price)}</div>
+            ${v.city ? `<div class="trade-card-location">📍 ${escapeHtml(v.city)}${v.province ? ', ' + escapeHtml(v.province.replace(/\s*\(.*?\)/g,'').trim()) : ''}</div>` : ''}
+            <div class="trade-card-cta">Ver vehículo →</div>
+          </div>
+        </div>`;
+      if (extraText) html += `<div class="content" style="margin-top:0.5rem;">${escapeHtml(extraText)}</div>`;
+    } catch {
+      html += `<div class="content">${escapeHtml(message.content)}</div>`;
+    }
+  } else {
+    html += `<div class="content">${escapeHtml(message.content)}</div>`;
+  }
+
   html += `<div class="time">${formatTime(message.created_at)}`;
   if (isSent && readAt) {
     html += ` <span class="read-receipt">Visto ${formatHourMinute(readAt)}</span>`;

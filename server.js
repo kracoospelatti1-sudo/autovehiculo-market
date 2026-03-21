@@ -1172,6 +1172,65 @@ app.post('/api/vehicles/:id/trade-offer', authenticateToken, async (req, res) =>
     }).select().single();
     if (error) throw error;
 
+    // 1. Obtener datos completos del vehículo ofrecido (con imagen)
+    const { data: offeredFull } = await supabase
+      .from('vehicles')
+      .select('id, title, brand, model, year, price, city, province')
+      .eq('id', parseInt(offered_vehicle_id))
+      .single();
+
+    const { data: offeredImage } = await supabase
+      .from('vehicle_images')
+      .select('url')
+      .eq('vehicle_id', parseInt(offered_vehicle_id))
+      .eq('is_primary', true)
+      .maybeSingle();
+
+    // 2. Encontrar o crear conversación entre proposer (buyer) y owner (seller) para el vehículo TARGET
+    let conversationId;
+    const { data: existingConv } = await supabase
+      .from('conversations')
+      .select('id')
+      .eq('vehicle_id', targetVehicleId)
+      .eq('buyer_id', req.user.id)
+      .eq('seller_id', target.user_id)
+      .maybeSingle();
+
+    if (existingConv) {
+      conversationId = existingConv.id;
+    } else {
+      const { data: newConv } = await supabase
+        .from('conversations')
+        .insert({ vehicle_id: targetVehicleId, buyer_id: req.user.id, seller_id: target.user_id })
+        .select('id')
+        .single();
+      conversationId = newConv?.id;
+    }
+
+    // 3. Enviar mensaje especial con card del vehículo ofrecido
+    if (conversationId && offeredFull) {
+      const cardData = {
+        id: offeredFull.id,
+        title: offeredFull.title,
+        brand: offeredFull.brand,
+        model: offeredFull.model,
+        year: offeredFull.year,
+        price: offeredFull.price,
+        city: offeredFull.city,
+        province: offeredFull.province,
+        image: offeredImage?.url || null
+      };
+      const cardMessage = message
+        ? `__TRADE_CARD__${JSON.stringify(cardData)}\n${message}`
+        : `__TRADE_CARD__${JSON.stringify(cardData)}`;
+
+      await supabase.from('messages').insert({
+        conversation_id: conversationId,
+        sender_id: req.user.id,
+        content: cardMessage
+      });
+    }
+
     const { data: proposerUser } = await supabase.from('users').select('username').eq('id', req.user.id).single();
     await supabase.from('notifications').insert({
       user_id: target.user_id,
