@@ -1457,7 +1457,6 @@ function editProfile() {
         </div>
         <input type="hidden" id="editAvatarBase64" value="${currentUser.profile?.avatar_url || ''}">
       </div>
-      <div class="form-group"><label>Nombre de usuario</label><input type="text" value="${escapeHtml(currentUser.username)}" disabled style="opacity:0.5;cursor:not-allowed;"></div>
       <div class="form-group"><label>Teléfono</label><input type="tel" id="editPhone" value="${escapeHtml(currentUser.profile?.phone || '')}" placeholder="+54..."></div>
       <div class="form-group"><label>Ciudad</label><input type="text" id="profileEditCity" value="${escapeHtml(currentUser.profile?.city || '')}" placeholder="Buenos Aires"></div>
       <div class="form-group"><label>Bio</label><textarea id="editBio" rows="3" placeholder="Cuéntanos sobre ti...">${escapeHtml(currentUser.profile?.bio || '')}</textarea></div>
