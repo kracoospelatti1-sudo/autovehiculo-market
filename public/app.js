@@ -48,6 +48,10 @@ const carBrands = {
   'Volvo': ['C40', 'EX30', 'XC40', 'XC60', 'XC90', 'S60', 'S90']
 };
 
+function verifiedBadge() {
+  return `<span class="verified-badge"><svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>Verificado</span>`;
+}
+
 async function request(endpoint, options = {}) {
   const token = localStorage.getItem('token');
   const headers = { 'Content-Type': 'application/json', ...options.headers };
@@ -177,9 +181,10 @@ async function loadVehicles(page = 1) {
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.75rem;">
             <div class="vehicle-views" style="margin-top:0;"><svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg> ${v.view_count || 0} vistas</div>
-            <div style="font-size:0.8rem;color:var(--text-2);display:flex;align-items:center;gap:0.25rem;">
+            <div style="font-size:0.8rem;color:var(--text-2);display:flex;align-items:center;gap:0.25rem;flex-wrap:wrap;">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
               ${escapeHtml(v.seller_name || 'Anónimo')}
+              ${v.seller_verified ? verifiedBadge() : ''}
             </div>
           </div>
         </div>
@@ -300,7 +305,10 @@ async function viewVehicle(id) {
           <div class="seller-card">
             <div class="seller-avatar">${vehicle.seller_profile?.avatar_url ? `<img src="${vehicle.seller_profile.avatar_url}" alt="">` : vehicle.seller_name?.charAt(0).toUpperCase()}</div>
             <div class="seller-info">
-              <h4 onclick="viewProfile(${vehicle.seller_id})" style="cursor:pointer;color:var(--primary-light);">${escapeHtml(vehicle.seller_name)}</h4>
+              <div class="seller-name-row">
+                <h4 onclick="viewProfile(${vehicle.seller_id})" style="cursor:pointer;color:var(--primary-light);">${escapeHtml(vehicle.seller_name)}</h4>
+                ${vehicle.seller_verified ? verifiedBadge() : ''}
+              </div>
               ${vehicle.seller_rating ? `<div class="rating">${'★'.repeat(Math.round(vehicle.seller_rating))}${'☆'.repeat(5-Math.round(vehicle.seller_rating))} <span>(${vehicle.seller_ratings_count} reseñas)</span></div>` : '<div class="rating"><span style="color:var(--text-secondary)">Sin reseñas</span></div>'}
               <div class="seller-stats"><span>${vehicle.seller_vehicles_count} vehículos</span></div>
             </div>
@@ -1034,9 +1042,10 @@ async function loadAdminUsers() {
           ${users.map(u => {
             const isBanned = u.profiles?.[0]?.is_banned;
             const isAdm = u.profiles?.[0]?.is_admin;
+            const isVerified = u.profiles?.[0]?.is_verified;
             return `
               <tr id="user-row-${u.id}">
-                <td style="font-weight:600;">${escapeHtml(u.username)}${isAdm ? ' <span style="font-size:0.7rem;background:rgba(245,158,11,0.15);color:var(--primary);padding:1px 6px;border-radius:4px;font-weight:700;">ADMIN</span>' : ''}</td>
+                <td style="font-weight:600;">${escapeHtml(u.username)}${isAdm ? ' <span style="font-size:0.7rem;background:rgba(245,158,11,0.15);color:var(--primary);padding:1px 6px;border-radius:4px;font-weight:700;">ADMIN</span>' : ''}${isVerified ? ' ' + verifiedBadge() : ''}</td>
                 <td style="color:var(--text-2);font-size:0.85rem;">${escapeHtml(u.email)}</td>
                 <td style="color:var(--text-3);font-size:0.82rem;">${formatRelTime(u.created_at)}</td>
                 <td style="text-align:center;">${u.vehicles?.[0]?.count || 0}</td>
@@ -1053,12 +1062,23 @@ async function loadAdminUsers() {
                   <button class="btn btn-sm btn-ghost" onclick="toggleAdmin(${u.id}, ${!isAdm})">
                     ${isAdm ? 'Quitar admin' : 'Hacer admin'}
                   </button>
+                  <button class="btn btn-sm" style="${isVerified ? 'background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.3);' : 'background:rgba(99,102,241,0.1);color:#a5b4fc;border:1px solid rgba(99,102,241,0.25);'}" onclick="toggleVerify(${u.id})">
+                    ${isVerified ? '✓ Verificado' : 'Verificar'}
+                  </button>
                 </td>
               </tr>`;
           }).join('')}
         </tbody>
       </table>
     ` : '<p style="padding:2rem;color:var(--text-3);">Sin usuarios</p>';
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function toggleVerify(id) {
+  try {
+    const res = await request(`/admin/users/${id}/verify`, { method: 'PUT' });
+    showToast(res.is_verified ? 'Vendedor verificado ✓' : 'Verificación removida', res.is_verified ? 'success' : 'error');
+    loadAdminUsers();
   } catch (err) { showToast(err.message, 'error'); }
 }
 

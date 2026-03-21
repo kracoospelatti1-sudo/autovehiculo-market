@@ -218,7 +218,9 @@ app.get('/api/vehicles', async (req, res) => {
     if (error) throw error;
     
     const vehicleIds = data.map(v => v.id);
+    const userIds = [...new Set(data.map(v => v.user_id).filter(Boolean))];
     let imagesMap = {};
+    let profilesMap = {};
     if (vehicleIds.length > 0) {
       const { data: images } = await supabase.from('vehicle_images').select('*').in('vehicle_id', vehicleIds);
       imagesMap = images.reduce((acc, img) => {
@@ -227,11 +229,16 @@ app.get('/api/vehicles', async (req, res) => {
         return acc;
       }, {});
     }
-    
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabase.from('profiles').select('user_id, is_verified').in('user_id', userIds);
+      profilesMap = (profiles || []).reduce((acc, p) => { acc[p.user_id] = p; return acc; }, {});
+    }
+
     const vehicles = data.map(v => ({
       ...v,
       seller_name: v.users?.username,
       seller_id: v.users?.id,
+      seller_verified: profilesMap[v.user_id]?.is_verified || false,
       images: imagesMap[v.id] || []
     }));
     
@@ -271,6 +278,7 @@ app.get('/api/vehicles/:id', async (req, res) => {
       ...vehicle,
       seller_name: user?.username,
       seller_id: vehicle.user_id,
+      seller_verified: profile?.is_verified || false,
       seller_profile: profile,
       seller_vehicles_count: sellerVehicles?.length || 0,
       seller_rating: avgRating,
@@ -556,6 +564,23 @@ app.put('/api/admin/users/:id/ban', authenticateToken, async (req, res) => {
     res.json({ is_banned: newStatus });
   } catch (error) {
     res.status(500).json({ error: 'Error cambiando estado de baneo' });
+  }
+});
+
+app.put('/api/admin/users/:id/verify', authenticateToken, async (req, res) => {
+  if (!await isAdmin(req.user.id)) return res.status(403).json({ error: 'Acceso denegado' });
+  try {
+    const targetUser = parseInt(req.params.id);
+    const { data: profile } = await supabase.from('profiles').select('is_verified').eq('user_id', targetUser).single();
+    const newStatus = !profile?.is_verified;
+    const { error } = await supabase.from('profiles').update({
+      is_verified: newStatus,
+      verified_at: newStatus ? new Date().toISOString() : null
+    }).eq('user_id', targetUser);
+    if (error) throw error;
+    res.json({ is_verified: newStatus });
+  } catch (error) {
+    res.status(500).json({ error: 'Error cambiando verificación' });
   }
 });
 
@@ -1226,7 +1251,7 @@ app.get('/api/admin/users', authenticateToken, async (req, res) => {
       .from('users')
       .select(`
         *,
-        profiles(is_admin, is_banned),
+        profiles(is_admin, is_banned, is_verified),
         vehicles(count)
       `)
       .order('created_at', { ascending: false });
