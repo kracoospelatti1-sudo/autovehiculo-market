@@ -262,13 +262,14 @@ async function detectCity(inputId, btn) {
   );
 }
 
-async function initVehicleMap(city) {
+async function initVehicleMap(city, province) {
   if (!window.L) return;
   if (vehicleMapInstance) { vehicleMapInstance.remove(); vehicleMapInstance = null; }
   const el = document.getElementById('vehicleMap');
   if (!el) return;
   try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city)}&format=json&limit=1&countrycodes=ar&addressdetails=1`);
+    const query = province ? `${city}, ${province}, Argentina` : `${city}, Argentina`;
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&countrycodes=ar&addressdetails=1`);
     const data = await res.json();
     if (!data?.length) { el.parentElement.style.display = 'none'; return; }
     const { lat, lon, display_name } = data[0];
@@ -615,7 +616,7 @@ async function viewVehicle(id) {
     `;
     window._detailImages = images.map(img => img.url);
     showSection('vehicle-detail');
-    if (vehicle.city) initVehicleMap(vehicle.city);
+    if (vehicle.city) initVehicleMap(vehicle.city, vehicle.province);
 
     // Check if user already has a conversation for this vehicle
     if (isLoggedIn && !isOwner) {
