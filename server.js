@@ -297,8 +297,8 @@ app.post('/api/vehicles', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'Tu cuenta ha sido restringida. No podés publicar contenido.' });
     }
 
-    const { title, brand, model, year, price, mileage, fuel, transmission, description, city, images } = req.body;
-    
+    const { title, brand, model, year, price, mileage, fuel, transmission, description, city, images, accepts_trade } = req.body;
+
     if (!title || !brand || !model || !year || !price) {
       return res.status(400).json({ error: 'Campos requeridos faltantes' });
     }
@@ -318,7 +318,8 @@ app.post('/api/vehicles', authenticateToken, async (req, res) => {
         description: description || '',
         city: city || '',
         status: 'active',
-        view_count: 0
+        view_count: 0,
+        accepts_trade: !!accepts_trade
       })
       .select()
       .single();
@@ -388,6 +389,7 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
     if (description !== undefined) updates.description = description;
     if (city !== undefined) updates.city = city;
     if (status !== undefined) updates.status = status;
+    if (req.body.accepts_trade !== undefined) updates.accepts_trade = !!req.body.accepts_trade;
 
     const { data, error } = await supabase
       .from('vehicles')
@@ -1063,6 +1065,155 @@ app.put('/api/conversations/:id/read', authenticateToken, async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: 'Error' });
+  }
+});
+
+// TRADE OFFERS
+app.post('/api/vehicles/:id/trade-offer', authenticateToken, async (req, res) => {
+  try {
+    const targetVehicleId = parseInt(req.params.id);
+    const { offered_vehicle_id, message } = req.body;
+    if (!offered_vehicle_id) return res.status(400).json({ error: 'Seleccioná un vehículo para ofrecer' });
+
+    const { data: target } = await supabase.from('vehicles').select('user_id, title, accepts_trade, status').eq('id', targetVehicleId).single();
+    if (!target) return res.status(404).json({ error: 'Vehículo no encontrado' });
+    if (!target.accepts_trade) return res.status(400).json({ error: 'Este vehículo no acepta permutas' });
+    if (target.status !== 'active') return res.status(400).json({ error: 'Este vehículo no está disponible' });
+    if (target.user_id === req.user.id) return res.status(400).json({ error: 'No podés proponer permuta con tu propio vehículo' });
+
+    const { data: offered } = await supabase.from('vehicles').select('user_id, title').eq('id', parseInt(offered_vehicle_id)).single();
+    if (!offered || offered.user_id !== req.user.id) return res.status(403).json({ error: 'No tenés permiso sobre ese vehículo' });
+
+    const { data: existing } = await supabase.from('trade_offers').select('id').eq('vehicle_id', targetVehicleId).eq('offered_vehicle_id', parseInt(offered_vehicle_id)).eq('proposer_id', req.user.id).eq('status', 'pending').maybeSingle();
+    if (existing) return res.status(400).json({ error: 'Ya tenés una oferta pendiente para esta combinación' });
+
+    const { data: offer, error } = await supabase.from('trade_offers').insert({
+      vehicle_id: targetVehicleId,
+      offered_vehicle_id: parseInt(offered_vehicle_id),
+      proposer_id: req.user.id,
+      owner_id: target.user_id,
+      message: message || '',
+      status: 'pending'
+    }).select().single();
+    if (error) throw error;
+
+    const { data: proposerUser } = await supabase.from('users').select('username').eq('id', req.user.id).single();
+    await supabase.from('notifications').insert({
+      user_id: target.user_id,
+      type: 'trade_offer',
+      title: 'Nueva propuesta de permuta',
+      message: `${proposerUser?.username} quiere permutar por tu ${target.title}`,
+      link: `trade-offers`,
+      read: false
+    });
+
+    res.json(offer);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al crear oferta' });
+  }
+});
+
+app.get('/api/trade-offers', authenticateToken, async (req, res) => {
+  try {
+    const { data: received, error } = await supabase
+      .from('trade_offers')
+      .select('*')
+      .eq('owner_id', req.user.id)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+
+    const { data: sent } = await supabase
+      .from('trade_offers')
+      .select('*')
+      .eq('proposer_id', req.user.id)
+      .order('created_at', { ascending: false });
+
+    const allOffers = [...(received || []), ...(sent || [])];
+    const vehicleIds = [...new Set(allOffers.flatMap(o => [o.vehicle_id, o.offered_vehicle_id]))];
+    const userIds = [...new Set(allOffers.flatMap(o => [o.proposer_id, o.owner_id]))];
+
+    const [vehiclesRes, usersRes] = await Promise.all([
+      vehicleIds.length ? supabase.from('vehicles').select('id, title, brand, model, year, price, image_url').in('id', vehicleIds) : { data: [] },
+      userIds.length ? supabase.from('users').select('id, username').in('id', userIds) : { data: [] }
+    ]);
+
+    const vMap = Object.fromEntries((vehiclesRes.data || []).map(v => [v.id, v]));
+    const uMap = Object.fromEntries((usersRes.data || []).map(u => [u.id, u]));
+
+    const enrich = o => ({
+      ...o,
+      target_vehicle: vMap[o.vehicle_id],
+      offered_vehicle: vMap[o.offered_vehicle_id],
+      proposer: uMap[o.proposer_id],
+      owner: uMap[o.owner_id]
+    });
+
+    res.json({
+      received: (received || []).map(enrich),
+      sent: (sent || []).map(enrich)
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al obtener permutas' });
+  }
+});
+
+app.put('/api/trade-offers/:id', authenticateToken, async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['accepted', 'rejected'].includes(status)) return res.status(400).json({ error: 'Estado inválido' });
+
+    const { data: offer } = await supabase.from('trade_offers').select('*').eq('id', req.params.id).single();
+    if (!offer) return res.status(404).json({ error: 'Oferta no encontrada' });
+    if (offer.owner_id !== req.user.id) return res.status(403).json({ error: 'Sin permiso' });
+    if (offer.status !== 'pending') return res.status(400).json({ error: 'Esta oferta ya fue respondida' });
+
+    await supabase.from('trade_offers').update({ status }).eq('id', req.params.id);
+
+    const [targetV, offeredV, ownerU] = await Promise.all([
+      supabase.from('vehicles').select('title').eq('id', offer.vehicle_id).single(),
+      supabase.from('vehicles').select('title').eq('id', offer.offered_vehicle_id).single(),
+      supabase.from('users').select('username').eq('id', req.user.id).single()
+    ]);
+
+    let conversationId = null;
+    if (status === 'accepted') {
+      // Create or get conversation between both parties
+      const { data: existingConv } = await supabase.from('conversations').select('id')
+        .eq('vehicle_id', offer.vehicle_id).eq('buyer_id', offer.proposer_id).maybeSingle();
+
+      if (existingConv) {
+        conversationId = existingConv.id;
+        await supabase.from('messages').insert({ conversation_id: existingConv.id, sender_id: req.user.id, content: `✅ Permuta aceptada. Hablemos de los detalles.` });
+        await supabase.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', existingConv.id);
+      } else {
+        const { data: newConv } = await supabase.from('conversations').insert({
+          vehicle_id: offer.vehicle_id, buyer_id: offer.proposer_id, seller_id: offer.owner_id
+        }).select().single();
+        if (newConv) {
+          conversationId = newConv.id;
+          await supabase.from('messages').insert({ conversation_id: newConv.id, sender_id: req.user.id, content: `✅ Permuta aceptada: ${offeredV.data?.title} por ${targetV.data?.title}. ¡Coordinemos!` });
+          await supabase.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', newConv.id);
+        }
+      }
+    }
+
+    await supabase.from('notifications').insert({
+      user_id: offer.proposer_id,
+      type: status === 'accepted' ? 'trade_accepted' : 'trade_rejected',
+      title: status === 'accepted' ? '¡Permuta aceptada!' : 'Permuta rechazada',
+      message: status === 'accepted'
+        ? `${ownerU.data?.username} aceptó tu permuta. ¡Abrí el chat para coordinar!`
+        : `${ownerU.data?.username} rechazó tu propuesta de permuta`,
+      link: status === 'accepted' && conversationId ? `messages/${conversationId}` : '',
+      read: false
+    });
+
+    res.json({ success: true, status, conversation_id: conversationId });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al responder oferta' });
   }
 });
 

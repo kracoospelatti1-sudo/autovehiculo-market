@@ -314,6 +314,16 @@ async function viewVehicle(id) {
             </div>
           </div>
           
+          ${vehicle.accepts_trade && isLoggedIn && !isOwner && vehicle.status === 'active' ? `
+            <div style="margin-top:1.5rem;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:var(--radius-md);padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+              <div>
+                <div style="font-weight:600;font-size:0.95rem;">🔄 Este vendedor acepta permutas</div>
+                <div style="font-size:0.82rem;color:var(--text-2);margin-top:2px;">Podés proponer tu vehículo a cambio</div>
+              </div>
+              <button class="btn btn-primary" style="white-space:nowrap;" onclick="openTradeModal(${vehicle.id})">Proponer permuta</button>
+            </div>
+          ` : ''}
+
           ${isLoggedIn && !isOwner && vehicle.status === 'active' ? `
             <div class="marketplace-chat-box" style="margin-top:1.5rem;background:var(--dark-2);padding:1.5rem;border-radius:var(--radius-lg);border:1px solid var(--border);" id="chatBoxContainer">
               <div id="existingConvBanner" style="display:none;text-align:center;">
@@ -430,6 +440,7 @@ async function handlePublish(e) {
       fuel: document.getElementById('publishFuel').value,
       city: document.getElementById('publishCity').value,
       description: document.getElementById('publishDescription').value,
+      accepts_trade: document.getElementById('publishAcceptsTrade').checked,
       images: urls
     };
     await request('/vehicles', { method: 'POST', body: JSON.stringify(data) });
@@ -474,6 +485,7 @@ async function loadMyVehicles() {
         </div>
       </div>
     `).join('');
+    loadTradeOffers();
   } catch (err) { showToast(err.message, 'error'); }
 }
 
@@ -1105,6 +1117,104 @@ async function toggleFollow(id) {
     if (btn) btn.disabled = false;
     showToast(err.message, 'error');
   }
+}
+
+// TRADE OFFERS
+let tradeTargetVehicleId = null;
+
+async function openTradeModal(vehicleId) {
+  if (!currentUser) return showSection('login');
+  tradeTargetVehicleId = vehicleId;
+  const select = document.getElementById('tradeOfferedVehicle');
+  select.innerHTML = '<option value="">Cargando tus vehículos...</option>';
+  document.getElementById('tradeMessage').value = '';
+  document.getElementById('tradeModal').style.display = 'flex';
+  document.getElementById('modalOverlay').style.display = 'block';
+  try {
+    const vehicles = await request('/my-vehicles');
+    const active = (vehicles || []).filter(v => v.status === 'active');
+    if (!active.length) {
+      select.innerHTML = '<option value="">No tenés vehículos activos para ofrecer</option>';
+    } else {
+      select.innerHTML = '<option value="">Seleccioná un vehículo</option>' +
+        active.map(v => `<option value="${v.id}">${escapeHtml(v.brand)} ${escapeHtml(v.model)} ${v.year} — $${formatNumber(v.price)}</option>`).join('');
+    }
+  } catch { select.innerHTML = '<option value="">Error al cargar vehículos</option>'; }
+}
+
+function closeTradeModal() {
+  document.getElementById('tradeModal').style.display = 'none';
+  document.getElementById('modalOverlay').style.display = 'none';
+  tradeTargetVehicleId = null;
+}
+
+async function submitTradeOffer() {
+  const offered = document.getElementById('tradeOfferedVehicle').value;
+  const message = document.getElementById('tradeMessage').value;
+  if (!offered) return showToast('Seleccioná un vehículo para ofrecer', 'error');
+  try {
+    await request(`/vehicles/${tradeTargetVehicleId}/trade-offer`, { method: 'POST', body: JSON.stringify({ offered_vehicle_id: offered, message }) });
+    showToast('¡Propuesta enviada!', 'success');
+    closeTradeModal();
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function loadTradeOffers() {
+  const section = document.getElementById('tradeOffersSection');
+  try {
+    const { received, sent } = await request('/trade-offers');
+    if (!received?.length && !sent?.length) { section.style.display = 'none'; return; }
+    section.style.display = 'block';
+
+    const countEl = document.getElementById('tradeOffersCount');
+    const pending = received.filter(o => o.status === 'pending').length;
+    countEl.textContent = pending > 0 ? pending + ' pendiente' + (pending > 1 ? 's' : '') : '';
+
+    const statusLabel = s => ({ pending: '⏳ Pendiente', accepted: '✅ Aceptada', rejected: '❌ Rechazada' }[s] || s);
+    const statusColor = s => ({ pending: 'var(--primary)', accepted: '#22c55e', rejected: '#ef4444' }[s]);
+
+    const renderOffer = (o, isReceived) => `
+      <div style="background:var(--dark-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:1rem 1.25rem;margin-bottom:0.75rem;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;">
+          <div style="flex:1;">
+            <div style="font-size:0.78rem;color:var(--text-2);margin-bottom:0.25rem;">${isReceived ? 'De: <strong>' + escapeHtml(o.proposer?.username) + '</strong>' : 'Para: <strong>' + escapeHtml(o.owner?.username) + '</strong>'}</div>
+            <div style="font-weight:600;">${escapeHtml(o.offered_vehicle?.brand || '')} ${escapeHtml(o.offered_vehicle?.model || '')} ${o.offered_vehicle?.year || ''}</div>
+            <div style="font-size:0.82rem;color:var(--text-2);">por tu: ${escapeHtml(o.target_vehicle?.brand || '')} ${escapeHtml(o.target_vehicle?.model || '')} ${o.target_vehicle?.year || ''}</div>
+            ${o.message ? `<div style="font-size:0.82rem;color:var(--text-2);margin-top:0.4rem;font-style:italic;">"${escapeHtml(o.message)}"</div>` : ''}
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:0.78rem;font-weight:700;color:${statusColor(o.status)};margin-bottom:0.5rem;">${statusLabel(o.status)}</div>
+            ${isReceived && o.status === 'pending' ? `
+              <div style="display:flex;gap:0.5rem;">
+                <button class="btn btn-sm btn-primary" onclick="respondToTrade(${o.id}, 'accepted')">Aceptar</button>
+                <button class="btn btn-sm btn-danger" onclick="respondToTrade(${o.id}, 'rejected')">Rechazar</button>
+              </div>` : ''}
+          </div>
+        </div>
+        <div style="font-size:0.75rem;color:var(--text-3);margin-top:0.5rem;">${formatRelTime(o.created_at)}</div>
+      </div>`;
+
+    document.getElementById('tradeOffersList').innerHTML = received?.length
+      ? received.map(o => renderOffer(o, true)).join('')
+      : '<p style="color:var(--text-3);font-size:0.9rem;">Sin permutas recibidas</p>';
+
+    document.getElementById('tradeSentList').innerHTML = sent?.length
+      ? sent.map(o => renderOffer(o, false)).join('')
+      : '<p style="color:var(--text-3);font-size:0.9rem;">Sin permutas enviadas</p>';
+  } catch { section.style.display = 'none'; }
+}
+
+async function respondToTrade(id, status) {
+  try {
+    const res = await request(`/trade-offers/${id}`, { method: 'PUT', body: JSON.stringify({ status }) });
+    showToast(status === 'accepted' ? '¡Permuta aceptada! Se abrió el chat.' : 'Permuta rechazada', status === 'accepted' ? 'success' : 'error');
+    if (status === 'accepted' && res.conversation_id) {
+      currentConversationId = res.conversation_id;
+      showSection('messages');
+    } else {
+      loadTradeOffers();
+    }
+  } catch (err) { showToast(err.message, 'error'); }
 }
 
 async function toggleVerify(id) {

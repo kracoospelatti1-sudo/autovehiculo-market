@@ -6,7 +6,7 @@
   <title>AutoVehículo Market — Comprá y Vendé tu Vehículo</title>
   <meta name="description" content="La plataforma más moderna para comprar y vender vehículos en Argentina. Publica gratis, chatea con vendedores y cierra negocios de forma segura.">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=5">
+  <link rel="stylesheet" href="styles.css?v=6">
 </head>
 <body>
 
@@ -292,6 +292,13 @@
             <label>Descripción</label>
             <textarea id="publishDescription" rows="4" placeholder="Describí el estado del vehículo, extras, historial de servicio..."></textarea>
           </div>
+          <div class="form-group" style="display:flex;align-items:center;gap:0.75rem;background:var(--dark-2);padding:1rem;border-radius:var(--radius-md);border:1px solid var(--border);">
+            <input type="checkbox" id="publishAcceptsTrade" style="width:18px;height:18px;accent-color:var(--primary);cursor:pointer;">
+            <div>
+              <label for="publishAcceptsTrade" style="cursor:pointer;font-weight:600;margin:0;">🔄 Acepto permutas</label>
+              <p style="font-size:0.8rem;color:var(--text-2);margin:0;">Otros usuarios podrán proponerte intercambiar vehículos</p>
+            </div>
+          </div>
           <button type="submit" class="btn btn-primary" style="width:100%;" id="publishBtn">Publicar Vehículo</button>
         </form>
       </div>
@@ -308,6 +315,12 @@
       </div>
       <div id="statsDashboard" class="stats-dashboard"></div>
       <div id="myVehiclesList" class="vehicles-grid"></div>
+      <div id="tradeOffersSection" style="margin-top:2rem;display:none;">
+        <h3 style="font-family:'Space Grotesk',sans-serif;font-size:1.1rem;font-weight:700;margin-bottom:1rem;display:flex;align-items:center;gap:0.5rem;">🔄 Permutas recibidas <span id="tradeOffersCount" style="background:rgba(245,158,11,0.15);color:var(--primary);padding:1px 8px;border-radius:99px;font-size:0.8rem;"></span></h3>
+        <div id="tradeOffersList"></div>
+        <h3 style="font-family:'Space Grotesk',sans-serif;font-size:1.1rem;font-weight:700;margin:1.5rem 0 1rem;display:flex;align-items:center;gap:0.5rem;">📤 Permutas enviadas</h3>
+        <div id="tradeSentList"></div>
+      </div>
     </section>
 
     <!-- FAVORITES -->
@@ -441,6 +454,30 @@
     </div>
   </div>
 
+  <!-- TRADE OFFER MODAL -->
+  <div id="tradeModal" class="modal" style="display:none;">
+    <div class="modal-content" style="max-width:480px;">
+      <div class="modal-header">
+        <h3>🔄 Proponer permuta</h3>
+        <button class="modal-close" onclick="closeTradeModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="color:var(--text-2);margin-bottom:1rem;font-size:0.9rem;">Seleccioná cuál de tus vehículos querés ofrecer a cambio.</p>
+        <div class="form-group">
+          <label>Tu vehículo a ofrecer *</label>
+          <select id="tradeOfferedVehicle" style="width:100%;">
+            <option value="">Cargando...</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Mensaje (opcional)</label>
+          <textarea id="tradeMessage" rows="3" placeholder="Contale al vendedor más sobre tu vehículo o la propuesta..."></textarea>
+        </div>
+        <button class="btn btn-primary" style="width:100%;" onclick="submitTradeOffer()">Enviar propuesta</button>
+      </div>
+    </div>
+  </div>
+
   <!-- REPORT MODAL -->
   <div id="reportModal" class="modal" style="display:none;">
     <div class="modal-content">
@@ -547,6 +584,6 @@
     </a>
   </nav>
 
-  <script src="app.js?v=5"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>
