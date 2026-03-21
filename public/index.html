@@ -9,6 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css?v=12">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
 </head>
 <body>
 
@@ -148,7 +149,8 @@
             <label>Contraseña</label>
             <input type="password" id="registerPassword" placeholder="Mínimo 6 caracteres" required autocomplete="new-password">
           </div>
-          <button type="submit" class="btn btn-primary" style="width:100%;margin-top:0.5rem;" id="registerBtn">Crear Cuenta</button>
+          <div class="h-captcha" data-sitekey="d28a3f78-282e-428e-b27c-e2c66ef65ab8" style="margin-top:1rem;"></div>
+          <button type="submit" class="btn btn-primary" style="width:100%;margin-top:0.75rem;" id="registerBtn">Crear Cuenta</button>
         </form>
         <p style="text-align:center;margin-top:1rem;color:var(--text-3);font-size:0.8rem;">
           Al registrarte aceptás nuestros <a onclick="showSection('terms')" style="color:var(--primary-light);cursor:pointer;">Términos y Condiciones</a>

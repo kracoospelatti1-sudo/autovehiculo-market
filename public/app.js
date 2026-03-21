@@ -331,8 +331,15 @@ async function handleRegister(e) {
   const username = document.getElementById('registerUsername').value;
   const email = document.getElementById('registerEmail').value;
   const password = document.getElementById('registerPassword').value;
+  const captchaToken = document.querySelector('[name="h-captcha-response"]')?.value || '';
+  if (!captchaToken) {
+    showToast('Por favor completá el captcha', 'error');
+    btn.disabled = false;
+    btn.textContent = originalText;
+    return;
+  }
   try {
-    const data = await request('/register', { method: 'POST', body: JSON.stringify({ username, email, password }) });
+    const data = await request('/register', { method: 'POST', body: JSON.stringify({ username, email, password, captchaToken }) });
     localStorage.setItem('token', data.token);
     currentUser = data.user;
     if (!heartbeatInterval) heartbeatInterval = setInterval(() => { if (currentUser && document.visibilityState === 'visible') request('/ping', { method: 'PUT' }).catch(() => {}); }, 30000);
@@ -340,7 +347,10 @@ async function handleRegister(e) {
     updateNav();
     showToast('Registro exitoso. ¡Bienvenido!', 'success');
     showSection('home');
-  } catch (err) { showToast(err.message, 'error'); }
+  } catch (err) {
+    showToast(err.message, 'error');
+    if (window.hcaptcha) window.hcaptcha.reset();
+  }
   finally {
     btn.disabled = false;
     btn.textContent = originalText;

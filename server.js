@@ -102,9 +102,22 @@ function formatNumber(num) {
 // AUTH
 app.post('/api/register', async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    const { username, email, password, captchaToken } = req.body;
     if (!username || !email || !password) {
       return res.status(400).json({ error: 'Todos los campos son requeridos' });
+    }
+
+    // Verificar hCaptcha
+    const hcaptchaSecret = process.env.HCAPTCHA_SECRET;
+    if (hcaptchaSecret) {
+      if (!captchaToken) return res.status(400).json({ error: 'Captcha requerido' });
+      const verifyRes = await fetch('https://hcaptcha.com/siteverify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `secret=${hcaptchaSecret}&response=${captchaToken}`
+      });
+      const verifyData = await verifyRes.json();
+      if (!verifyData.success) return res.status(400).json({ error: 'Captcha inválido. Intentá de nuevo.' });
     }
     if (password.length < 6) {
       return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
