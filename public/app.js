@@ -908,14 +908,27 @@ async function viewProfile(id) {
         </div>`;
       }
     }
+    const canFollow = !isOwn && !!localStorage.getItem('token');
     document.getElementById('profileHeader').innerHTML = `
       ${completenessHtml}
       <div class="profile-avatar">${profile.avatar_url ? `<img src="${profile.avatar_url}" alt="">` : profile.username?.charAt(0).toUpperCase()}</div>
-      <h2>${escapeHtml(profile.username)}</h2>
+      <div class="seller-name-row" style="justify-content:center;margin-top:0.5rem;">
+        <h2 style="margin:0;">${escapeHtml(profile.username)}</h2>
+        ${profile.is_verified ? verifiedBadge() : ''}
+      </div>
       ${profile.rating ? `<div class="rating">${'★'.repeat(Math.round(profile.rating))}${'☆'.repeat(5-Math.round(profile.rating))} <span>(${profile.ratings_count} reseñas)</span></div>` : '<p style="color:var(--text-secondary)">Sin reseñas</p>'}
       ${profile.city ? `<p style="color:var(--text-secondary)">${escapeHtml(profile.city)}</p>` : ''}
       ${profile.bio ? `<p style="margin-top:0.5rem;font-size:0.9rem">${escapeHtml(profile.bio)}</p>` : ''}
-      <div class="stats"><span>${profile.vehicles_count || 0} vehículos publicados</span></div>
+      <div class="stats" style="display:flex;gap:1.5rem;justify-content:center;margin-top:0.75rem;">
+        <span><strong>${profile.vehicles_count || 0}</strong> vehículos</span>
+        <span><strong id="followersCount">${profile.followers_count || 0}</strong> seguidores</span>
+        <span><strong>${profile.following_count || 0}</strong> siguiendo</span>
+      </div>
+      ${canFollow ? `
+        <button id="followBtn" class="btn ${profile.is_following ? 'btn-secondary' : 'btn-primary'}" style="margin-top:1rem;min-width:140px;" onclick="toggleFollow(${id})">
+          ${profile.is_following ? 'Dejar de seguir' : '+ Seguir'}
+        </button>
+      ` : ''}
       ${isOwn ? `<button class="btn btn-secondary" style="margin-top:1rem" onclick="showSection('profile'); editProfile()">Editar perfil</button>` : ''}
     `;
     const vehicles = await request(`/vehicles?user_id=${id}`).catch(() => ({ vehicles: [] }));
@@ -1072,6 +1085,26 @@ async function loadAdminUsers() {
       </table>
     ` : '<p style="padding:2rem;color:var(--text-3);">Sin usuarios</p>';
   } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function toggleFollow(id) {
+  const btn = document.getElementById('followBtn');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await request(`/users/${id}/follow`, { method: 'POST' });
+    const countEl = document.getElementById('followersCount');
+    if (countEl) countEl.textContent = res.followers_count;
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = res.following ? 'Dejar de seguir' : '+ Seguir';
+      btn.className = `btn ${res.following ? 'btn-secondary' : 'btn-primary'}`;
+      btn.style.minWidth = '140px';
+    }
+    showToast(res.following ? 'Ahora seguís a este vendedor' : 'Dejaste de seguir', 'success');
+  } catch (err) {
+    if (btn) btn.disabled = false;
+    showToast(err.message, 'error');
+  }
 }
 
 async function toggleVerify(id) {

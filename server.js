@@ -335,6 +335,21 @@ app.post('/api/vehicles', authenticateToken, async (req, res) => {
       await supabase.from('vehicle_images').insert(imageRecords);
     }
 
+    // Notify followers
+    const { data: followers } = await supabase.from('follows').select('follower_id').eq('following_id', req.user.id);
+    if (followers?.length) {
+      const { data: seller } = await supabase.from('users').select('username').eq('id', req.user.id).single();
+      const notifs = followers.map(f => ({
+        user_id: f.follower_id,
+        type: 'new_vehicle',
+        title: 'Nueva publicación',
+        message: `${seller?.username || 'Un vendedor que seguís'} publicó: ${title}`,
+        link: `vehicle/${data.id}`,
+        read: false
+      }));
+      await supabase.from('notifications').insert(notifs);
+    }
+
     res.json(data);
   } catch (error) {
     console.error(error);
@@ -505,35 +520,79 @@ app.get('/api/profile/:id', async (req, res) => {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('user_id', req.params.id)
-      .single();
+    const targetId = parseInt(req.params.id);
 
-    const { count: vehicles_count } = await supabase
-      .from('vehicles')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', req.params.id)
-      .eq('status', 'active');
-      
-    const { data: ratings } = await supabase
-      .from('ratings')
-      .select('stars')
-      .eq('to_user_id', req.params.id);
+    // Resolve optional auth for is_following
+    let viewerId = null;
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    if (token) {
+      try { const decoded = require('jsonwebtoken').verify(token, SECRET_KEY); viewerId = decoded.id; } catch {}
+    }
 
-    const avgRating = ratings?.length ? (ratings.reduce((a, b) => a + b.stars, 0) / ratings.length).toFixed(1) : null;
+    const [profileRes, vehiclesRes, ratingsRes, followersRes, followingRes, isFollowingRes] = await Promise.all([
+      supabase.from('profiles').select('*').eq('user_id', targetId).single(),
+      supabase.from('vehicles').select('*', { count: 'exact', head: true }).eq('user_id', targetId).eq('status', 'active'),
+      supabase.from('ratings').select('stars').eq('to_user_id', targetId),
+      supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', targetId),
+      supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', targetId),
+      viewerId && viewerId !== targetId
+        ? supabase.from('follows').select('id').eq('follower_id', viewerId).eq('following_id', targetId).maybeSingle()
+        : Promise.resolve({ data: null })
+    ]);
+
+    const avgRating = ratingsRes.data?.length
+      ? (ratingsRes.data.reduce((a, b) => a + b.stars, 0) / ratingsRes.data.length).toFixed(1)
+      : null;
 
     res.json({
       ...user,
-      ...profile,
-      vehicles_count: vehicles_count || 0,
+      ...profileRes.data,
+      vehicles_count: vehiclesRes.count || 0,
       rating: avgRating,
-      ratings_count: ratings?.length || 0
+      ratings_count: ratingsRes.data?.length || 0,
+      followers_count: followersRes.count || 0,
+      following_count: followingRes.count || 0,
+      is_following: !!isFollowingRes.data
     });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Error al cargar perfil' });
+  }
+});
+
+// FOLLOWS
+app.post('/api/users/:id/follow', authenticateToken, async (req, res) => {
+  try {
+    const followerId = req.user.id;
+    const followingId = parseInt(req.params.id);
+    if (followerId === followingId) return res.status(400).json({ error: 'No podés seguirte a vos mismo' });
+
+    const { data: existing } = await supabase.from('follows').select('id').eq('follower_id', followerId).eq('following_id', followingId).maybeSingle();
+
+    if (existing) {
+      await supabase.from('follows').delete().eq('follower_id', followerId).eq('following_id', followingId);
+      const { count } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', followingId);
+      return res.json({ following: false, followers_count: count || 0 });
+    }
+
+    await supabase.from('follows').insert({ follower_id: followerId, following_id: followingId });
+
+    const { data: followerUser } = await supabase.from('users').select('username').eq('id', followerId).single();
+    await supabase.from('notifications').insert({
+      user_id: followingId,
+      type: 'follow',
+      title: 'Nuevo seguidor',
+      message: `${followerUser?.username || 'Alguien'} comenzó a seguirte`,
+      link: `profile/${followerId}`,
+      read: false
+    });
+
+    const { count } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', followingId);
+    res.json({ following: true, followers_count: count || 0 });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al seguir usuario' });
   }
 });
 
