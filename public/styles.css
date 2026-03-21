@@ -850,6 +850,8 @@ select {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+  content-visibility: auto;
+  contain-intrinsic-size: 0 40px; /* Placeholder aproximado para evitar saltos en el scrollbar */
 }
 
 .chat-bubble.sent { align-self: flex-end; align-items: flex-end; }
