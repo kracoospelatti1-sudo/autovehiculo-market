@@ -549,6 +549,7 @@ async function openEditModal(id, e) {
     document.getElementById('editCity').value = v.city || '';
     document.getElementById('editStatus').value = v.status || 'active';
     document.getElementById('editDescription').value = v.description || '';
+    document.getElementById('editAcceptsTrade').checked = !!v.accepts_trade;
     document.getElementById('editVehicleModal').style.display = 'block';
     document.getElementById('modalOverlay').style.display = 'block';
   } catch (err) { showToast(err.message, 'error'); }
@@ -576,7 +577,8 @@ async function handleEditVehicle(e) {
         transmission: document.getElementById('editTransmission').value,
         city: document.getElementById('editCity').value,
         status: document.getElementById('editStatus').value,
-        description: document.getElementById('editDescription').value
+        description: document.getElementById('editDescription').value,
+        accepts_trade: document.getElementById('editAcceptsTrade').checked
       })
     });
     showToast('¡Publicación actualizada!', 'success');
