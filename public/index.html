@@ -150,7 +150,83 @@
           </div>
           <button type="submit" class="btn btn-primary" style="width:100%;margin-top:0.5rem;" id="registerBtn">Crear Cuenta</button>
         </form>
-        <p style="text-align:center;margin-top:1.25rem;color:var(--text-2);font-size:0.88rem;">¿Ya tenés cuenta? <a onclick="showSection('login')" style="color:var(--primary-light);cursor:pointer;font-weight:600;">Iniciar sesión</a></p>
+        <p style="text-align:center;margin-top:1rem;color:var(--text-3);font-size:0.8rem;">
+          Al registrarte aceptás nuestros <a onclick="showSection('terms')" style="color:var(--primary-light);cursor:pointer;">Términos y Condiciones</a>
+        </p>
+        <p style="text-align:center;margin-top:0.5rem;color:var(--text-2);font-size:0.88rem;">¿Ya tenés cuenta? <a onclick="showSection('login')" style="color:var(--primary-light);cursor:pointer;font-weight:600;">Iniciar sesión</a></p>
+      </div>
+    </section>
+
+    <!-- TERMS -->
+    <section id="terms" class="section" style="display:none;">
+      <div class="terms-container fade-in">
+        <button class="btn btn-ghost btn-sm" onclick="history.back ? history.back() : showSection('home')" style="margin-bottom:1.5rem;">← Volver</button>
+        <div class="terms-content">
+          <h1>Términos y Condiciones de Uso</h1>
+          <p class="terms-meta">AutoVehículo Market — Última actualización: marzo de 2026</p>
+
+          <h2>1. Aceptación de los términos</h2>
+          <p>Al acceder y utilizar la plataforma AutoVehículo Market ("el Sitio"), disponible en <strong>autoventa.onrender.com</strong>, aceptás íntegramente estos Términos y Condiciones. Si no estás de acuerdo con alguna de sus disposiciones, debés abstenerte de utilizar el Sitio.</p>
+
+          <h2>2. Descripción del servicio</h2>
+          <p>AutoVehículo Market es una plataforma digital de anuncios que permite a los usuarios publicar, buscar y contactar ofertas de compraventa e intercambio de vehículos automotores en la República Argentina. El Sitio actúa exclusivamente como intermediario y <strong>no es parte de ninguna operación comercial</strong> entre usuarios.</p>
+
+          <h2>3. Registro de usuario</h2>
+          <p>Para publicar anuncios o contactar vendedores debés crear una cuenta proporcionando información veraz, completa y actualizada. Sos responsable de:</p>
+          <ul>
+            <li>Mantener la confidencialidad de tu contraseña.</li>
+            <li>Todas las actividades realizadas desde tu cuenta.</li>
+            <li>Notificar de inmediato cualquier uso no autorizado.</li>
+          </ul>
+          <p>El Sitio se reserva el derecho de suspender o eliminar cuentas que incumplan estos términos.</p>
+
+          <h2>4. Publicación de anuncios</h2>
+          <p>Al publicar un anuncio, declarás que:</p>
+          <ul>
+            <li>El vehículo existe y te pertenece o tenés autorización legal para venderlo.</li>
+            <li>La información publicada (precio, kilometraje, año, estado) es veraz y no engañosa.</li>
+            <li>Las fotografías corresponden al vehículo anunciado.</li>
+            <li>No publicarás vehículos robados, con documentación adulterada o con restricciones legales.</li>
+          </ul>
+          <p>Queda prohibida la publicación de contenido ilegal, ofensivo, discriminatorio o que infrinja derechos de terceros. El Sitio podrá eliminar anuncios sin previo aviso ante incumplimientos.</p>
+
+          <h2>5. Responsabilidad</h2>
+          <p>AutoVehículo Market <strong>no garantiza</strong> la exactitud, veracidad o legalidad de los anuncios publicados por los usuarios. El Sitio no se responsabiliza por:</p>
+          <ul>
+            <li>Daños derivados de transacciones realizadas entre usuarios.</li>
+            <li>La calidad, estado legal o existencia real de los vehículos anunciados.</li>
+            <li>Pérdidas económicas resultantes del uso del Sitio.</li>
+            <li>Interrupciones del servicio por causas técnicas o de fuerza mayor.</li>
+          </ul>
+          <p>Se recomienda verificar personalmente el estado del vehículo y la documentación antes de realizar cualquier operación.</p>
+
+          <h2>6. Protección de datos personales</h2>
+          <p>El tratamiento de tus datos personales se rige por la <strong>Ley N° 25.326 de Protección de los Datos Personales</strong> de la República Argentina. Los datos recopilados (nombre de usuario, correo electrónico, información de perfil) se utilizan exclusivamente para el funcionamiento del Sitio y no son cedidos a terceros con fines comerciales sin tu consentimiento.</p>
+          <p>Tenés derecho a acceder, rectificar, actualizar y suprimir tus datos personales contactándonos a través de los canales oficiales del Sitio.</p>
+
+          <h2>7. Propiedad intelectual</h2>
+          <p>El diseño, logotipos, código fuente y contenidos del Sitio son propiedad de AutoVehículo Market. Queda prohibida su reproducción total o parcial sin autorización expresa. Las fotografías e información de los anuncios son responsabilidad exclusiva de los usuarios que las publican.</p>
+
+          <h2>8. Conducta del usuario</h2>
+          <p>Los usuarios se comprometen a no utilizar el Sitio para:</p>
+          <ul>
+            <li>Realizar ofertas falsas o fraudulentas.</li>
+            <li>Acosar, insultar o amenazar a otros usuarios.</li>
+            <li>Enviar spam o comunicaciones no solicitadas.</li>
+            <li>Intentar acceder de forma no autorizada a sistemas del Sitio.</li>
+          </ul>
+
+          <h2>9. Modificaciones</h2>
+          <p>AutoVehículo Market se reserva el derecho de modificar estos Términos y Condiciones en cualquier momento. Los cambios serán publicados en el Sitio y entrarán en vigencia desde su publicación. El uso continuado del Sitio implica la aceptación de los nuevos términos.</p>
+
+          <h2>10. Jurisdicción</h2>
+          <p>Estos Términos y Condiciones se rigen por las leyes de la <strong>República Argentina</strong>. Cualquier controversia será sometida a los tribunales ordinarios competentes de la Ciudad Autónoma de Buenos Aires, con renuncia expresa a cualquier otro fuero o jurisdicción.</p>
+
+          <div class="terms-footer">
+            <p>Para consultas sobre estos términos, podés contactarnos a través del chat del Sitio.</p>
+            <button class="btn btn-primary" onclick="showSection('register')" style="margin-top:1rem;">Volver al registro</button>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -677,6 +753,11 @@
       <a onclick="closeMobileMenu(); logout();" class="mobile-menu-item" style="color:#ef4444;">🚪 Cerrar Sesión</a>
     </div>
   </div>
+
+  <footer class="site-footer">
+    <span>© 2026 AutoVehículo Market</span>
+    <a onclick="showSection('terms')" style="cursor:pointer;">Términos y Condiciones</a>
+  </footer>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="app.js?v=12"></script>
