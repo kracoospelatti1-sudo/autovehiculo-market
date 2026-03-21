@@ -1049,7 +1049,7 @@ select {
 .admin-table tr:hover td { background: rgba(255,255,255,0.02); }
 
 /* ===== MODAL ===== */
-.modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1001; width: auto; }
+.modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1101; width: auto; }
 .modal-content {
   background: var(--dark-2);
   border: 1px solid var(--border);
@@ -1065,7 +1065,7 @@ select {
 .modal-close { background: rgba(255,255,255,0.06); border: none; width: 30px; height: 30px; border-radius: 99px; color: var(--text-2); cursor: pointer; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; transition: var(--transition); }
 .modal-close:hover { background: rgba(255,255,255,0.12); color: var(--text); }
 .modal-body { padding: 1.5rem; }
-.modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(5px); z-index: 1000; }
+.modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(5px); z-index: 1100; }
 .star-rating { display: flex; gap: 0.5rem; justify-content: center; margin: 1rem 0; }
 .star { font-size: 2rem; color: var(--dark-4); cursor: pointer; transition: var(--transition); }
 .star:hover, .star.active { color: var(--warning); transform: scale(1.1); }

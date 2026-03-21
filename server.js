@@ -264,14 +264,23 @@ app.get('/api/vehicles/:id', async (req, res) => {
     const newViewCount = (vehicle.view_count || 0) + 1;
     await supabase.from('vehicles').update({ view_count: newViewCount }).eq('id', vehicle.id);
 
-    const { data: user } = await supabase.from('users').select('id, username').eq('id', vehicle.user_id).single();
-    const { data: images } = await supabase.from('vehicle_images').select('*').eq('vehicle_id', vehicle.id);
-    const { data: profile } = await supabase.from('profiles').select('*').eq('user_id', vehicle.user_id).single();
-    const { data: sellerVehicles } = await supabase.from('vehicles').select('id').eq('user_id', vehicle.user_id).eq('status', 'active');
-    const { data: sellerRatings } = await supabase.from('ratings').select('stars').eq('to_user_id', vehicle.user_id);
+    const [userRes, imagesRes, profileRes, sellerVehiclesRes, sellerRatingsRes, followersRes] = await Promise.all([
+      supabase.from('users').select('id, username').eq('id', vehicle.user_id).single(),
+      supabase.from('vehicle_images').select('*').eq('vehicle_id', vehicle.id),
+      supabase.from('profiles').select('*').eq('user_id', vehicle.user_id).single(),
+      supabase.from('vehicles').select('id').eq('user_id', vehicle.user_id).eq('status', 'active'),
+      supabase.from('ratings').select('stars').eq('to_user_id', vehicle.user_id),
+      supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', vehicle.user_id)
+    ]);
 
-    const avgRating = sellerRatings?.length 
-      ? (sellerRatings.reduce((a, b) => a + b.stars, 0) / sellerRatings.length).toFixed(1) 
+    const user = userRes.data;
+    const images = imagesRes.data;
+    const profile = profileRes.data;
+    const sellerVehicles = sellerVehiclesRes.data;
+    const sellerRatings = sellerRatingsRes.data;
+
+    const avgRating = sellerRatings?.length
+      ? (sellerRatings.reduce((a, b) => a + b.stars, 0) / sellerRatings.length).toFixed(1)
       : null;
 
     res.json({
@@ -279,6 +288,7 @@ app.get('/api/vehicles/:id', async (req, res) => {
       seller_name: user?.username,
       seller_id: vehicle.user_id,
       seller_verified: profile?.is_verified || false,
+      seller_followers_count: followersRes.count || 0,
       seller_profile: profile,
       seller_vehicles_count: sellerVehicles?.length || 0,
       seller_rating: avgRating,

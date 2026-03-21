@@ -310,7 +310,10 @@ async function viewVehicle(id) {
                 ${vehicle.seller_verified ? verifiedBadge() : ''}
               </div>
               ${vehicle.seller_rating ? `<div class="rating">${'★'.repeat(Math.round(vehicle.seller_rating))}${'☆'.repeat(5-Math.round(vehicle.seller_rating))} <span>(${vehicle.seller_ratings_count} reseñas)</span></div>` : '<div class="rating"><span style="color:var(--text-secondary)">Sin reseñas</span></div>'}
-              <div class="seller-stats"><span>${vehicle.seller_vehicles_count} vehículos</span></div>
+              <div class="seller-stats">
+                <span>${vehicle.seller_vehicles_count} vehículos</span>
+                <span style="margin-left:0.75rem;">${vehicle.seller_followers_count || 0} seguidores</span>
+              </div>
             </div>
           </div>
           
@@ -1128,7 +1131,7 @@ async function openTradeModal(vehicleId) {
   const select = document.getElementById('tradeOfferedVehicle');
   select.innerHTML = '<option value="">Cargando tus vehículos...</option>';
   document.getElementById('tradeMessage').value = '';
-  document.getElementById('tradeModal').style.display = 'flex';
+  document.getElementById('tradeModal').style.display = 'block';
   document.getElementById('modalOverlay').style.display = 'block';
   try {
     const vehicles = await request('/my-vehicles');
