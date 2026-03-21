@@ -409,7 +409,7 @@ async function loadVehicles(page = 1) {
     const params = new URLSearchParams();
     const search = document.getElementById('searchInput')?.value;
     if (search) params.append('search', search);
-    ['brand', 'model', 'minPrice', 'maxPrice', 'minYear', 'maxYear', 'fuel', 'city', 'province', 'sort'].forEach(key => {
+    ['brand', 'model', 'minPrice', 'maxPrice', 'minYear', 'maxYear', 'minMileage', 'maxMileage', 'fuel', 'transmission', 'city', 'province', 'sort'].forEach(key => {
       const el = document.getElementById('filter' + key.charAt(0).toUpperCase() + key.slice(1));
       if (el?.value) params.append(key, el.value);
     });
@@ -474,7 +474,7 @@ function toggleFilters() {
 function applyFilters() { loadVehicles(1); }
 
 function clearFilters() {
-  ['filterMinPrice', 'filterMaxPrice', 'filterMinYear', 'filterMaxYear', 'filterBrand', 'filterModel', 'filterFuel', 'filterCity', 'filterProvince', 'filterSort'].forEach(id => {
+  ['filterMinPrice', 'filterMaxPrice', 'filterMinYear', 'filterMaxYear', 'filterBrand', 'filterModel', 'filterFuel', 'filterTransmission', 'filterCity', 'filterMaxMileage', 'filterProvince', 'filterSort'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });

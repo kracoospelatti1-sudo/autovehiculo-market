@@ -213,7 +213,7 @@ app.get('/api/vehicles', async (req, res) => {
       query = query.not('user_id', 'in', `(${bannedIds.join(',')})`);
     }
 
-    const { brand, model, minPrice, maxPrice, minYear, maxYear, minMileage, maxMileage, fuel, city, province, search, sort, user_id, page = 1 } = req.query;
+    const { brand, model, minPrice, maxPrice, minYear, maxYear, minMileage, maxMileage, fuel, transmission, city, province, search, sort, user_id, page = 1 } = req.query;
     const limit = 12;
     const offset = (page - 1) * limit;
 
@@ -231,6 +231,7 @@ app.get('/api/vehicles', async (req, res) => {
     if (minMileage) query = query.gte('mileage', parseInt(minMileage));
     if (maxMileage) query = query.lte('mileage', parseInt(maxMileage));
     if (fuel) query = query.eq('fuel', fuel);
+    if (transmission) query = query.ilike('transmission', `%${transmission}%`);
     if (city) query = query.ilike('city', `%${city}%`);
     if (province) query = query.ilike('province', `%${province}%`);
 
