@@ -108,9 +108,14 @@ app.post('/api/register', async (req, res) => {
 
     if (error) throw error;
 
-    await supabase
+    const { error: profileError } = await supabase
       .from('profiles')
       .insert({ user_id: data.id, username, city: '', bio: '', phone: '' });
+    if (profileError) {
+      // Rollback user creation if profile fails
+      await supabase.from('users').delete().eq('id', data.id);
+      throw profileError;
+    }
 
     const token = jwt.sign({ id: data.id, username: data.username }, SECRET_KEY, { expiresIn: '30d' });
     res.json({ token, user: { id: data.id, username: data.username, email: data.email } });
@@ -433,12 +438,17 @@ app.get('/api/my-vehicles', authenticateToken, async (req, res) => {
 
     if (error) throw error;
     
-    const vehiclesWithImages = await Promise.all(data.map(async v => {
-      const { data: images } = await supabase.from('vehicle_images').select('*').eq('vehicle_id', v.id);
-      return { ...v, images: images || [] };
-    }));
-    
-    res.json(vehiclesWithImages);
+    const myIds = data.map(v => v.id);
+    let myImagesMap = {};
+    if (myIds.length > 0) {
+      const { data: imgs } = await supabase.from('vehicle_images').select('*').in('vehicle_id', myIds);
+      myImagesMap = (imgs || []).reduce((acc, img) => {
+        if (!acc[img.vehicle_id]) acc[img.vehicle_id] = [];
+        acc[img.vehicle_id].push(img);
+        return acc;
+      }, {});
+    }
+    res.json(data.map(v => ({ ...v, images: myImagesMap[v.id] || [] })));
   } catch (error) {
     res.status(500).json({ error: 'Error en el servidor' });
   }
@@ -597,11 +607,17 @@ app.get('/api/favorites', authenticateToken, async (req, res) => {
       .select('*')
       .in('id', vehicleIds);
 
-    const vehiclesWithImages = await Promise.all((vehicles || []).map(async v => {
-      const { data: images } = await supabase.from('vehicle_images').select('*').eq('vehicle_id', v.id);
-      return { ...v, is_favorite: true, images: images || [] };
-    }));
-    
+    const ids = (vehicles || []).map(v => v.id);
+    let imagesMap = {};
+    if (ids.length > 0) {
+      const { data: imgs } = await supabase.from('vehicle_images').select('*').in('vehicle_id', ids);
+      imagesMap = (imgs || []).reduce((acc, img) => {
+        if (!acc[img.vehicle_id]) acc[img.vehicle_id] = [];
+        acc[img.vehicle_id].push(img);
+        return acc;
+      }, {});
+    }
+    const vehiclesWithImages = (vehicles || []).map(v => ({ ...v, is_favorite: true, images: imagesMap[v.id] || [] }));
     res.json(vehiclesWithImages);
   } catch (error) {
     res.status(500).json({ error: 'Error en el servidor' });
@@ -858,8 +874,8 @@ app.get('/api/conversations/:id/messages', authenticateToken, async (req, res) =
       .eq('conversation_id', req.params.id);
 
     // Delta polling: only fetch messages after a given ID
-    const afterId = req.query.after;
-    if (afterId) msgQuery = msgQuery.gt('id', parseInt(afterId));
+    const afterId = parseInt(req.query.after);
+    if (!isNaN(afterId) && afterId > 0) msgQuery = msgQuery.gt('id', afterId);
 
     const { data: messages, error } = await msgQuery.order('created_at', { ascending: true });
     if (error) throw error;
@@ -1020,8 +1036,9 @@ app.post('/api/ratings', authenticateToken, async (req, res) => {
   try {
     const { to_user_id, vehicle_id, stars, review } = req.body;
     
-    if (!to_user_id || !stars) {
-      return res.status(400).json({ error: 'Datos requeridos' });
+    const starsInt = parseInt(stars);
+    if (!to_user_id || !starsInt || starsInt < 1 || starsInt > 5) {
+      return res.status(400).json({ error: 'Datos requeridos (estrellas: 1-5)' });
     }
 
     const { data: existing } = await supabase
@@ -1042,7 +1059,7 @@ app.post('/api/ratings', authenticateToken, async (req, res) => {
         from_user_id: req.user.id,
         to_user_id,
         vehicle_id,
-        stars: parseInt(stars),
+        stars: starsInt,
         review: review || ''
       })
       .select()
@@ -1066,10 +1083,13 @@ app.get('/api/ratings/:userId', async (req, res) => {
 
     if (error) throw error;
     
-    const ratingsWithUsers = await Promise.all((data || []).map(async r => {
-      const { data: user } = await supabase.from('users').select('id, username').eq('id', r.from_user_id).single();
-      return { ...r, from_user: user };
-    }));
+    const fromIds = [...new Set((data || []).map(r => r.from_user_id))];
+    let ratingUsersMap = {};
+    if (fromIds.length > 0) {
+      const { data: users } = await supabase.from('users').select('id, username').in('id', fromIds);
+      ratingUsersMap = Object.fromEntries((users || []).map(u => [u.id, u]));
+    }
+    const ratingsWithUsers = (data || []).map(r => ({ ...r, from_user: ratingUsersMap[r.from_user_id] || null }));
     
     res.json(ratingsWithUsers);
   } catch (error) {
@@ -1113,30 +1133,28 @@ app.get('/api/stats', authenticateToken, async (req, res) => {
       .select('id, view_count')
       .eq('user_id', req.user.id);
 
-    const { data: messages } = await supabase
-      .from('messages')
-      .select('id, conversations(buyer_id, seller_id)');
-
-    const myMessages = messages?.filter(m => 
-      m.conversations?.buyer_id === req.user.id || m.conversations?.seller_id === req.user.id
-    ) || [];
-
-    const { data: favorites } = await supabase
-      .from('favorites')
-      .select('vehicle_id, vehicles(user_id)');
-
-    const myFavorites = favorites?.filter(f => f.vehicles?.user_id === req.user.id) || [];
-
     const { data: conversations } = await supabase
       .from('conversations')
       .select('id')
       .or(`buyer_id.eq.${req.user.id},seller_id.eq.${req.user.id}`);
 
+    const convIds = (conversations || []).map(c => c.id);
+    const myVehicleIds = (vehicles || []).map(v => v.id);
+
+    const [messagesRes, favoritesRes] = await Promise.all([
+      convIds.length > 0
+        ? supabase.from('messages').select('*', { count: 'exact', head: true }).in('conversation_id', convIds)
+        : Promise.resolve({ count: 0 }),
+      myVehicleIds.length > 0
+        ? supabase.from('favorites').select('*', { count: 'exact', head: true }).in('vehicle_id', myVehicleIds)
+        : Promise.resolve({ count: 0 })
+    ]);
+
     res.json({
       vehicles_count: vehicles?.length || 0,
       total_views: vehicles?.reduce((a, v) => a + (v.view_count || 0), 0) || 0,
-      messages_count: new Set(myMessages.map(m => m.conversations?.id)).size,
-      favorites_count: myFavorites.length,
+      messages_count: messagesRes.count || 0,
+      favorites_count: favoritesRes.count || 0,
       conversations_count: conversations?.length || 0
     });
   } catch (error) {
