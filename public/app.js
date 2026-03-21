@@ -1266,7 +1266,7 @@ async function handleNotificationClick(link, id) {
   request(`/notifications/${id}/read`, { method: 'PUT' }).catch(() => {});
   loadNotificationCount();
   if (link.includes('messages/')) {
-    const convId = parseInt(link.split('/').pop());
+    const convId = link.split('/').pop();
     currentConversationId = convId;
     lastMessageId = 0;
     pollCount = 0;
@@ -1276,7 +1276,9 @@ async function handleNotificationClick(link, id) {
       startPolling();
     } catch {}
   } else if (link.includes('vehicle/')) {
-    viewVehicle(parseInt(link.split('/').pop()));
+    viewVehicle(link.split('/').pop());
+  } else if (link.includes('profile/')) {
+    viewProfile(link.split('/').pop());
   }
 }
 
