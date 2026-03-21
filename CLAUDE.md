@@ -156,3 +156,11 @@ ALLOWED_ORIGIN=http://localhost:3000   # (agregar si no existe)
 - El polling del chat es cada 3 segundos, solo activo en sección `messages`
 - `isAdmin`/`isBanned` hacen query a `profiles` — usan `maybeSingle()`
 - El delete de vehículo hace cleanup manual en cascada (Storage + FK tables)
+
+## Arquitectura y Optimizaciones (2026-03-21)
+
+- **Imágenes (Frontend):** Las fotos de vehículos (1920x1080px JPEG 80%) y avatares de perfil (800x800px JPEG 85%) usan compresión por Canvas del lado del cliente ANTES de subirse a Supabase Storage con `compressImage()`, evitando transferencias pesadas. Los avatares de perfil ahora se suben a Storage devolviendo URL (no más base64 crudo en DB).
+- **Notificaciones "Inteligentes":** Los endpoints `/api/messages/unread-count` y `/api/notifications/count` soportan un query param `?ignoreChat=<ID>` para no ensuciar contadores con mensajes del chat que está actualmente abierto en el DOM (`currentConversationId`).
+- **Limpieza de notificaciones:** Al invocar `PUT /api/conversations/:id/read`, el backend no sólo tilda los `messages` como `read_at = NOW()`, sino que intercepta la tabla `notifications` y setea `read = true` para cualquier alerta tipo `message` ligada a este chat.
+- **Lista de Conversaciones:** En `/api/conversations`, agrupamos cuántos mensajes sin leer hay de cada chat haciendo un mapeo del resultset en el array `unreadMap`, y luego se renderiza esto en `app.js` como un "badge rojo" de contador numérico.
+- **Tablas Admin:** Se envuelven las tablas en un contenedor `.table-responsive` con `overflow-x: auto; -webkit-overflow-scrolling: touch;` para no romper el layout grid en dispositivos móviles.
