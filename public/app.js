@@ -51,19 +51,45 @@ const carBrands = {
 
 const AR_CITIES = (() => {
   const data = {
-    'Buenos Aires (CABA)': ['Buenos Aires'],
+    'Buenos Aires (CABA)': [
+      'Buenos Aires','Palermo','Recoleta','Belgrano','Flores','Boedo','Villa Crespo',
+      'Caballito','Almagro','Villa Urquiza','Núñez','Coghlan','Saavedra','Villa Pueyrredón',
+      'Devoto','Villa del Parque','Parque Patricios','Barracas','La Boca','San Telmo',
+      'Montserrat','Puerto Madero','Retiro','San Nicolás','Microcentro'
+    ],
     'Buenos Aires (Prov.)': [
-      'La Plata','Mar del Plata','Bahía Blanca','Quilmes','Lanús','Lomas de Zamora','Avellaneda',
-      'San Isidro','Vicente López','Tres de Febrero','Morón','La Matanza','Merlo','Moreno',
-      'Florencio Varela','Berazategui','Tigre','San Fernando','Escobar','Pilar','Luján','Mercedes',
-      'Zárate','Campana','San Pedro','San Nicolás de los Arroyos','Pergamino','Junín','Olavarría',
-      'Azul','Necochea','Pinamar','Villa Gesell','Miramar','Tandil','Balcarce','Chascomús',
-      'Dolores','Pehuajó','Trenque Lauquen','Bolívar','Punta Alta','Coronel Suárez','Tres Arroyos',
-      'Coronel Pringles','Benito Juárez','Lobos','Bragado','Chivilcoy','Nueve de Julio','Lincoln',
-      'Saladillo','Las Flores','General Alvear','Rauch','Ayacucho','Tapalqué','Laprida',
-      'Suipacha','General Las Heras','Marcos Paz','Cañuelas','Ezeiza','Burzaco','Banfield',
-      'Temperley','Adrogué','Monte Grande','San Justo','Ramos Mejía','Haedo','Castelar',
-      'Palermo','Recoleta','Belgrano','Flores','Boedo','Villa Crespo'
+      // GBA Norte
+      'Tigre','San Fernando','Escobar','Pilar','San Isidro','Vicente López','San Martín',
+      'Tres de Febrero','Hurlingham','Ituzaingó','Morón','Malvinas Argentinas','José C. Paz',
+      'San Miguel','General Rodríguez','General Las Heras','Marcos Paz','Luján','Exaltación de la Cruz',
+      // GBA Oeste
+      'La Matanza','Merlo','Moreno','San Justo','Ramos Mejía','Haedo','Castelar','Palomar',
+      // GBA Sur
+      'Quilmes','Lanús','Lomas de Zamora','Avellaneda','Florencio Varela','Berazategui',
+      'Ezeiza','Esteban Echeverría','Monte Grande','Burzaco','Banfield','Temperley','Adrogué',
+      'San Vicente','Guernica','Canning','Longchamps','Glew','Claypole',
+      // La Plata y alrededores
+      'La Plata','Berisso','Ensenada','Brandsen','Chascomús','Lezama','General Paz','Lobos',
+      'Magdalena','Punta Indio',
+      // Costa Atlántica
+      'Mar del Plata','Pinamar','Villa Gesell','Necochea','Miramar','Mar de Ajó','San Clemente del Tuyú',
+      'Santa Teresita','Mar del Tuyú','Dolores','General Lavalle','General Madariaga',
+      // Centro
+      'Tandil','Olavarría','Azul','Balcarce','Rauch','Ayacucho','Las Flores','Saladillo',
+      'General Alvear','Roque Pérez','Tapalqué','Laprida','Benito Juárez','Lobería',
+      'San Cayetano','Adolfo Gonzales Chaves',
+      // Noroeste
+      'Junín','Chacabuco','Arrecifes','Salto','Rojas','San Antonio de Areco','Ramallo',
+      'San Pedro','San Nicolás de los Arroyos','Pergamino','Baradero','Zárate','Campana',
+      'General Pinto','General Viamonte','Leandro N. Alem','Carlos Casares','Alberti',
+      'Bragado','Chivilcoy','Suipacha','Mercedes','9 de Julio','Lincoln',
+      // Oeste/Sur
+      'Trenque Lauquen','Pehuajó','Bolívar','Nueve de Julio','Daireaux','Hipólito Yrigoyen',
+      'General Villegas','Rivadavia','Salliqueló','Pellegrini','Henderson','Carlos Tejedor',
+      // Sur
+      'Bahía Blanca','Punta Alta','Coronel Rosales','Monte Hermoso','Coronel Dorrego',
+      'Coronel Suárez','Tres Arroyos','Coronel Pringles','Pigüé','Saavedra',
+      'Cañuelas','General Las Heras'
     ],
     'Córdoba': [
       'Córdoba','Río Cuarto','Villa María','Río Tercero','Villa Carlos Paz','Alta Gracia',
