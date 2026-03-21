@@ -1056,7 +1056,13 @@ select {
 .admin-table { width: 100%; border-collapse: collapse; }
 .admin-table th, .admin-table td { padding: 0.8rem; text-align: left; border-bottom: 1px solid var(--border); }
 .admin-table th { color: var(--text-3); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; }
-.admin-table tr:hover td { background: rgba(255,255,255,0.02); }
+.admin-table tbody tr:hover { background: rgba(255,255,255,0.02); }
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
 
 /* ===== MODAL ===== */
 .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1101; width: auto; }

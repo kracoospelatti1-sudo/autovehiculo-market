@@ -663,16 +663,51 @@ async function viewVehicle(id) {
 }
 
 // PUBLISH
-function handleImageSelect(e) {
-  const files = Array.from(e.target.files).slice(0, 5 - uploadedImages.length);
-  files.forEach(file => {
+async function compressImage(file, maxWidth = 1920, maxHeight = 1080, quality = 0.8) {
+  return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = (ev) => {
-      uploadedImages.push({ file, preview: ev.target.result });
-      renderImagePreviews();
-    };
     reader.readAsDataURL(file);
+    reader.onload = event => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) { height *= maxWidth / width; width = maxWidth; }
+        } else {
+          if (height > maxHeight) { width *= maxHeight / height; height = maxHeight; }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob((blob) => {
+          const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", { type: 'image/jpeg', lastModified: Date.now() });
+          resolve({ file: compressedFile, preview: canvas.toDataURL('image/jpeg', quality) });
+        }, 'image/jpeg', quality);
+      };
+      img.onerror = error => reject(error);
+    };
   });
+}
+
+async function handleImageSelect(e) {
+  const files = Array.from(e.target.files).slice(0, 5 - uploadedImages.length);
+  for (const file of files) {
+    if (!file.type.startsWith('image/')) continue;
+    try {
+      const compressed = await compressImage(file, 1920, 1080, 0.8);
+      uploadedImages.push({ file: compressed.file, preview: compressed.preview });
+      renderImagePreviews();
+    } catch {
+      showToast('Error al procesar la imagen', 'error');
+    }
+  }
   e.target.value = '';
 }
 
@@ -1378,32 +1413,59 @@ function editProfile() {
   `;
 }
 
+let pendingAvatarFile = null;
+
 function previewProfileImage(e) {
   const file = e.target.files[0];
   if (!file) return;
   const reader = new FileReader();
   reader.onload = function(evt) {
-    document.getElementById('editAvatarBase64').value = evt.target.result;
     document.getElementById('editAvatarPreview').innerHTML = `<img src="${evt.target.result}">`;
   };
   reader.readAsDataURL(file);
+  pendingAvatarFile = file;
 }
 
 async function saveProfile(e) {
   e.preventDefault();
+  const btn = e.target.querySelector('button[type="submit"]');
+  if (btn) btn.disabled = true;
+
   try {
+    let avatarUrl = document.getElementById('editAvatarBase64').value; // valor previo (si existe)
+
+    if (pendingAvatarFile) {
+      showToast('Optimizando foto de perfil...', 'info');
+      const compressed = await compressImage(pendingAvatarFile, 800, 800, 0.85);
+      const formData = new FormData();
+      formData.append('image', compressed.file);
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        body: formData
+      });
+      if (!res.ok) throw new Error('Error al subir la imagen de perfil a Supabase');
+      const data = await res.json();
+      avatarUrl = data.url;
+      pendingAvatarFile = null;
+    }
+
     await request('/profile', { method: 'PUT', body: JSON.stringify({
       username: document.getElementById('editUsername').value,
       phone: document.getElementById('editPhone').value,
       city: document.getElementById('editCity').value,
       bio: document.getElementById('editBio').value,
-      avatar_url: document.getElementById('editAvatarBase64').value
+      avatar_url: avatarUrl
     }) });
     showToast('Perfil actualizado', 'success');
     currentUser = await request('/user');
     updateNav();
     if (currentProfileId) viewProfile(currentProfileId);
-  } catch (err) { showToast(err.message, 'error'); }
+  } catch (err) {
+    showToast(err.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 // ADMIN
@@ -1432,24 +1494,26 @@ async function loadAdminReports() {
   try {
     const reports = await request('/admin/reports');
     document.getElementById('adminContent').innerHTML = reports?.length ? `
-      <table class="admin-table"><thead><tr><th>Fecha</th><th>Vehículo</th><th>Reportado por</th><th>Razón</th><th>Estado</th><th>Acción</th></tr></thead><tbody>
-        ${reports.map(r => `
-          <tr>
-            <td>${formatRelTime(r.created_at)}</td>
-            <td><a href="#" onclick="viewVehicle(${r.vehicle?.id})">${escapeHtml(r.vehicle?.title || 'N/A')}</a></td>
-            <td>${escapeHtml(r.reporter?.username || 'N/A')}</td>
-            <td>${escapeHtml(r.reason)}</td>
-            <td><span style="color:${r.status === 'pending' ? 'var(--warning)' : 'var(--success)'}">${r.status}</span></td>
-            <td style="display:flex;gap:0.4rem;flex-wrap:wrap;">
-              ${r.status === 'pending' ? `
-                <button class="btn btn-sm btn-secondary" onclick="resolveReport(${r.id}, 'resolved')">Resolver</button>
-                <button class="btn btn-sm btn-ghost" onclick="resolveReport(${r.id}, 'dismissed')">Descartar</button>
-              ` : ''}
-              ${r.vehicle?.id ? `<button class="btn btn-sm btn-danger" onclick="adminDeleteVehicle(${r.vehicle.id}, '${escapeHtml(r.vehicle.title || '').replace(/'/g, "\\'")}')">🗑 Eliminar pub.</button>` : ''}
-            </td>
-          </tr>
-        `).join('')}
-      </tbody></table>
+      <div class="table-responsive">
+        <table class="admin-table"><thead><tr><th>Fecha</th><th>Vehículo</th><th>Reportado por</th><th>Razón</th><th>Estado</th><th>Acción</th></tr></thead><tbody>
+          ${reports.map(r => `
+            <tr>
+              <td>${formatRelTime(r.created_at)}</td>
+              <td><a href="#" onclick="viewVehicle(${r.vehicle?.id})">${escapeHtml(r.vehicle?.title || 'N/A')}</a></td>
+              <td>${escapeHtml(r.reporter?.username || 'N/A')}</td>
+              <td>${escapeHtml(r.reason)}</td>
+              <td><span style="color:${r.status === 'pending' ? 'var(--warning)' : 'var(--success)'}">${r.status}</span></td>
+              <td style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+                ${r.status === 'pending' ? `
+                  <button class="btn btn-sm btn-secondary" onclick="resolveReport(${r.id}, 'resolved')">Resolver</button>
+                  <button class="btn btn-sm btn-ghost" onclick="resolveReport(${r.id}, 'dismissed')">Descartar</button>
+                ` : ''}
+                ${r.vehicle?.id ? `<button class="btn btn-sm btn-danger" onclick="adminDeleteVehicle(${r.vehicle.id}, '${escapeHtml(r.vehicle.title || '').replace(/'/g, "\\'")}')">🗑 Eliminar pub.</button>` : ''}
+              </td>
+            </tr>
+          `).join('')}
+        </tbody></table>
+      </div>
     ` : '<p>Sin reportes</p>';
   } catch (err) { showToast(err.message, 'error'); }
 }
@@ -1495,33 +1559,35 @@ async function loadAdminVehicles(page = 1) {
         <span style="color:var(--text-3);font-size:0.8rem;">${total} publicaciones totales</span>
       </div>
       ${vehicles?.length ? `
-        <table class="admin-table">
-          <thead><tr><th>Título</th><th>Vendedor</th><th>Precio</th><th>Estado</th><th>Vistas</th><th>Fecha</th><th>Acción</th></tr></thead>
-          <tbody>
-            ${vehicles.map(v => `
-              <tr>
-                <td><a href="#" onclick="viewVehicle(${v.id})" style="color:var(--primary-light);">${escapeHtml(v.title)}</a></td>
-                <td style="font-size:0.82rem;">
-                  ${escapeHtml(v.seller_username)}
-                  ${v.seller_banned ? '<span style="background:rgba(239,68,68,0.15);color:#ef4444;padding:1px 5px;border-radius:4px;font-size:0.72rem;margin-left:4px;">BAN</span>' : ''}
-                </td>
-                <td style="font-size:0.82rem;">$${formatNumber(v.price)}</td>
-                <td>
-                  <span style="font-size:0.75rem;padding:2px 7px;border-radius:5px;font-weight:600;
-                    background:${v.status==='active'?'rgba(34,197,94,0.12)':v.status==='sold'?'rgba(239,68,68,0.12)':'rgba(245,158,11,0.12)'};
-                    color:${v.status==='active'?'#22c55e':v.status==='sold'?'#ef4444':'#f59e0b'};"
-                  >${v.status}</span>
-                </td>
-                <td style="text-align:center;font-size:0.82rem;">${v.view_count || 0}</td>
-                <td style="font-size:0.78rem;color:var(--text-3);">${formatRelTime(v.created_at)}</td>
-                <td>
-                  <button class="btn btn-sm btn-danger"
-                    onclick="adminDeleteVehicle(${v.id}, '${escapeHtml(v.title).replace(/'/g, "\\'")}')">Eliminar</button>
-                </td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
+        <div class="table-responsive">
+          <table class="admin-table">
+            <thead><tr><th>Título</th><th>Vendedor</th><th>Precio</th><th>Estado</th><th>Vistas</th><th>Fecha</th><th>Acción</th></tr></thead>
+            <tbody>
+              ${vehicles.map(v => `
+                <tr>
+                  <td><a href="#" onclick="viewVehicle(${v.id})" style="color:var(--primary-light);">${escapeHtml(v.title)}</a></td>
+                  <td style="font-size:0.82rem;">
+                    ${escapeHtml(v.seller_username)}
+                    ${v.seller_banned ? '<span style="background:rgba(239,68,68,0.15);color:#ef4444;padding:1px 5px;border-radius:4px;font-size:0.72rem;margin-left:4px;">BAN</span>' : ''}
+                  </td>
+                  <td style="font-size:0.82rem;">$${formatNumber(v.price)}</td>
+                  <td>
+                    <span style="font-size:0.75rem;padding:2px 7px;border-radius:5px;font-weight:600;
+                      background:${v.status==='active'?'rgba(34,197,94,0.12)':v.status==='sold'?'rgba(239,68,68,0.12)':'rgba(245,158,11,0.12)'};
+                      color:${v.status==='active'?'#22c55e':v.status==='sold'?'#ef4444':'#f59e0b'};"
+                    >${v.status}</span>
+                  </td>
+                  <td style="text-align:center;font-size:0.82rem;">${v.view_count || 0}</td>
+                  <td style="font-size:0.78rem;color:var(--text-3);">${formatRelTime(v.created_at)}</td>
+                  <td>
+                    <button class="btn btn-sm btn-danger"
+                      onclick="adminDeleteVehicle(${v.id}, '${escapeHtml(v.title).replace(/'/g, "\\'")}')">Eliminar</button>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
         ${pages > 1 ? `<div style="display:flex;gap:0.5rem;justify-content:center;margin-top:1rem;flex-wrap:wrap;">
           ${Array.from({length: pages}, (_, i) => `
             <button class="btn btn-sm ${i+1===page?'btn-primary':'btn-ghost'}" onclick="loadAdminVehicles(${i+1})">${i+1}</button>
@@ -1540,40 +1606,40 @@ async function loadAdminUsers() {
   try {
     const users = await request('/admin/users');
     document.getElementById('adminContent').innerHTML = users?.length ? `
-      <table class="admin-table">
-        <thead><tr><th>Usuario</th><th>Email</th><th>Registro</th><th>Vehículos</th><th>Estado</th><th>Acciones</th></tr></thead>
-        <tbody>
-          ${users.map(u => {
-            const isBanned = u.profiles?.[0]?.is_banned;
-            const isAdm = u.profiles?.[0]?.is_admin;
-            const isVerified = u.profiles?.[0]?.is_verified;
-            return `
-              <tr id="user-row-${u.id}">
-                <td style="font-weight:600;">${escapeHtml(u.username)}${isAdm ? ' <span style="font-size:0.7rem;background:rgba(245,158,11,0.15);color:var(--primary);padding:1px 6px;border-radius:4px;font-weight:700;">ADMIN</span>' : ''}${isVerified ? ' ' + verifiedBadge() : ''}</td>
-                <td style="color:var(--text-2);font-size:0.85rem;">${escapeHtml(u.email)}</td>
-                <td style="color:var(--text-3);font-size:0.82rem;">${formatRelTime(u.created_at)}</td>
-                <td style="text-align:center;">${u.vehicles?.[0]?.count || 0}</td>
-                <td>
-                  ${isBanned
-                    ? '<span style="background:rgba(239,68,68,0.15);color:#ef4444;padding:2px 8px;border-radius:6px;font-size:0.78rem;font-weight:600;">Suspendido</span>'
-                    : '<span style="background:rgba(34,197,94,0.12);color:#22c55e;padding:2px 8px;border-radius:6px;font-size:0.78rem;font-weight:600;">Activo</span>'
-                  }
-                </td>
-                <td style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-                  <button class="btn btn-sm ${isBanned ? 'btn-secondary' : 'btn-danger'}" onclick="toggleBan(${u.id})">
-                    ${isBanned ? 'Reactivar' : 'Suspender'}
-                  </button>
-                  <button class="btn btn-sm btn-ghost" onclick="toggleAdmin(${u.id}, ${!isAdm})">
-                    ${isAdm ? 'Quitar admin' : 'Hacer admin'}
-                  </button>
-                  <button class="btn btn-sm" style="${isVerified ? 'background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.3);' : 'background:rgba(99,102,241,0.1);color:#a5b4fc;border:1px solid rgba(99,102,241,0.25);'}" onclick="toggleVerify(${u.id})">
-                    ${isVerified ? '✓ Verificado' : 'Verificar'}
-                  </button>
-                </td>
-              </tr>`;
-          }).join('')}
-        </tbody>
-      </table>
+      <div class="table-responsive">
+        <table class="admin-table">
+          <thead><tr><th>Usuario</th><th>Email</th><th>Registro</th><th>Vehículos</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <tbody>
+            ${users.map(u => {
+              const isBanned = u.profiles?.[0]?.is_banned;
+              const isAdm = u.profiles?.[0]?.is_admin;
+              const isVerified = u.profiles?.[0]?.is_verified;
+              return `
+                <tr id="user-row-${u.id}">
+                  <td style="font-weight:600;">${escapeHtml(u.username)}${isAdm ? ' <span style="font-size:0.7rem;background:rgba(245,158,11,0.15);color:var(--primary);padding:1px 6px;border-radius:4px;font-weight:700;">ADMIN</span>' : ''}${isVerified ? ' ✓' : ''}</td>
+                  <td style="color:var(--text-2);font-size:0.85rem;">${escapeHtml(u.email)}</td>
+                  <td style="color:var(--text-3);font-size:0.82rem;">${formatRelTime(u.created_at)}</td>
+                  <td style="text-align:center;">${u.vehicles?.[0]?.count || 0}</td>
+                  <td>
+                    ${isBanned
+                      ? '<span style="background:rgba(239,68,68,0.15);color:#ef4444;padding:2px 8px;border-radius:6px;font-size:0.78rem;font-weight:600;">Suspendido</span>'
+                      : '<span style="background:rgba(34,197,94,0.12);color:#22c55e;padding:2px 8px;border-radius:6px;font-size:0.78rem;font-weight:600;">Activo</span>'
+                    }
+                  </td>
+                  <td style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                    <button class="btn btn-sm ${isBanned ? 'btn-secondary' : 'btn-danger'}" onclick="toggleBan('${u.id}', ${!isBanned})">
+                      ${isBanned ? 'Reactivar' : 'Suspender'}
+                    </button>
+                    ${!isAdm ? `<button class="btn btn-sm btn-ghost" onclick="toggleAdmin('${u.id}', true)">Hacer admin</button>` : `<button class="btn btn-sm btn-ghost" onclick="toggleAdmin('${u.id}', false)">Quitar admin</button>`}
+                    <button class="btn btn-sm" style="${isVerified ? 'background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.3);' : 'background:rgba(99,102,241,0.1);color:#a5b4fc;border:1px solid rgba(99,102,241,0.25);'}" onclick="toggleVerify('${u.id}', ${!isVerified})">
+                      ${isVerified ? '✓ Verificado' : 'Verificar'}
+                    </button>
+                  </td>
+                </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
     ` : '<p style="padding:2rem;color:var(--text-3);">Sin usuarios</p>';
   } catch (err) { showToast(err.message, 'error'); }
 }
