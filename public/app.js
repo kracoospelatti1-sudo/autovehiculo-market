@@ -1028,36 +1028,53 @@ async function loadAdminUsers() {
   try {
     const users = await request('/admin/users');
     document.getElementById('adminContent').innerHTML = users?.length ? `
-      <table class="admin-table"><thead><tr><th>Usuario</th><th>Email</th><th>Fecha</th><th>Vehículos</th><th>Permisos</th></tr></thead><tbody>
-        ${users.map(u => `
-          <tr>
-            <td>${escapeHtml(u.username)}</td>
-            <td>${escapeHtml(u.email)}</td>
-            <td>${formatRelTime(u.created_at)}</td>
-            <td>${u.vehicles?.[0]?.count || 0}</td>
-            <td style="display:flex;gap:0.75rem;">
-              <label style="display:flex;align-items:center;gap:0.25rem;cursor:pointer;">
-                <input type="checkbox" ${u.profiles?.[0]?.is_admin ? 'checked' : ''} onchange="toggleAdmin(${u.id}, this.checked)"> Admin
-              </label>
-              <label style="display:flex;align-items:center;gap:0.25rem;cursor:pointer;color:var(--danger)">
-                <input type="checkbox" ${u.profiles?.[0]?.is_banned ? 'checked' : ''} onchange="toggleBan(${u.id})"> Bloqueado
-              </label>
-            </td>
-          </tr>
-        `).join('')}
-      </tbody></table>
-    ` : '<p>Sin usuarios</p>';
+      <table class="admin-table">
+        <thead><tr><th>Usuario</th><th>Email</th><th>Registro</th><th>Vehículos</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <tbody>
+          ${users.map(u => {
+            const isBanned = u.profiles?.[0]?.is_banned;
+            const isAdm = u.profiles?.[0]?.is_admin;
+            return `
+              <tr id="user-row-${u.id}">
+                <td style="font-weight:600;">${escapeHtml(u.username)}${isAdm ? ' <span style="font-size:0.7rem;background:rgba(245,158,11,0.15);color:var(--primary);padding:1px 6px;border-radius:4px;font-weight:700;">ADMIN</span>' : ''}</td>
+                <td style="color:var(--text-2);font-size:0.85rem;">${escapeHtml(u.email)}</td>
+                <td style="color:var(--text-3);font-size:0.82rem;">${formatRelTime(u.created_at)}</td>
+                <td style="text-align:center;">${u.vehicles?.[0]?.count || 0}</td>
+                <td>
+                  ${isBanned
+                    ? '<span style="background:rgba(239,68,68,0.15);color:#ef4444;padding:2px 8px;border-radius:6px;font-size:0.78rem;font-weight:600;">Suspendido</span>'
+                    : '<span style="background:rgba(34,197,94,0.12);color:#22c55e;padding:2px 8px;border-radius:6px;font-size:0.78rem;font-weight:600;">Activo</span>'
+                  }
+                </td>
+                <td style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                  <button class="btn btn-sm ${isBanned ? 'btn-secondary' : 'btn-danger'}" onclick="toggleBan(${u.id})">
+                    ${isBanned ? 'Reactivar' : 'Suspender'}
+                  </button>
+                  <button class="btn btn-sm btn-ghost" onclick="toggleAdmin(${u.id}, ${!isAdm})">
+                    ${isAdm ? 'Quitar admin' : 'Hacer admin'}
+                  </button>
+                </td>
+              </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    ` : '<p style="padding:2rem;color:var(--text-3);">Sin usuarios</p>';
   } catch (err) { showToast(err.message, 'error'); }
 }
 
-async function toggleAdmin(id, isAdmin) {
-  try { await request(`/admin/users/${id}/admin`, { method: 'PUT', body: JSON.stringify({ is_admin: isAdmin }) }); showToast('Actualizado', 'success'); } catch (err) { showToast(err.message, 'error'); }
+async function toggleAdmin(id, makeAdmin) {
+  try {
+    await request(`/admin/users/${id}/admin`, { method: 'PUT', body: JSON.stringify({ is_admin: makeAdmin }) });
+    showToast(makeAdmin ? 'Usuario promovido a admin' : 'Admin removido', 'success');
+    loadAdminUsers();
+  } catch (err) { showToast(err.message, 'error'); }
 }
 
 async function toggleBan(id) {
-  try { 
-    const res = await request(`/admin/users/${id}/ban`, { method: 'PUT' }); 
-    showToast(res.is_banned ? 'Usuario bloqueado' : 'Usuario desbloqueado', 'success'); 
+  try {
+    const res = await request(`/admin/users/${id}/ban`, { method: 'PUT' });
+    showToast(res.is_banned ? 'Cuenta suspendida' : 'Cuenta reactivada', res.is_banned ? 'error' : 'success');
+    loadAdminUsers();
   } catch (err) { showToast(err.message, 'error'); }
 }
 
