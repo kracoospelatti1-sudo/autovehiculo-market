@@ -985,7 +985,7 @@ select {
 .profile-header .stats div { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; }
 .profile-header .stats strong { font-family: 'Space Grotesk', sans-serif; font-size: 1.4rem; font-weight: 700; color: var(--primary-light); }
 .profile-header .stats span { color: var(--text-3); font-size: 0.78rem; }
-.profile-content { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+.profile-content { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; align-items: start; }
 .profile-vehicles, .profile-reviews { background: var(--dark-2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; }
 .profile-vehicles h3, .profile-reviews h3 { margin-bottom: 1rem; font-size: 1rem; font-weight: 700; }
 .review-item { background: var(--dark-3); padding: 1rem; border-radius: var(--radius-md); margin-bottom: 0.75rem; }
