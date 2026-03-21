@@ -636,11 +636,29 @@
       <svg><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       <span>Publicar</span>
     </a>
-    <a class="bottom-nav-item" onclick="if(currentUser){viewProfile(currentUser.id);}else{showSection('login');} document.querySelectorAll('.bottom-nav-item').forEach(e=>e.classList.remove('active')); this.classList.add('active');">
+    <a class="bottom-nav-item" onclick="if(currentUser){toggleMobileMenu();}else{showSection('login');} document.querySelectorAll('.bottom-nav-item').forEach(e=>e.classList.remove('active')); this.classList.add('active');">
       <svg><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       <span>Mi Cuenta</span>
     </a>
   </nav>
+
+  <!-- MOBILE ACCOUNT MENU -->
+  <div id="mobileAccountMenu" class="mobile-account-menu" style="display:none;">
+    <div class="mobile-menu-backdrop" onclick="closeMobileMenu()"></div>
+    <div class="mobile-menu-panel">
+      <div class="mobile-menu-header">
+        <span id="mobileMenuUsername" style="font-weight:700;"></span>
+        <button onclick="closeMobileMenu()" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;">&times;</button>
+      </div>
+      <a onclick="closeMobileMenu(); viewProfile(currentUser.id);" class="mobile-menu-item">👤 Mi Perfil</a>
+      <a onclick="closeMobileMenu(); showSection('favorites');" class="mobile-menu-item">❤️ Favoritos</a>
+      <a onclick="closeMobileMenu(); showSection('my-vehicles');" class="mobile-menu-item">🚗 Mis Anuncios</a>
+      <a onclick="closeMobileMenu(); showSection('notifications');" class="mobile-menu-item">🔔 Notificaciones</a>
+      <a id="mobileMenuAdmin" onclick="closeMobileMenu(); showSection('admin');" class="mobile-menu-item" style="display:none;">⚙️ Admin</a>
+      <div style="border-top:1px solid var(--border);margin:0.5rem 0;"></div>
+      <a onclick="closeMobileMenu(); logout();" class="mobile-menu-item" style="color:#ef4444;">🚪 Cerrar Sesión</a>
+    </div>
+  </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="app.js?v=12"></script>

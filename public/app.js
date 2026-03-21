@@ -1205,6 +1205,17 @@ function hasUserScrolledToBottom() {
   return c.scrollHeight - c.scrollTop - c.clientHeight < 50;
 }
 
+// Pause polling when tab is not visible
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') {
+    stopPolling();
+  } else if (document.visibilityState === 'visible' && currentConversationId) {
+    // Resume polling and do an immediate poll
+    pollNewMessages(currentConversationId);
+    startPolling();
+  }
+});
+
 // HEARTBEAT
 let heartbeatInterval = setInterval(() => {
   if (currentUser && document.visibilityState === 'visible') {
@@ -2022,3 +2033,19 @@ document.getElementById('publishModel')?.addEventListener('change', autoFillTitl
 document.getElementById('publishYear')?.addEventListener('input', autoFillTitle);
 
 showSection('home');
+
+// MOBILE ACCOUNT MENU
+function toggleMobileMenu() {
+  const menu = document.getElementById('mobileAccountMenu');
+  if (menu.style.display === 'none') {
+    document.getElementById('mobileMenuUsername').textContent = currentUser?.username || '';
+    const adminItem = document.getElementById('mobileMenuAdmin');
+    if (adminItem) adminItem.style.display = currentUser?.profile?.is_admin ? 'block' : 'none';
+    menu.style.display = 'block';
+  } else {
+    menu.style.display = 'none';
+  }
+}
+function closeMobileMenu() {
+  document.getElementById('mobileAccountMenu').style.display = 'none';
+}

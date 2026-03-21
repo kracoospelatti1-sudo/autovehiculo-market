@@ -1020,7 +1020,7 @@ app.post('/api/conversations', authenticateToken, async (req, res) => {
       type: 'message',
       title: 'Nuevo mensaje',
       message: `Te enviaron un mensaje sobre "${vehicle.title}"`,
-      link: `/messages/${newConv.id}`
+      link: `messages/${newConv.id}`
     });
 
     res.json(newConv);
@@ -1046,11 +1046,18 @@ app.get('/api/conversations/:id', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'No tienes acceso' });
     }
 
-    const { data: vehicle } = await supabase.from('vehicles').select('*').eq('id', conversation.vehicle_id).single();
-    const { data: buyerUser } = await supabase.from('users').select('id, username').eq('id', conversation.buyer_id).single();
-    const { data: buyerProfile } = await supabase.from('profiles').select('avatar_url, last_seen').eq('user_id', conversation.buyer_id).maybeSingle();
-    const { data: sellerUser } = await supabase.from('users').select('id, username').eq('id', conversation.seller_id).single();
-    const { data: sellerProfile } = await supabase.from('profiles').select('avatar_url, last_seen').eq('user_id', conversation.seller_id).maybeSingle();
+    const [vehicleRes, buyerUserRes, buyerProfileRes, sellerUserRes, sellerProfileRes] = await Promise.all([
+      supabase.from('vehicles').select('*').eq('id', conversation.vehicle_id).single(),
+      supabase.from('users').select('id, username').eq('id', conversation.buyer_id).single(),
+      supabase.from('profiles').select('avatar_url, last_seen').eq('user_id', conversation.buyer_id).maybeSingle(),
+      supabase.from('users').select('id, username').eq('id', conversation.seller_id).single(),
+      supabase.from('profiles').select('avatar_url, last_seen').eq('user_id', conversation.seller_id).maybeSingle()
+    ]);
+    const vehicle = vehicleRes.data;
+    const buyerUser = buyerUserRes.data;
+    const buyerProfile = buyerProfileRes.data;
+    const sellerUser = sellerUserRes.data;
+    const sellerProfile = sellerProfileRes.data;
 
     const now = Date.now();
     const calcStatus = (lastSeen) => {
@@ -1090,10 +1097,20 @@ app.get('/api/conversations/:id/messages', authenticateToken, async (req, res) =
 
     // Delta polling: only fetch messages after a given ID
     const afterId = parseInt(req.query.after);
-    if (!isNaN(afterId) && afterId > 0) msgQuery = msgQuery.gt('id', afterId);
+    if (!isNaN(afterId) && afterId > 0) {
+      msgQuery = msgQuery.gt('id', afterId);
+    } else {
+      // Sin after = carga inicial, limitar a los últimos 200
+      msgQuery = msgQuery.order('created_at', { ascending: false }).limit(200);
+    }
 
-    const { data: messages, error } = await msgQuery.order('created_at', { ascending: true });
+    let { data: messages, error } = await msgQuery;
     if (error) throw error;
+
+    // Si era carga inicial (sin after), revertir el orden para mostrar cronológicamente
+    if (isNaN(afterId) || afterId <= 0) {
+      messages = (messages || []).reverse();
+    }
 
     // Batch fetch usernames (only 2 unique senders max)
     const senderIds = [...new Set((messages || []).map(m => m.sender_id))];
@@ -1156,13 +1173,33 @@ app.post('/api/conversations/:id/messages', authenticateToken, messageLimiter, a
     // Obtener username del remitente para la notificación
     const { data: senderUser } = await supabase.from('users').select('username').eq('id', req.user.id).single();
     const preview = content.length > 60 ? content.slice(0, 60) + '…' : content;
-    await supabase.from('notifications').insert({
-      user_id: recipientId,
-      type: 'message',
-      title: `Mensaje de ${senderUser?.username || 'alguien'}`,
-      message: preview,
-      link: `messages/${req.params.id}`
-    });
+
+    // Anti-spam: solo crear notificación si no hay una pendiente del mismo chat
+    const { data: existingNotif } = await supabase
+      .from('notifications')
+      .select('id')
+      .eq('user_id', recipientId)
+      .eq('type', 'message')
+      .eq('link', `messages/${req.params.id}`)
+      .eq('read', false)
+      .maybeSingle();
+
+    if (existingNotif) {
+      // Actualizar la notificación existente en vez de crear una nueva
+      await supabase.from('notifications').update({
+        title: `Mensaje de ${senderUser?.username || 'alguien'}`,
+        message: preview,
+        created_at: new Date().toISOString()
+      }).eq('id', existingNotif.id);
+    } else {
+      await supabase.from('notifications').insert({
+        user_id: recipientId,
+        type: 'message',
+        title: `Mensaje de ${senderUser?.username || 'alguien'}`,
+        message: preview,
+        link: `messages/${req.params.id}`
+      });
+    }
 
     res.json({ ...message, username: message.users?.username });
   } catch (error) {
@@ -1203,7 +1240,7 @@ app.put('/api/conversations/:id/read', authenticateToken, async (req, res) => {
 // TRADE OFFERS
 app.post('/api/vehicles/:id/trade-offer', authenticateToken, async (req, res) => {
   try {
-    const targetVehicleId = parseInt(req.params.id);
+    const targetVehicleId = req.params.id;
     const { offered_vehicle_id, message } = req.body;
     if (!offered_vehicle_id) return res.status(400).json({ error: 'Seleccioná un vehículo para ofrecer' });
 
@@ -1213,10 +1250,10 @@ app.post('/api/vehicles/:id/trade-offer', authenticateToken, async (req, res) =>
     if (target.status !== 'active') return res.status(400).json({ error: 'Este vehículo no está disponible' });
     if (target.user_id === req.user.id) return res.status(400).json({ error: 'No podés proponer permuta con tu propio vehículo' });
 
-    const { data: offered } = await supabase.from('vehicles').select('user_id, title').eq('id', parseInt(offered_vehicle_id)).single();
+    const { data: offered } = await supabase.from('vehicles').select('user_id, title').eq('id', offered_vehicle_id).single();
     if (!offered || offered.user_id !== req.user.id) return res.status(403).json({ error: 'No tenés permiso sobre ese vehículo' });
 
-    const { data: existing } = await supabase.from('trade_offers').select('id').eq('vehicle_id', targetVehicleId).eq('offered_vehicle_id', parseInt(offered_vehicle_id)).eq('proposer_id', req.user.id).eq('status', 'pending').maybeSingle();
+    const { data: existing } = await supabase.from('trade_offers').select('id').eq('vehicle_id', targetVehicleId).eq('offered_vehicle_id', offered_vehicle_id).eq('proposer_id', req.user.id).eq('status', 'pending').maybeSingle();
     if (existing) return res.status(400).json({ error: 'Ya tenés una oferta pendiente para esta combinación' });
 
     const { data: offer, error } = await supabase.from('trade_offers').insert({
