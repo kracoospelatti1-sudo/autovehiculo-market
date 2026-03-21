@@ -462,12 +462,14 @@ select {
   cursor: pointer;
   transition: transform 0.25s cubic-bezier(0.4,0,0.2,1), box-shadow 0.25s ease, border-color 0.2s;
   position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 .vehicle-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 16px 48px rgba(0,0,0,0.5), var(--glow-primary);
-  border-color: rgba(245,158,11,0.2);
+  border-color: rgba(245,158,11,0.25);
 }
 
 .vehicle-image-container {
@@ -486,26 +488,58 @@ select {
 
 .vehicle-card:hover .vehicle-image { transform: scale(1.04); }
 
+.vehicle-img-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent 50%, rgba(8,8,15,0.55) 100%);
+  pointer-events: none;
+}
+
 .vehicle-badge {
   position: absolute;
   top: 0.6rem;
   left: 0.6rem;
-  background: rgba(10,10,15,0.85);
+  background: rgba(10,10,15,0.82);
   backdrop-filter: blur(8px);
   color: var(--primary-light);
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  padding: 0.25rem 0.6rem;
+  padding: 0.25rem 0.65rem;
   border-radius: 6px;
-  border: 1px solid rgba(245,158,11,0.3);
+  border: 1px solid rgba(245,158,11,0.35);
+  z-index: 2;
 }
 .vehicle-badge.badge-sold {
-  background: rgba(239,68,68,0.85);
+  background: rgba(239,68,68,0.88);
   color: #fff;
   border-color: rgba(239,68,68,0.4);
 }
+
+.vehicle-trade-badge {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  backdrop-filter: blur(8px);
+  z-index: 2;
+  letter-spacing: 0.02em;
+}
+.vehicle-trade-badge.trade-yes {
+  background: rgba(34,197,94,0.18);
+  color: #4ade80;
+  border: 1px solid rgba(34,197,94,0.35);
+}
+.vehicle-trade-badge.trade-no {
+  background: rgba(10,10,15,0.7);
+  color: var(--text-3);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
 .sold-banner {
   background: rgba(239,68,68,0.1);
   border: 1px solid rgba(239,68,68,0.3);
@@ -519,50 +553,94 @@ select {
   letter-spacing: 0.05em;
 }
 
-.vehicle-info { padding: 1rem 1.1rem 1.1rem; }
+.vehicle-info {
+  padding: 1rem 1.1rem 1rem;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
 
 .vehicle-title {
   font-family: 'Space Grotesk', sans-serif;
-  font-size: 1rem;
+  font-size: 0.98rem;
   font-weight: 600;
   color: var(--text);
   margin-bottom: 0.2rem;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.35;
+}
+
+.vehicle-location {
+  font-size: 0.78rem;
+  color: var(--text-3);
+  margin-bottom: 0.6rem;
 }
 
 .vehicle-brand { font-size: 0.82rem; color: var(--text-3); margin-bottom: 0.75rem; }
 
 .vehicle-price {
   font-family: 'Space Grotesk', sans-serif;
-  font-size: 1.3rem;
+  font-size: 1.35rem;
   font-weight: 700;
   color: var(--primary-light);
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.65rem;
+  letter-spacing: -0.01em;
 }
 
 .vehicle-meta {
   display: flex;
-  gap: 0.75rem;
+  gap: 0.4rem;
   flex-wrap: wrap;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.85rem;
 }
 
 .vehicle-meta span {
   display: flex;
   align-items: center;
-  gap: 0.3rem;
-  font-size: 0.77rem;
-  color: var(--text-3);
+  gap: 0.25rem;
+  font-size: 0.74rem;
+  color: var(--text-2);
+  background: var(--dark-3);
+  padding: 0.2rem 0.55rem;
+  border-radius: 5px;
+  border: 1px solid var(--border);
 }
+
+.vehicle-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--border);
+  margin-top: auto;
+}
+
+.vehicle-seller {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  color: var(--text-2);
+  min-width: 0;
+}
+.vehicle-seller span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+.vehicle-seller svg { flex-shrink: 0; fill: var(--text-3); }
 
 .vehicle-views {
   display: flex;
   align-items: center;
   gap: 0.3rem;
-  font-size: 0.77rem;
+  font-size: 0.74rem;
   color: var(--text-3);
+  flex-shrink: 0;
 }
 .vehicle-views svg { width: 13px; height: 13px; fill: var(--text-3); }
 
@@ -1406,8 +1484,12 @@ select {
   .vehicle-title { font-size: 0.88rem; margin-bottom: 0.1rem; }
   .vehicle-brand { font-size: 0.75rem; margin-bottom: 0.35rem; }
   .vehicle-price { font-size: 1.1rem; margin-bottom: 0.35rem; }
-  .vehicle-meta { gap: 0.4rem; margin-bottom: 0; }
-  .vehicle-meta span { font-size: 0.7rem; }
+  .vehicle-meta { gap: 0.35rem; margin-bottom: 0.5rem; }
+  .vehicle-meta span { font-size: 0.68rem; padding: 0.15rem 0.45rem; }
+  .vehicle-location { font-size: 0.72rem; margin-bottom: 0.35rem; }
+  .vehicle-card-footer { padding-top: 0.5rem; }
+  .vehicle-trade-badge { font-size: 0.62rem; padding: 0.2rem 0.45rem; }
+  .vehicle-seller span { max-width: 80px; }
 }
 
 /* SEARCH BAR: glass */

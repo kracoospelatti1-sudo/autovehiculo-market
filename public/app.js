@@ -412,25 +412,29 @@ async function loadVehicles(page = 1) {
       <div class="vehicle-card" onclick="viewVehicle(${v.id})">
         <div class="vehicle-image-container">
           <img src="${v.images?.find(i => i.is_primary)?.url || v.images?.[0]?.url || v.image_url || PLACEHOLDER_IMG}" class="vehicle-image" alt="${escapeHtml(v.title)}" loading="lazy" onerror="this.src=PLACEHOLDER_IMG">
+          <div class="vehicle-img-overlay"></div>
           <span class="vehicle-badge">${escapeHtml(String(v.year))}</span>
+          <span class="vehicle-trade-badge ${v.accepts_trade ? 'trade-yes' : 'trade-no'}">${v.accepts_trade ? '🔄 Permuta' : 'Sin permuta'}</span>
           ${localStorage.getItem('token') ? `<button class="favorite-btn ${v.is_favorite ? 'active' : ''}" onclick="toggleFavorite(${v.id}, event)"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>` : ''}
         </div>
         <div class="vehicle-info">
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
-          <p class="vehicle-brand">${escapeHtml(v.brand)} ${escapeHtml(v.model)}${v.city ? ` · 📍 ${escapeHtml(v.city)}${v.province ? ', ' + escapeHtml(v.province.replace(/\s*\(.*?\)/g,'').trim()) : ''}` : ''}</p>
+          ${v.city ? `<p class="vehicle-location">📍 ${escapeHtml(v.city)}${v.province ? ', ' + escapeHtml(v.province.replace(/\s*\(.*?\)/g,'').trim()) : ''}</p>` : ''}
           <p class="vehicle-price">$${formatNumber(v.price)}</p>
           <div class="vehicle-meta">
-            <span>${formatNumber(v.mileage || 0)} km</span>
-            <span>${escapeHtml(v.fuel || '') || 'N/A'}</span>
+            <span><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>${formatNumber(v.mileage || 0)} km</span>
+            <span>${escapeHtml(v.fuel || 'N/A')}</span>
             ${v.transmission ? `<span>${escapeHtml(v.transmission)}</span>` : ''}
-            <span style="background:${v.accepts_trade ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.08)'};color:${v.accepts_trade ? '#22c55e' : '#ef4444'};padding:1px 6px;border-radius:4px;font-size:0.75rem;font-weight:600;">${v.accepts_trade ? '🔄 Permuta' : 'Sin permuta'}</span>
           </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.75rem;">
-            <div class="vehicle-views" style="margin-top:0;"><svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg> ${v.view_count || 0} vistas</div>
-            <div style="font-size:0.8rem;color:var(--text-2);display:flex;align-items:center;gap:0.25rem;flex-wrap:wrap;">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-              ${escapeHtml(v.seller_name || 'Anónimo')}
+          <div class="vehicle-card-footer">
+            <div class="vehicle-seller">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+              <span>${escapeHtml(v.seller_name || 'Anónimo')}</span>
               ${v.seller_verified ? verifiedBadge() : ''}
+            </div>
+            <div class="vehicle-views">
+              <svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+              ${v.view_count || 0}
             </div>
           </div>
         </div>
