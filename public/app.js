@@ -596,7 +596,7 @@ async function loadConversations(page = 1) {
     `).join('');
     if (page === 1) container.innerHTML = html; else { const old = container.querySelector('.load-more-btn'); if (old) old.remove(); container.insertAdjacentHTML('beforeend', html); }
     conversationsPage = page;
-    if (total > page * 20) {
+    if (total > page * 100) {
       container.insertAdjacentHTML('beforeend', `<button class="btn btn-ghost btn-sm load-more-btn" style="width:100%;margin-top:0.5rem;" onclick="loadConversations(${page + 1})">Cargar más</button>`);
     }
     if (page === 1) { if (currentConversationId) loadChatFull(currentConversationId); else renderEmptyChat(); }

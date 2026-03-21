@@ -666,7 +666,7 @@ app.get('/api/favorites/:vehicleId/check', authenticateToken, async (req, res) =
 app.get('/api/conversations', authenticateToken, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = 20;
+    const limit = 100;
     const offset = (page - 1) * limit;
 
     const { data, error, count } = await supabase
@@ -682,6 +682,8 @@ app.get('/api/conversations', authenticateToken, async (req, res) => {
     const vehicleIds = [...new Set(data.map(c => c.vehicle_id))];
     const userIds = [...new Set(data.flatMap(c => [c.buyer_id, c.seller_id]))];
     const convIds = data.map(c => c.id);
+
+    if (!data.length) return res.json({ conversations: [], total: 0 });
 
     const [vehiclesRes, usersRes, profilesRes, messagesRes] = await Promise.all([
       supabase.from('vehicles').select('id, title, image_url, price, brand, model, user_id').in('id', vehicleIds),
