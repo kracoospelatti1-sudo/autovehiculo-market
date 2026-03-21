@@ -1408,7 +1408,7 @@ async function viewProfile(id) {
         <div class="vehicle-info">
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
           <p class="vehicle-price">$${formatNumber(v.price)}</p>
-          ${isViewerAdmin && !isOwn ? `<button class="btn btn-sm btn-danger" style="margin-top:0.5rem;width:100%;" onclick="event.stopPropagation(); adminDeleteVehicle(${v.id}, ${JSON.stringify(v.title)})">🗑 Eliminar</button>` : ''}
+          ${isViewerAdmin && !isOwn ? `<button class="btn btn-sm btn-danger" style="margin-top:0.5rem;width:100%;" data-vid="${v.id}" data-title="${escapeHtml(v.title)}" onclick="event.stopPropagation(); adminDeleteVehicle(+this.dataset.vid, this.dataset.title)">🗑 Eliminar</button>` : ''}
         </div>
       </div>
     `).join('') : '<p style="color:var(--text-secondary)">Sin vehículos publicados</p>';
@@ -1537,7 +1537,7 @@ async function loadAdminReports() {
                   <button class="btn btn-sm btn-secondary" onclick="resolveReport(${r.id}, 'resolved')">Resolver</button>
                   <button class="btn btn-sm btn-ghost" onclick="resolveReport(${r.id}, 'dismissed')">Descartar</button>
                 ` : ''}
-                ${r.vehicle?.id ? `<button class="btn btn-sm btn-danger" onclick="adminDeleteVehicle(${r.vehicle.id}, ${JSON.stringify(r.vehicle.title || '')})">🗑 Eliminar pub.</button>` : ''}
+                ${r.vehicle?.id ? `<button class="btn btn-sm btn-danger" data-vid="${r.vehicle.id}" data-title="${escapeHtml(r.vehicle.title || '')}" onclick="adminDeleteVehicle(+this.dataset.vid, this.dataset.title)">🗑 Eliminar pub.</button>` : ''}
               </td>
             </tr>
           `).join('')}
@@ -1609,8 +1609,8 @@ async function loadAdminVehicles(page = 1) {
                   <td style="text-align:center;font-size:0.82rem;">${v.view_count || 0}</td>
                   <td style="font-size:0.78rem;color:var(--text-3);">${formatRelTime(v.created_at)}</td>
                   <td>
-                    <button class="btn btn-sm btn-danger"
-                      onclick="adminDeleteVehicle(${v.id}, ${JSON.stringify(v.title)})">Eliminar</button>
+                    <button class="btn btn-sm btn-danger" data-vid="${v.id}" data-title="${escapeHtml(v.title)}"
+                      onclick="adminDeleteVehicle(+this.dataset.vid, this.dataset.title)">Eliminar</button>
                   </td>
                 </tr>
               `).join('')}
