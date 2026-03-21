@@ -1483,18 +1483,29 @@ app.get('/api/admin/users', authenticateToken, async (req, res) => {
     const admin = await isAdmin(req.user.id);
     if (!admin) return res.status(403).json({ error: 'Acceso denegado' });
 
-    const { data, error } = await supabase
+    const { data: users, error: usersError } = await supabase
       .from('users')
-      .select(`
-        *,
-        profiles(is_admin, is_banned, is_verified),
-        vehicles(count)
-      `)
+      .select('id, username, email, created_at')
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
-    res.json(data);
+    if (usersError) throw usersError;
+
+    const userIds = (users || []).map(u => u.id);
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('user_id, is_admin, is_banned, is_verified')
+      .in('user_id', userIds);
+
+    const profileMap = (profiles || []).reduce((acc, p) => { acc[p.user_id] = p; return acc; }, {});
+
+    const result = (users || []).map(u => ({
+      ...u,
+      profiles: [profileMap[u.id] || { is_admin: false, is_banned: false, is_verified: false }]
+    }));
+
+    res.json(result);
   } catch (error) {
+    console.error('[/api/admin/users]', error.message);
     res.status(500).json({ error: 'Error' });
   }
 });
