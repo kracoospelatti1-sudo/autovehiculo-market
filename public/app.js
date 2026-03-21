@@ -272,7 +272,7 @@ async function viewVehicle(id) {
 
     const content = document.getElementById('vehicleDetailContent');
     content.innerHTML = `
-      <div class="detail-grid">
+      <div class="detail-container">
         <div class="detail-gallery desktop-only">
           <div class="main-image">
             <img src="${mainImgUrl}" id="detailMainImage" alt="Vehículo" style="cursor:pointer;" onclick="openLightbox(window._detailImages, window._detailImages.indexOf(this.src) >= 0 ? window._detailImages.indexOf(this.src) : 0)">
