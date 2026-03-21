@@ -268,8 +268,17 @@ async function initVehicleMap(city, province) {
   const el = document.getElementById('vehicleMap');
   if (!el) return;
   try {
-    const query = province ? `${city}, ${province}, Argentina` : `${city}, Argentina`;
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&countrycodes=ar&addressdetails=1`);
+    // Limpiar nombre de provincia: quitar paréntesis y su contenido (ej: "Buenos Aires (Prov.)" → "Buenos Aires")
+    const cleanProvince = province ? province.replace(/\s*\(.*?\)/g, '').trim() : '';
+    const params = new URLSearchParams({ format: 'json', limit: '1', countrycodes: 'ar', addressdetails: '1' });
+    if (cleanProvince) {
+      params.set('city', city);
+      params.set('state', cleanProvince);
+      params.set('country', 'Argentina');
+    } else {
+      params.set('q', `${city}, Argentina`);
+    }
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?${params}`);
     const data = await res.json();
     if (!data?.length) { el.parentElement.style.display = 'none'; return; }
     const { lat, lon, display_name } = data[0];
