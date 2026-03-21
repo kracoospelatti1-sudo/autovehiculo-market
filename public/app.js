@@ -1648,7 +1648,7 @@ async function loadAdminUsers() {
                   <td style="font-weight:600;">${escapeHtml(u.username)}${isAdm ? ' <span style="font-size:0.7rem;background:rgba(245,158,11,0.15);color:var(--primary);padding:1px 6px;border-radius:4px;font-weight:700;">ADMIN</span>' : ''}${isVerified ? ' ✓' : ''}</td>
                   <td style="color:var(--text-2);font-size:0.85rem;">${escapeHtml(u.email)}</td>
                   <td style="color:var(--text-3);font-size:0.82rem;">${formatRelTime(u.created_at)}</td>
-                  <td style="text-align:center;">${u.vehicles?.[0]?.count || 0}</td>
+                  <td style="text-align:center;">${u.vehicle_count || 0}</td>
                   <td>
                     ${isBanned
                       ? '<span style="background:rgba(239,68,68,0.15);color:#ef4444;padding:2px 8px;border-radius:6px;font-size:0.78rem;font-weight:600;">Suspendido</span>'
@@ -2224,6 +2224,8 @@ checkAuth().then(() => {
   if (vehicleId) {
     window.history.replaceState({}, '', window.location.pathname);
     viewVehicle(parseInt(vehicleId));
+  } else {
+    showSection('home');
   }
 });
 
@@ -2271,7 +2273,6 @@ document.getElementById('publishYear')?.addEventListener('input', autoFillTitle)
 
 const yearInput = document.getElementById('publishYear');
 if (yearInput) yearInput.max = new Date().getFullYear() + 1;
-showSection('home');
 
 // MOBILE ACCOUNT MENU
 function toggleMobileMenu() {

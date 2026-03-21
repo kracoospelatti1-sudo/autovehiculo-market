@@ -1901,15 +1901,17 @@ app.get('/api/admin/users', authenticateToken, async (req, res) => {
     if (usersError) throw usersError;
 
     const userIds = (users || []).map(u => u.id);
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('user_id, is_admin, is_banned, is_verified')
-      .in('user_id', userIds);
+    const [{ data: profiles }, { data: vehicleRows }] = await Promise.all([
+      supabase.from('profiles').select('user_id, is_admin, is_banned, is_verified').in('user_id', userIds),
+      userIds.length ? supabase.from('vehicles').select('user_id').in('user_id', userIds) : Promise.resolve({ data: [] })
+    ]);
 
     const profileMap = (profiles || []).reduce((acc, p) => { acc[p.user_id] = p; return acc; }, {});
+    const vehicleCountMap = (vehicleRows || []).reduce((acc, v) => { acc[v.user_id] = (acc[v.user_id] || 0) + 1; return acc; }, {});
 
     const result = (users || []).map(u => ({
       ...u,
+      vehicle_count: vehicleCountMap[u.id] || 0,
       profiles: [profileMap[u.id] || { is_admin: false, is_banned: false, is_verified: false }]
     }));
 
