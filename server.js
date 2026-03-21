@@ -445,21 +445,36 @@ app.delete('/api/vehicles/:id', authenticateToken, async (req, res) => {
       }
     }
 
-    const { data: convs } = await supabase.from('conversations').select('id').eq('vehicle_id', req.params.id);
+    const vid = parseInt(req.params.id);
+
+    // Delete child rows one by one so errors surface clearly
+    const { data: convs } = await supabase.from('conversations').select('id').eq('vehicle_id', vid);
     if (convs?.length) {
       const convIds = convs.map(c => c.id);
-      await supabase.from('messages').delete().in('conversation_id', convIds);
+      const { error: msgErr } = await supabase.from('messages').delete().in('conversation_id', convIds);
+      if (msgErr) console.error('messages delete error:', msgErr.message);
     }
-    const vid = req.params.id;
-    await Promise.all([
+
+    const cleanups = [
       supabase.from('conversations').delete().eq('vehicle_id', vid),
       supabase.from('vehicle_images').delete().eq('vehicle_id', vid),
       supabase.from('favorites').delete().eq('vehicle_id', vid),
       supabase.from('reports').delete().eq('vehicle_id', vid),
-      supabase.from('trade_offers').delete().or(`vehicle_id.eq.${vid},offered_vehicle_id.eq.${vid}`)
-    ]);
-    await supabase.from('vehicles').delete().eq('id', vid);
-    
+      supabase.from('notifications').delete().ilike('link', `vehicle/${vid}`),
+    ];
+    // trade_offers may not exist yet — ignore its error
+    const results = await Promise.all(cleanups);
+    results.forEach((r, i) => { if (r.error) console.error(`cleanup[${i}] error:`, r.error.message); });
+
+    // Try to delete trade_offers (table might not exist yet)
+    await supabase.from('trade_offers').delete().or(`vehicle_id.eq.${vid},offered_vehicle_id.eq.${vid}`).catch(() => {});
+
+    const { error: delErr } = await supabase.from('vehicles').delete().eq('id', vid);
+    if (delErr) {
+      console.error('vehicles delete error:', delErr.message);
+      return res.status(500).json({ error: `No se pudo eliminar: ${delErr.message}` });
+    }
+
     res.json({ message: 'Vehículo eliminado' });
   } catch (error) {
     console.error(error);
@@ -1541,6 +1556,27 @@ app.get('/api/brands', (req, res) => {
     'Smart': 1, 'Subaru': 1, 'Suzuki': 1, 'Tesla': 1, 'Toyota': 1, 'Volkswagen': 1, 'Volvo': 1
   });
   res.json(brands.sort());
+});
+
+// DIAGNOSTIC: check which FK tables reference a vehicle (temp endpoint)
+app.get('/api/admin/debug-vehicle/:id', authenticateToken, async (req, res) => {
+  if (!await isAdmin(req.user.id)) return res.status(403).json({ error: 'Solo admin' });
+  const vid = parseInt(req.params.id);
+  const [convs, imgs, favs, reps, trades] = await Promise.all([
+    supabase.from('conversations').select('id', { count: 'exact', head: true }).eq('vehicle_id', vid),
+    supabase.from('vehicle_images').select('id', { count: 'exact', head: true }).eq('vehicle_id', vid),
+    supabase.from('favorites').select('id', { count: 'exact', head: true }).eq('vehicle_id', vid),
+    supabase.from('reports').select('id', { count: 'exact', head: true }).eq('vehicle_id', vid),
+    supabase.from('trade_offers').select('id', { count: 'exact', head: true }).or(`vehicle_id.eq.${vid},offered_vehicle_id.eq.${vid}`).catch(() => ({ count: 'N/A (tabla no existe)' })),
+  ]);
+  res.json({
+    vehicle_id: vid,
+    conversations: convs.count,
+    vehicle_images: imgs.count,
+    favorites: favs.count,
+    reports: reps.count,
+    trade_offers: trades.count ?? 'N/A',
+  });
 });
 
 const PORT = process.env.PORT || 3001;
