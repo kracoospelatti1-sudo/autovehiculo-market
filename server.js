@@ -931,7 +931,7 @@ app.get('/api/conversations', authenticateToken, async (req, res) => {
 // Unread messages count (for nav badge)
 app.get('/api/messages/unread-count', authenticateToken, async (req, res) => {
   try {
-    // Get all conversations where user participates
+    const ignoreChat = req.query.ignoreChat;
     const { data: convs } = await supabase
       .from('conversations')
       .select('id')
@@ -939,7 +939,13 @@ app.get('/api/messages/unread-count', authenticateToken, async (req, res) => {
 
     if (!convs?.length) return res.json({ count: 0 });
 
-    const convIds = convs.map(c => c.id);
+    let convIds = convs.map(c => c.id);
+    if (ignoreChat) {
+      convIds = convIds.filter(id => String(id) !== String(ignoreChat));
+    }
+    
+    if (!convIds.length) return res.json({ count: 0 });
+
     const { count, error } = await supabase
       .from('messages')
       .select('*', { count: 'exact', head: true })
@@ -1233,6 +1239,15 @@ app.put('/api/conversations/:id/read', authenticateToken, async (req, res) => {
       .eq('sender_id', otherUserId)
       .is('read_at', null);
 
+    // Limpiar notificaciones de este chat para el usuario logueado
+    await supabase
+      .from('notifications')
+      .update({ read: true })
+      .eq('user_id', req.user.id)
+      .eq('type', 'message')
+      .eq('link', `messages/${req.params.id}`)
+      .eq('read', false);
+
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: 'Error' });
@@ -1466,11 +1481,18 @@ app.get('/api/notifications', authenticateToken, async (req, res) => {
 
 app.get('/api/notifications/count', authenticateToken, async (req, res) => {
   try {
-    const { count, error } = await supabase
+    const ignoreChat = req.query.ignoreChat;
+    let query = supabase
       .from('notifications')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', req.user.id)
       .eq('read', false);
+
+    if (ignoreChat) {
+      query = query.neq('link', `messages/${ignoreChat}`);
+    }
+
+    const { count, error } = await query;
 
     if (error) throw error;
     res.json({ count: count || 0 });

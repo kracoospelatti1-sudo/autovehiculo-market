@@ -1291,7 +1291,8 @@ async function loadNotifications() {
 
 async function loadNotificationCount() {
   try {
-    const { count } = await request('/notifications/count');
+    const ignoreQuery = currentConversationId ? `?ignoreChat=${currentConversationId}` : '';
+    const { count } = await request(`/notifications/count${ignoreQuery}`);
     const badge = document.getElementById('notificationsBadge');
     if (badge) { badge.textContent = count; badge.style.display = count > 0 ? 'inline' : 'none'; }
   } catch {}
@@ -2069,7 +2070,8 @@ let notifInterval = setInterval(() => {
 
 async function loadUnreadMessageCount() {
   try {
-    const { count } = await request('/messages/unread-count');
+    const ignoreQuery = currentConversationId ? `?ignoreChat=${currentConversationId}` : '';
+    const { count } = await request(`/messages/unread-count${ignoreQuery}`);
     const badge = document.getElementById('messagesBadge');
     if (badge) { badge.textContent = count; badge.style.display = count > 0 ? 'inline' : 'none'; }
   } catch {}
