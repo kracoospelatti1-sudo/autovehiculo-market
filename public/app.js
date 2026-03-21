@@ -1410,7 +1410,7 @@ function showConfirmModal(title, message, buttonText, callback) {
   const btn = document.getElementById('confirmModalAction');
   btn.textContent = buttonText;
   confirmCallback = callback;
-  btn.onclick = () => { closeConfirmModal(); if (confirmCallback) confirmCallback(); };
+  btn.onclick = () => { const cb = confirmCallback; closeConfirmModal(); if (cb) cb(); };
   document.getElementById('confirmModal').style.display = 'block';
   document.getElementById('modalOverlay').style.display = 'block';
 }
