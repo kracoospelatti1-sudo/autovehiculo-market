@@ -538,7 +538,7 @@ app.put('/api/ping', authenticateToken, async (req, res) => {
 });
 
 app.delete('/api/admin/reports/:id', authenticateToken, async (req, res) => {
-  if (!await isAdmin(req.user.id)) return res.status(403).send('Forbidden');
+  if (!await isAdmin(req.user.id)) return res.status(403).json({ error: 'Acceso denegado' });
   try {
     await supabase.from('reports').delete().eq('id', req.params.id);
     res.json({ success: true });
@@ -546,12 +546,13 @@ app.delete('/api/admin/reports/:id', authenticateToken, async (req, res) => {
 });
 
 app.put('/api/admin/users/:id/ban', authenticateToken, async (req, res) => {
-  if (!await isAdmin(req.user.id)) return res.status(403).send('Forbidden');
+  if (!await isAdmin(req.user.id)) return res.status(403).json({ error: 'Acceso denegado' });
   try {
-    const targetUser = req.params.id;
+    const targetUser = parseInt(req.params.id);
     const { data: profile } = await supabase.from('profiles').select('is_banned').eq('user_id', targetUser).single();
     const newStatus = !profile?.is_banned;
-    await supabase.from('profiles').update({ is_banned: newStatus }).eq('user_id', targetUser);
+    const { error } = await supabase.from('profiles').update({ is_banned: newStatus }).eq('user_id', targetUser);
+    if (error) throw error;
     res.json({ is_banned: newStatus });
   } catch (error) {
     res.status(500).json({ error: 'Error cambiando estado de baneo' });
@@ -1176,12 +1177,20 @@ app.get('/api/admin/reports', authenticateToken, async (req, res) => {
 
     if (error) throw error;
     
-    const reportsWithDetails = await Promise.all((data || []).map(async r => {
-      const { data: vehicle } = await supabase.from('vehicles').select('id, title, status, user_id').eq('id', r.vehicle_id).single();
-      const { data: reporter } = await supabase.from('users').select('id, username').eq('id', r.reporter_id).single();
-      return { ...r, vehicle, reporter };
+    const vehicleIds = [...new Set((data || []).map(r => r.vehicle_id))];
+    const reporterIds = [...new Set((data || []).map(r => r.reporter_id))];
+    const [vehiclesRes, reportersRes] = await Promise.all([
+      vehicleIds.length > 0 ? supabase.from('vehicles').select('id, title, status, user_id').in('id', vehicleIds) : Promise.resolve({ data: [] }),
+      reporterIds.length > 0 ? supabase.from('users').select('id, username').in('id', reporterIds) : Promise.resolve({ data: [] })
+    ]);
+    const vehiclesMap = Object.fromEntries((vehiclesRes.data || []).map(v => [v.id, v]));
+    const reportersMap = Object.fromEntries((reportersRes.data || []).map(u => [u.id, u]));
+    const reportsWithDetails = (data || []).map(r => ({
+      ...r,
+      vehicle: vehiclesMap[r.vehicle_id] || null,
+      reporter: reportersMap[r.reporter_id] || null
     }));
-    
+
     res.json(reportsWithDetails);
   } catch (error) {
     res.status(500).json({ error: 'Error' });
@@ -1235,11 +1244,12 @@ app.put('/api/admin/users/:id/admin', authenticateToken, async (req, res) => {
     if (!admin) return res.status(403).json({ error: 'Acceso denegado' });
 
     const { is_admin } = req.body;
-    await supabase
+    const { error } = await supabase
       .from('profiles')
-      .upsert({ user_id: req.params.id, is_admin })
-      .eq('user_id', req.params.id);
+      .update({ is_admin: !!is_admin })
+      .eq('user_id', parseInt(req.params.id));
 
+    if (error) throw error;
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: 'Error' });
