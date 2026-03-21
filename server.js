@@ -450,10 +450,15 @@ app.delete('/api/vehicles/:id', authenticateToken, async (req, res) => {
       const convIds = convs.map(c => c.id);
       await supabase.from('messages').delete().in('conversation_id', convIds);
     }
-    await supabase.from('conversations').delete().eq('vehicle_id', req.params.id);
-    await supabase.from('vehicle_images').delete().eq('vehicle_id', req.params.id);
-    await supabase.from('favorites').delete().eq('vehicle_id', req.params.id);
-    await supabase.from('vehicles').delete().eq('id', req.params.id);
+    const vid = req.params.id;
+    await Promise.all([
+      supabase.from('conversations').delete().eq('vehicle_id', vid),
+      supabase.from('vehicle_images').delete().eq('vehicle_id', vid),
+      supabase.from('favorites').delete().eq('vehicle_id', vid),
+      supabase.from('reports').delete().eq('vehicle_id', vid),
+      supabase.from('trade_offers').delete().or(`vehicle_id.eq.${vid},offered_vehicle_id.eq.${vid}`)
+    ]);
+    await supabase.from('vehicles').delete().eq('id', vid);
     
     res.json({ message: 'Vehículo eliminado' });
   } catch (error) {
