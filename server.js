@@ -8,19 +8,25 @@ const multer = require('multer');
 const path = require('path');
 
 const app = express();
-const SECRET_KEY = process.env.JWT_SECRET || 'fallback-secret-key';
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+const SECRET_KEY = process.env.JWT_SECRET;
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'http://localhost:3001';
 
 if (!supabaseUrl || !supabaseServiceKey) {
   console.error('❌ ERROR: SUPABASE_URL y SUPABASE_SERVICE_KEY son requeridos en el archivo .env');
   process.exit(1);
 }
 
+if (!SECRET_KEY) {
+  console.error('❌ ERROR: JWT_SECRET es requerido en el archivo .env');
+  process.exit(1);
+}
+
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-app.use(cors());
+app.use(cors({ origin: ALLOWED_ORIGIN }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
@@ -53,16 +59,26 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+const optionalAuth = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return next();
+  jwt.verify(token, SECRET_KEY, (err, user) => {
+    if (!err) req.user = user;
+    next();
+  });
+};
+
 const isAdmin = async (userId) => {
   try {
-    const { data } = await supabase.from('profiles').select('is_admin').eq('user_id', userId).single();
+    const { data } = await supabase.from('profiles').select('is_admin').eq('user_id', userId).maybeSingle();
     return data?.is_admin === true;
   } catch { return false; }
 };
 
 const isBanned = async (userId) => {
   try {
-    const { data } = await supabase.from('profiles').select('is_banned').eq('user_id', userId).single();
+    const { data } = await supabase.from('profiles').select('is_banned').eq('user_id', userId).maybeSingle();
     return data?.is_banned === true;
   } catch { return false; }
 };
@@ -86,13 +102,13 @@ app.post('/api/register', async (req, res) => {
       .from('users')
       .select('id')
       .ilike('username', username)
-      .single();
+      .maybeSingle();
 
     const { data: existingByEmail } = await supabase
       .from('users')
       .select('id')
       .ilike('email', email)
-      .single();
+      .maybeSingle();
 
     const existingUser = existingByUsername || existingByEmail;
 
@@ -251,7 +267,7 @@ app.get('/api/vehicles', async (req, res) => {
   }
 });
 
-app.get('/api/vehicles/:id', async (req, res) => {
+app.get('/api/vehicles/:id', optionalAuth, async (req, res) => {
   try {
     const { data: vehicle, error } = await supabase
       .from('vehicles')
@@ -260,6 +276,13 @@ app.get('/api/vehicles/:id', async (req, res) => {
       .single();
 
     if (error || !vehicle) {
+      return res.status(404).json({ error: 'Vehículo no encontrado' });
+    }
+
+    const requesterId = req.user?.id;
+    const isOwner = requesterId && vehicle.user_id === requesterId;
+    const admin = requesterId ? await isAdmin(requesterId) : false;
+    if (!isOwner && !admin && vehicle.status !== 'active') {
       return res.status(404).json({ error: 'Vehículo no encontrado' });
     }
 
@@ -400,7 +423,13 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
     if (transmission !== undefined) updates.transmission = transmission;
     if (description !== undefined) updates.description = description;
     if (city !== undefined) updates.city = city;
-    if (status !== undefined) updates.status = status;
+    if (status !== undefined) {
+      const validStatuses = ['active', 'sold', 'inactive', 'paused', 'reserved'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ error: `Status inválido. Valores permitidos: ${validStatuses.join(', ')}` });
+      }
+      updates.status = status;
+    }
     if (req.body.accepts_trade !== undefined) updates.accepts_trade = !!req.body.accepts_trade;
 
     const { data, error } = await supabase
@@ -644,7 +673,7 @@ app.put('/api/admin/users/:id/ban', authenticateToken, async (req, res) => {
   if (!await isAdmin(req.user.id)) return res.status(403).json({ error: 'Acceso denegado' });
   try {
     const targetUser = parseInt(req.params.id);
-    const { data: profile } = await supabase.from('profiles').select('is_banned').eq('user_id', targetUser).single();
+    const { data: profile } = await supabase.from('profiles').select('is_banned').eq('user_id', targetUser).maybeSingle();
     const newStatus = !profile?.is_banned;
     const { error } = await supabase.from('profiles').update({ is_banned: newStatus }).eq('user_id', targetUser);
     if (error) throw error;
@@ -658,7 +687,7 @@ app.put('/api/admin/users/:id/verify', authenticateToken, async (req, res) => {
   if (!await isAdmin(req.user.id)) return res.status(403).json({ error: 'Acceso denegado' });
   try {
     const targetUser = parseInt(req.params.id);
-    const { data: profile } = await supabase.from('profiles').select('is_verified').eq('user_id', targetUser).single();
+    const { data: profile } = await supabase.from('profiles').select('is_verified').eq('user_id', targetUser).maybeSingle();
     const newStatus = !profile?.is_verified;
     const { error } = await supabase.from('profiles').update({
       is_verified: newStatus,
@@ -675,10 +704,18 @@ app.put('/api/profile', authenticateToken, async (req, res) => {
   try {
     const { username, phone, city, bio, avatar_url } = req.body;
 
-    await supabase
-      .from('users')
-      .update({ username })
-      .eq('id', req.user.id);
+    if (username !== undefined) {
+      if (typeof username !== 'string' || username.trim().length < 3) {
+        return res.status(400).json({ error: 'El username debe tener al menos 3 caracteres' });
+      }
+      const { error: usernameError } = await supabase
+        .from('users')
+        .update({ username })
+        .eq('id', req.user.id);
+      if (usernameError) {
+        return res.status(400).json({ error: 'No se pudo actualizar el username. Es posible que ya esté en uso.' });
+      }
+    }
 
     const { data, error } = await supabase
       .from('profiles')
@@ -718,7 +755,8 @@ app.get('/api/favorites', authenticateToken, async (req, res) => {
     const { data: vehicles } = await supabase
       .from('vehicles')
       .select('*')
-      .in('id', vehicleIds);
+      .in('id', vehicleIds)
+      .eq('status', 'active');
 
     const ids = (vehicles || []).map(v => v.id);
     let imagesMap = {};
@@ -746,7 +784,7 @@ app.post('/api/favorites/:vehicleId', authenticateToken, async (req, res) => {
       .select('*')
       .eq('user_id', req.user.id)
       .eq('vehicle_id', vehicleId)
-      .single();
+      .maybeSingle();
 
     if (existing) {
       await supabase.from('favorites').delete().eq('user_id', req.user.id).eq('vehicle_id', vehicleId);
@@ -785,8 +823,8 @@ app.get('/api/favorites/:vehicleId/check', authenticateToken, async (req, res) =
       .select('*')
       .eq('user_id', req.user.id)
       .eq('vehicle_id', req.params.vehicleId)
-      .single();
-    
+      .maybeSingle();
+
     res.json({ favorited: !!data });
   } catch (error) {
     res.json({ favorited: false });
@@ -870,8 +908,8 @@ app.post('/api/conversations', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Vehículo no encontrado' });
     }
 
-    if (vehicle.status === 'sold') {
-      return res.status(400).json({ error: 'Este vehículo ya fue vendido' });
+    if (vehicle.status !== 'active') {
+      return res.status(400).json({ error: 'Este vehículo no está disponible' });
     }
 
     if (vehicle.user_id === req.user.id) {
@@ -883,7 +921,7 @@ app.post('/api/conversations', authenticateToken, async (req, res) => {
       .select('*')
       .eq('vehicle_id', vehicle_id)
       .eq('buyer_id', req.user.id)
-      .single();
+      .maybeSingle();
 
     if (existingConv) {
       await supabase.from('messages').insert({
@@ -1021,6 +1059,7 @@ app.post('/api/conversations/:id/messages', authenticateToken, async (req, res) 
   try {
     const { content } = req.body;
     if (!content) return res.status(400).json({ error: 'Mensaje requerido' });
+    if (content.trim().length > 5000) return res.status(400).json({ error: 'El mensaje no puede superar los 5000 caracteres' });
 
     const { data: conversation } = await supabase
       .from('conversations')
@@ -1298,9 +1337,24 @@ app.post('/api/ratings', authenticateToken, async (req, res) => {
   try {
     const { to_user_id, vehicle_id, stars, review } = req.body;
     
+    if (!vehicle_id || vehicle_id === undefined || vehicle_id === null) {
+      return res.status(400).json({ error: 'vehicle_id es requerido' });
+    }
+
     const starsInt = parseInt(stars);
-    if (!to_user_id || !starsInt || starsInt < 1 || starsInt > 5) {
+    if (!to_user_id || isNaN(starsInt) || starsInt < 1 || starsInt > 5) {
       return res.status(400).json({ error: 'Datos requeridos (estrellas: 1-5)' });
+    }
+
+    const { data: conversation } = await supabase
+      .from('conversations')
+      .select('id')
+      .eq('vehicle_id', vehicle_id)
+      .or(`and(buyer_id.eq.${req.user.id},seller_id.eq.${to_user_id}),and(buyer_id.eq.${to_user_id},seller_id.eq.${req.user.id})`)
+      .maybeSingle();
+
+    if (!conversation) {
+      return res.status(400).json({ error: 'Necesitás haber tenido una conversación sobre este vehículo para poder calificar' });
     }
 
     const { data: existing } = await supabase
@@ -1309,7 +1363,7 @@ app.post('/api/ratings', authenticateToken, async (req, res) => {
       .eq('from_user_id', req.user.id)
       .eq('to_user_id', to_user_id)
       .eq('vehicle_id', vehicle_id)
-      .single();
+      .maybeSingle();
 
     if (existing) {
       return res.status(400).json({ error: 'Ya calificaste a este usuario' });
@@ -1366,6 +1420,17 @@ app.post('/api/reports', authenticateToken, async (req, res) => {
     
     if (!vehicle_id || !reason) {
       return res.status(400).json({ error: 'Datos requeridos' });
+    }
+
+    const { data: existingReport } = await supabase
+      .from('reports')
+      .select('id')
+      .eq('reporter_id', req.user.id)
+      .eq('vehicle_id', vehicle_id)
+      .maybeSingle();
+
+    if (existingReport) {
+      return res.status(400).json({ error: 'Ya reportaste este vehículo' });
     }
 
     const { data, error } = await supabase
@@ -1464,6 +1529,10 @@ app.put('/api/admin/reports/:id', authenticateToken, async (req, res) => {
     if (!admin) return res.status(403).json({ error: 'Acceso denegado' });
 
     const { status } = req.body;
+    const validReportStatuses = ['pending', 'reviewed', 'resolved', 'dismissed'];
+    if (!status || !validReportStatuses.includes(status)) {
+      return res.status(400).json({ error: `Status inválido. Valores permitidos: ${validReportStatuses.join(', ')}` });
+    }
     const { data, error } = await supabase
       .from('reports')
       .update({ status })
@@ -1568,6 +1637,7 @@ app.get('/api/brands', (req, res) => {
 
 // DIAGNOSTIC: check which FK tables reference a vehicle (temp endpoint)
 app.get('/api/admin/debug-vehicle/:id', authenticateToken, async (req, res) => {
+  if (process.env.NODE_ENV === 'production') return res.status(404).json({ error: 'Not found' });
   if (!await isAdmin(req.user.id)) return res.status(403).json({ error: 'Solo admin' });
   const vid = parseInt(req.params.id);
   const [convs, imgs, favs, reps, trades] = await Promise.all([

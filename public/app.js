@@ -49,31 +49,126 @@ const carBrands = {
   'Volvo': ['C40', 'EX30', 'XC40', 'XC60', 'XC90', 'S60', 'S90']
 };
 
-const AR_CITIES = [
-  'Buenos Aires','Córdoba','Rosario','Mendoza','San Miguel de Tucumán','La Plata','Mar del Plata','Salta',
-  'Santa Fe','San Juan','Resistencia','Santiago del Estero','Corrientes','Posadas','Bahía Blanca',
-  'San Salvador de Jujuy','Paraná','Neuquén','Formosa','San Luis','Río Cuarto','Comodoro Rivadavia',
-  'La Rioja','Santa Rosa','Concordia','San Rafael','Tandil','Río Gallegos','Ushuaia','Viedma','Rawson',
-  'Trelew','Puerto Madryn','Cipolletti','General Roca','Zárate','San Nicolás de los Arroyos','Pergamino',
-  'Junín','Olavarría','Azul','Necochea','Pinamar','Villa Gesell','Miramar','Quilmes','Lanús','Lomas de Zamora',
-  'Avellaneda','San Isidro','Vicente López','Tres de Febrero','Morón','La Matanza','Merlo','Moreno',
-  'Florencio Varela','Berazategui','Tigre','San Fernando','Escobar','Pilar','Luján','Mercedes',
-  'San Pedro','Campana','Lobos','Chascomús','Dolores','Mafra','Pehuajó','Trenque Lauquen','Bolívar',
-  'Villarino','Punta Alta','Coronel Suárez','Tres Arroyos','Coronel Pringles','Benito Juárez',
-  'Balcarce','General Pueyrredón','Villa María','Río Tercero','Villa Carlos Paz','Alta Gracia',
-  'Bell Ville','San Francisco','Río Ceballos','Cosquín','La Falda','Cruz del Eje','Dean Funes',
-  'Monteros','Concepción','Aguilares','Yerba Buena','Rafaela','Reconquista','Venado Tuerto',
-  'San Lorenzo','Villa Constitución','Casilda','Cañada de Gómez','Esperanza','Santo Tomé',
-  'Gualeguaychú','Gualeguay','Colón','Federación','Chajarí','Villaguay','Paso de los Libres',
-  'Goya','Curuzú Cuatiá','Mercedes','Eldorado','Oberá','Apóstoles','Leandro N. Alem',
-  'Tartagal','Orán','Metán','Cafayate','San Ramón de la Nueva Orán','Palpalá','Libertador General San Martín',
-  'Humahuaca','Tinogasta','Chilecito','Aimogasta','Belén','Andalgalá','Caleta Olivia','Río Mayo',
-  'Esquel','Bariloche','San Carlos de Bariloche','El Bolsón','Cutral-Có','Plaza Huincul',
-  'Zapala','San Martín de los Andes','Junín de los Andes','Chos Malal','Catriel','Allen',
-  'Roca','Villa Regina','Cinco Saltos','Centenario','Plottier','Las Grutas','Sierra Grande',
-  'Maquinchao','Ingeniero Jacobacci','Puerto Deseado','Calafate','El Calafate','El Chaltén',
-  'Río Turbio','28 de Noviembre','Tolhuin','Río Grande'
-].sort();
+const AR_CITIES = (() => {
+  const data = {
+    'Buenos Aires (CABA)': ['Buenos Aires'],
+    'Buenos Aires (Prov.)': [
+      'La Plata','Mar del Plata','Bahía Blanca','Quilmes','Lanús','Lomas de Zamora','Avellaneda',
+      'San Isidro','Vicente López','Tres de Febrero','Morón','La Matanza','Merlo','Moreno',
+      'Florencio Varela','Berazategui','Tigre','San Fernando','Escobar','Pilar','Luján','Mercedes',
+      'Zárate','Campana','San Pedro','San Nicolás de los Arroyos','Pergamino','Junín','Olavarría',
+      'Azul','Necochea','Pinamar','Villa Gesell','Miramar','Tandil','Balcarce','Chascomús',
+      'Dolores','Pehuajó','Trenque Lauquen','Bolívar','Punta Alta','Coronel Suárez','Tres Arroyos',
+      'Coronel Pringles','Benito Juárez','Lobos','Bragado','Chivilcoy','Nueve de Julio','Lincoln',
+      'Saladillo','Las Flores','General Alvear','Rauch','Ayacucho','Tapalqué','Laprida',
+      'Suipacha','General Las Heras','Marcos Paz','Cañuelas','Ezeiza','Burzaco','Banfield',
+      'Temperley','Adrogué','Monte Grande','San Justo','Ramos Mejía','Haedo','Castelar',
+      'Palermo','Recoleta','Belgrano','Flores','Boedo','Villa Crespo'
+    ],
+    'Córdoba': [
+      'Córdoba','Río Cuarto','Villa María','Río Tercero','Villa Carlos Paz','Alta Gracia',
+      'Bell Ville','San Francisco','Río Ceballos','Cosquín','La Falda','Cruz del Eje',
+      'Dean Funes','Jesús María','Unquillo','Malagueño','Oncativo','Arroyito','Marcos Juárez',
+      'Laboulaye','Río Segundo','Morteros','Oliva','La Carlota','General Cabrera','Villa Dolores',
+      'Mina Clavero','Villa General Belgrano','Capilla del Monte','Huerta Grande','Bialet Massé',
+      'Embalse','Almafuerte','Villa Nueva','Bower','Malvinas Argentinas','Mendiolaza'
+    ],
+    'Santa Fe': [
+      'Rosario','Santa Fe','Rafaela','Reconquista','Venado Tuerto','San Lorenzo','Villa Constitución',
+      'Casilda','Cañada de Gómez','Esperanza','Santo Tomé','Gálvez','Las Rosas','Pérez',
+      'Funes','Roldan','Granadero Baigorria','Capitán Bermúdez','Fray Luis Beltrán','San Lorenzo',
+      'Puerto General San Martín','Rufino','Firmat','Ceres','Vera','Tostado','San Jorge',
+      'Sunchales','Sastre','Morteros','Helvecia','San Javier'
+    ],
+    'Mendoza': [
+      'Mendoza','San Rafael','Godoy Cruz','Guaymallén','Las Heras','Maipú','Luján de Cuyo',
+      'Rivadavia','San Martín','Junín','La Paz','General Alvear','Malargüe','Tunuyán',
+      'Tupungato','Santa Rosa','Lavalle','Ciudad de Mendoza','Palmira','San Vicente'
+    ],
+    'Tucumán': [
+      'San Miguel de Tucumán','Yerba Buena','Tafí Viejo','Concepción','Monteros','Aguilares',
+      'Famaillá','Lules','Simoca','Bella Vista','Alberdi','Graneros','Juan Bautista Alberdi',
+      'Buruyacu','Cruz Alta','El Kadri','Acheral','Tafí del Valle'
+    ],
+    'Salta': [
+      'Salta','Tartagal','Orán','Metán','Cafayate','San Ramón de la Nueva Orán','Palpalá',
+      'Libertador General San Martín','Rosario de la Frontera','Joaquín V. González',
+      'General Güemes','Embarcación','Rivadavia','Cachi','Molinos','Animaná'
+    ],
+    'Jujuy': [
+      'San Salvador de Jujuy','Palpalá','La Quiaca','Libertador General San Martín',
+      'Humahuaca','Perico','Tilcara','Purmamarca','Abra Pampa','Fraile Pintado'
+    ],
+    'Entre Ríos': [
+      'Paraná','Concordia','Gualeguaychú','Gualeguay','Colón','Federación','Chajarí',
+      'Villaguay','Concepción del Uruguay','Victoria','Diamante','La Paz','Crespo',
+      'Basavilbaso','Nogoyá','Rosario del Tala','San José','Ibicuy'
+    ],
+    'Corrientes': [
+      'Corrientes','Paso de los Libres','Goya','Curuzú Cuatiá','Mercedes','Santo Tomé',
+      'Saladas','Bella Vista','Monte Caseros','Yapeyú','Ituzaingó','Esquina'
+    ],
+    'Misiones': [
+      'Posadas','Eldorado','Oberá','Apóstoles','Leandro N. Alem','Puerto Iguazú',
+      'Jardín América','Montecarlo','Campo Grande','San Vicente','El Dorado','Aristóbulo del Valle'
+    ],
+    'Chaco': [
+      'Resistencia','Presidencia Roque Sáenz Peña','Villa Ángela','Charata','Quitilipi',
+      'Las Breñas','Juan José Castelli','Machagai','Roque Sáenz Peña','General San Martín'
+    ],
+    'Formosa': [
+      'Formosa','Clorinda','Pirané','Las Lomitas','General Lucio Victorio Mansilla','El Colorado'
+    ],
+    'Santiago del Estero': [
+      'Santiago del Estero','La Banda','Termas de Río Hondo','Añatuya','Frías','Loreto',
+      'Quimilí','Ojo de Agua','Monte Quemado','Suncho Corral'
+    ],
+    'La Rioja': [
+      'La Rioja','Chilecito','Aimogasta','Belén','Andalgalá','Tinogasta','Villa Unión',
+      'Chamical','Chepes','Arauco'
+    ],
+    'Catamarca': [
+      'San Fernando del Valle de Catamarca','Tinogasta','Belén','Andalgalá','Santa María',
+      'Fiambalá','Antofagasta de la Sierra','Recreo','Pomán'
+    ],
+    'San Juan': [
+      'San Juan','Rivadavia','Chimbas','Rawson','Santa Lucía','Pocito','Caucete',
+      'San Martín','Albardón','Angaco','Calingasta','Jáchal','Ullum'
+    ],
+    'San Luis': [
+      'San Luis','Villa Mercedes','Merlo','Quines','Justo Daract','Concarán',
+      'Santa Rosa del Conlara','Buena Esperanza','La Toma'
+    ],
+    'Neuquén': [
+      'Neuquén','Cutral-Có','Plaza Huincul','Zapala','San Martín de los Andes',
+      'Junín de los Andes','Chos Malal','Catriel','Allen','Cipolletti','Plottier',
+      'Centenario','Villa La Angostura','Las Lajas','Loncopué'
+    ],
+    'Río Negro': [
+      'Viedma','San Carlos de Bariloche','Cipolletti','General Roca','Allen','Villa Regina',
+      'Cinco Saltos','El Bolsón','Las Grutas','Sierra Grande','Maquinchao',
+      'Ingeniero Jacobacci','Choele Choel','Luis Beltrán','Río Colorado','Catriel'
+    ],
+    'Chubut': [
+      'Rawson','Trelew','Comodoro Rivadavia','Puerto Madryn','Esquel','Río Mayo',
+      'Caleta Olivia','Sarmiento','Gaiman','Dolavon','Puerto Pirámides','El Hoyo'
+    ],
+    'Santa Cruz': [
+      'Río Gallegos','Caleta Olivia','El Calafate','El Chaltén','Puerto Deseado',
+      'Pico Truncado','Las Heras','Puerto San Julián','Gobernador Gregores','Río Turbio','28 de Noviembre'
+    ],
+    'Tierra del Fuego': ['Ushuaia','Río Grande','Tolhuin'],
+    'La Pampa': [
+      'Santa Rosa','General Pico','Toay','Victorica','General Acha','Eduardo Castex',
+      'Realicó','Winifreda','Bernardo Larroudé','Catriló'
+    ],
+  };
+  const result = [];
+  for (const [prov, cities] of Object.entries(data)) {
+    for (const city of cities) result.push({ label: `${city}, ${prov}`, city, prov });
+  }
+  return result.sort((a, b) => a.city.localeCompare(b.city, 'es'));
+})();
 
 function setupCityAutocomplete(inputId, dropdownId) {
   const input = document.getElementById(inputId);
@@ -82,18 +177,31 @@ function setupCityAutocomplete(inputId, dropdownId) {
 
   let activeIndex = -1;
 
-  input.addEventListener('input', () => {
+  const showMatches = () => {
     const q = input.value.trim().toLowerCase();
     activeIndex = -1;
     if (q.length < 1) { dropdown.style.display = 'none'; return; }
-    const matches = AR_CITIES.filter(c => c.toLowerCase().startsWith(q)).slice(0, 8);
+    const matches = AR_CITIES.filter(c =>
+      c.city.toLowerCase().startsWith(q) || c.label.toLowerCase().includes(q)
+    ).slice(0, 10);
     if (!matches.length) { dropdown.style.display = 'none'; return; }
-    dropdown.innerHTML = matches.map((c, i) => `<div class="city-option" data-value="${c}">${c}</div>`).join('');
+    dropdown.innerHTML = matches.map(c =>
+      `<div class="city-option" data-value="${c.label}">
+        <span class="city-name">${c.city}</span>
+        <span class="city-prov">${c.prov}</span>
+      </div>`
+    ).join('');
     dropdown.style.display = 'block';
     dropdown.querySelectorAll('.city-option').forEach(opt => {
-      opt.addEventListener('mousedown', e => { e.preventDefault(); input.value = opt.dataset.value; dropdown.style.display = 'none'; });
+      opt.addEventListener('mousedown', e => {
+        e.preventDefault();
+        input.value = opt.dataset.value;
+        dropdown.style.display = 'none';
+      });
     });
-  });
+  };
+
+  input.addEventListener('input', showMatches);
 
   input.addEventListener('keydown', e => {
     const opts = dropdown.querySelectorAll('.city-option');
@@ -176,7 +284,9 @@ async function request(endpoint, options = {}) {
   const headers = { 'Content-Type': 'application/json', ...options.headers };
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const response = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
-  const data = await response.json();
+  if (response.status === 204) return {};
+  const contentType = response.headers.get('content-type') || '';
+  const data = contentType.includes('application/json') ? await response.json() : {};
   if (!response.ok) throw new Error(data.error || 'Error');
   return data;
 }
@@ -194,8 +304,10 @@ function showSection(sectionId) {
   else if (sectionId === 'favorites') loadFavorites();
   else if (sectionId === 'notifications') loadNotifications();
   else if (sectionId === 'admin') loadAdmin();
-  if (sectionId !== 'messages' && sectionId !== 'vehicle-detail') stopPolling();
+  else if (sectionId === 'publish') { uploadedImages = []; renderImagePreviews(); }
+  if (sectionId !== 'messages') stopPolling();
   if (sectionId !== 'messages') currentConversationId = null;
+  if (sectionId !== 'vehicle-detail') currentVehicleId = null;
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -247,6 +359,9 @@ function logout() {
   localStorage.removeItem('token');
   currentUser = null;
   uploadedImages = [];
+  clearInterval(heartbeatInterval);
+  clearInterval(notifInterval);
+  stopPolling();
   updateNav();
   showToast('Sesión cerrada', 'success');
   showSection('home');
@@ -402,11 +517,11 @@ async function viewVehicle(id) {
             <img src="${mainImgUrl}" id="detailMainImage" alt="Vehículo" style="cursor:pointer;" onclick="openLightbox(window._detailImages, window._detailImages.indexOf(this.src) >= 0 ? window._detailImages.indexOf(this.src) : 0)">
           </div>
           <div class="thumbnail-list" id="imageThumbnails">
-            ${images.map((img, i) => `<img src="${img.url}" class="${i === 0 ? 'active' : ''}" data-url="${escapeHtml(img.url)}" data-index="${i}" onclick="document.getElementById('detailMainImage').src=this.dataset.url;this.parentElement.querySelectorAll('img').forEach(x=>x.classList.remove('active'));this.classList.add('active')">`).join('')}
+            ${images.map((img, i) => `<img src="${escapeHtml(img.url || '')}" class="${i === 0 ? 'active' : ''}" data-url="${escapeHtml(img.url || '')}" data-index="${i}" onclick="document.getElementById('detailMainImage').src=this.dataset.url;this.parentElement.querySelectorAll('img').forEach(x=>x.classList.remove('active'));this.classList.add('active')">`).join('')}
           </div>
         </div>
         <div class="mobile-only" style="overflow-x: auto; scroll-snap-type: x mandatory; gap: 0.5rem; padding-bottom: 0.5rem; margin-bottom: 1.5rem; display:flex;">
-          ${images.map((img, i) => `<img src="${img.url}" style="flex: 0 0 92%; scroll-snap-align: center; height: 350px; object-fit: cover; border-radius: var(--radius-lg); cursor:pointer;" onclick="openLightbox(window._detailImages, ${i})">`).join('')}
+          ${images.map((img, i) => `<img src="${escapeHtml(img.url || '')}" style="flex: 0 0 92%; scroll-snap-align: center; height: 350px; object-fit: cover; border-radius: var(--radius-lg); cursor:pointer;" onclick="openLightbox(window._detailImages, ${i})">`).join('')}
         </div>
         <div class="detail-info" id="vehicleDetail">
           ${vehicle.status === 'sold' ? '<div class="sold-banner">VENDIDO</div>' : vehicle.status === 'paused' ? '<div class="sold-banner" style="border-color:rgba(245,158,11,0.3);color:var(--primary);background:rgba(245,158,11,0.08);">PAUSADO</div>' : ''}
@@ -431,7 +546,7 @@ async function viewVehicle(id) {
             </div>
           ` : ''}
           <div class="seller-card">
-            <div class="seller-avatar">${vehicle.seller_profile?.avatar_url ? `<img src="${vehicle.seller_profile.avatar_url}" alt="">` : vehicle.seller_name?.charAt(0).toUpperCase()}</div>
+            <div class="seller-avatar">${vehicle.seller_profile?.avatar_url ? `<img src="${escapeHtml(vehicle.seller_profile.avatar_url || '')}" alt="">` : (vehicle.seller_name?.charAt(0)?.toUpperCase() || '?')}</div>
             <div class="seller-info">
               <div class="seller-name-row">
                 <h4 onclick="viewProfile(${vehicle.seller_id})" style="cursor:pointer;color:var(--primary-light);">${escapeHtml(vehicle.seller_name)}</h4>
@@ -493,6 +608,8 @@ async function viewVehicle(id) {
     if (isLoggedIn && !isOwner) {
       try {
         const convRes = await request('/conversations');
+        // Guard: user may have navigated away during await
+        if (currentVehicleId !== id) return;
         const convs = convRes.conversations || convRes;
         const existing = convs.find(c => c.vehicle_id === vehicle.id);
         if (existing) {
@@ -528,11 +645,13 @@ function handleImageSelect(e) {
 
 async function uploadImages() {
   const urls = [];
-  for (const img of uploadedImages) {
+  for (let i = 0; i < uploadedImages.length; i++) {
+    const img = uploadedImages[i];
     if (img.url) { urls.push(img.url); continue; }
     const formData = new FormData();
     formData.append('image', img.file);
     const res = await fetch('/api/upload', { method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }, body: formData });
+    if (!res.ok) throw new Error(`Error al subir la imagen ${i + 1}`);
     const data = await res.json();
     urls.push(data.url);
   }
@@ -543,7 +662,7 @@ function renderImagePreviews() {
   const container = document.getElementById('imagePreview');
   container.innerHTML = uploadedImages.map((img, i) => `
     <div class="preview-item ${i === 0 ? 'primary' : ''}">
-      <img src="${img.preview || img.url}" alt="">
+      <img src="${escapeHtml(img.preview || img.url || '')}" alt="">
       <button class="preview-remove" onclick="removeImage(${i})">&times;</button>
     </div>
   `).join('');
@@ -709,8 +828,20 @@ async function toggleFavorite(id, e) {
   try {
     const res = await request(`/favorites/${id}`, { method: 'POST' });
     showToast(res.favorited ? 'Agregado a favoritos' : 'Eliminado de favoritos', 'success');
-    if (document.getElementById('vehicle-detail')?.style.display !== 'none') viewVehicle(id);
-    else loadVehicles();
+    if (document.getElementById('vehicle-detail')?.style.display !== 'none') {
+      // Update only the favorite button in the detail view without reloading the whole page
+      const detailFavBtn = document.querySelector('#vehicleDetail .detail-actions .btn');
+      if (detailFavBtn && (detailFavBtn.textContent.includes('favoritos') || detailFavBtn.textContent.includes('Guardar'))) {
+        detailFavBtn.className = `btn ${res.favorited ? 'btn-primary' : 'btn-secondary'}`;
+        const svgPath = detailFavBtn.querySelector('svg path');
+        if (svgPath) svgPath.setAttribute('fill', res.favorited ? 'currentColor' : 'none');
+        const svgEl = detailFavBtn.querySelector('svg');
+        if (svgEl) svgEl.setAttribute('stroke', 'currentColor');
+        detailFavBtn.lastChild.textContent = res.favorited ? 'En favoritos' : 'Guardar en favoritos';
+      }
+    } else {
+      loadVehicles();
+    }
   } catch (err) { showToast(err.message, 'error'); }
 }
 
@@ -737,7 +868,7 @@ async function loadConversations(page = 1) {
     if (page === 1 && !conversations?.length) { container.innerHTML = '<div class="empty-state" style="padding:2rem;"><p>Sin conversaciones</p></div>'; renderEmptyChat(); return; }
     const html = conversations.map(c => `
       <div class="conversation-item ${currentConversationId === c.id ? 'active' : ''}" onclick="openConversation(${c.id}, this)">
-        <div class="conversation-avatar">${c.other_user?.avatar_url ? `<img src="${c.other_user.avatar_url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (c.other_user?.username ? c.other_user.username.charAt(0).toUpperCase() : '?')}</div>
+        <div class="conversation-avatar">${c.other_user?.avatar_url ? `<img src="${escapeHtml(c.other_user.avatar_url || '')}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (c.other_user?.username ? c.other_user.username.charAt(0).toUpperCase() : '?')}</div>
         <div class="conversation-info">
           <div class="conversation-name">${escapeHtml(c.other_user?.username || 'Usuario')}</div>
           <div class="conversation-vehicle">${escapeHtml(c.vehicle?.title || '')}</div>
@@ -770,6 +901,8 @@ async function openConversation(convId, el) {
 }
 
 async function loadChatFull(convId) {
+  lastMessageId = 0;
+  pollCount = 0;
   try {
     isLoadingMessages = true;
     const conv = await request(`/conversations/${convId}`);
@@ -793,7 +926,7 @@ async function loadChatFull(convId) {
     chatView.innerHTML = `
       <div class="chat-active-header">
         <button class="chat-back-btn" style="display:none;align-items:center;background:none;border:none;color:var(--text);cursor:pointer;padding:0.25rem;margin-right:0.5rem;font-size:1.3rem;" onclick="closeMobileChat()">&#8249;</button>
-        <div class="conversation-avatar">${otherUser?.avatar_url ? `<img src="${otherUser.avatar_url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (otherUser?.username ? otherUser.username.charAt(0).toUpperCase() : '?')}</div>
+        <div class="conversation-avatar">${otherUser?.avatar_url ? `<img src="${escapeHtml(otherUser.avatar_url || '')}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (otherUser?.username ? otherUser.username.charAt(0).toUpperCase() : '?')}</div>
         <div class="chat-header-info">
           <h4>${escapeHtml(otherUser?.username || 'Usuario')}</h4>
           <span id="chatOnlineStatus" style="color:var(--text-secondary);font-size:0.8rem;transition:color 0.3s;font-weight:600;">Calculando...</span>
@@ -818,7 +951,6 @@ async function loadChatFull(convId) {
     `;
 
     // Render all messages
-    const container = document.getElementById('chatMessagesContainer');
     (messages || []).forEach(m => appendMessageToDOM(m, readMap[m.id]));
     lastMessageId = messages?.length ? messages[messages.length - 1].id : 0;
 
@@ -828,7 +960,7 @@ async function loadChatFull(convId) {
     // Mark messages as read (fire-and-forget)
     request(`/conversations/${convId}/read`, { method: 'PUT' }).catch(() => {});
   } catch (err) { showToast(err.message, 'error'); }
-  isLoadingMessages = false;
+  finally { isLoadingMessages = false; }
 }
 
 async function pollNewMessages(convId) {
@@ -836,6 +968,9 @@ async function pollNewMessages(convId) {
   isLoadingMessages = true;
   try {
     const { messages, read_receipts } = await request(`/conversations/${convId}/messages?after=${lastMessageId}`);
+
+    // Guard: conversation may have changed during await
+    if (convId !== currentConversationId) return;
 
     // Update read receipts on existing sent messages
     if (read_receipts?.length) updateReadReceipts(read_receipts);
@@ -898,7 +1033,10 @@ function updateReadReceipts(receipts) {
     if (!r.read_at) return;
     const bubble = document.querySelector(`[data-message-id="${r.id}"] .time`);
     if (bubble && !bubble.querySelector('.read-receipt')) {
-      bubble.innerHTML += ` <span class="read-receipt">Visto ${formatHourMinute(r.read_at)}</span>`;
+      const span = document.createElement('span');
+      span.className = 'read-receipt';
+      span.textContent = `Visto ${formatHourMinute(r.read_at)}`;
+      bubble.appendChild(span);
     }
   });
 }
@@ -924,9 +1062,11 @@ function formatHourMinute(d) {
 
 async function sendMessage() {
   const input = document.getElementById('chatMessageInput');
+  const sendBtn = input?.parentElement?.querySelector('button');
   const content = input?.value.trim();
   if (!content || !currentConversationId) return;
   input.value = '';
+  if (sendBtn) sendBtn.disabled = true;
 
   // Show message immediately (optimistic)
   const optimisticId = 'opt-' + Date.now();
@@ -944,6 +1084,8 @@ async function sendMessage() {
     document.querySelector(`[data-message-id="${optimisticId}"]`)?.remove();
     showToast(err.message, 'error');
     if (input) input.value = content;
+  } finally {
+    if (sendBtn) sendBtn.disabled = false;
   }
 }
 
@@ -977,7 +1119,7 @@ function hasUserScrolledToBottom() {
 }
 
 // HEARTBEAT
-setInterval(() => {
+let heartbeatInterval = setInterval(() => {
   if (currentUser && document.visibilityState === 'visible') {
     request('/ping', { method: 'PUT' }).catch(() => {});
   }
@@ -1015,8 +1157,10 @@ async function handleNotificationClick(link, id) {
     lastMessageId = 0;
     pollCount = 0;
     showSection('messages');
-    await loadChatFull(convId);
-    startPolling();
+    try {
+      await loadChatFull(convId);
+      startPolling();
+    } catch {}
   } else if (link.includes('vehicle/')) {
     viewVehicle(parseInt(link.split('/').pop()));
   }
@@ -1057,7 +1201,7 @@ async function viewProfile(id) {
     const canFollow = !isOwn && !!localStorage.getItem('token');
     document.getElementById('profileHeader').innerHTML = `
       ${completenessHtml}
-      <div class="profile-avatar">${profile.avatar_url ? `<img src="${profile.avatar_url}" alt="">` : profile.username?.charAt(0).toUpperCase()}</div>
+      <div class="profile-avatar">${profile.avatar_url ? `<img src="${escapeHtml(profile.avatar_url || '')}" alt="">` : profile.username?.charAt(0).toUpperCase()}</div>
       <div class="seller-name-row" style="justify-content:center;margin-top:0.5rem;">
         <h2 style="margin:0;">${escapeHtml(profile.username)}</h2>
         ${profile.is_verified ? verifiedBadge() : ''}
@@ -1447,6 +1591,7 @@ function closeAllModals() {
 let lightboxImages = [];
 let lightboxIndex = 0;
 function openLightbox(images, startIndex) {
+  if (!images?.length) return;
   lightboxImages = images;
   lightboxIndex = startIndex || 0;
   const modal = document.getElementById('lightboxModal');
@@ -1492,6 +1637,7 @@ function closeConfirmModal() {
 function formatNumber(n) { return (n || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
 function formatTime(d) { return new Date(d).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); }
 function formatRelTime(d) {
+  if (!d) return '';
   const diff = Date.now() - new Date(d);
   const m = Math.floor(diff / 60000), h = Math.floor(diff / 3600000), days = Math.floor(diff / 86400000);
   if (m < 1) return 'Ahora';
@@ -1560,7 +1706,8 @@ function updateNav() {
       });
       const descObj = document.getElementById('publishDescription');
       if(descObj) {
-         descObj.addEventListener('input', () => descObj.dataset.userEdited = "true");
+         descObj.removeEventListener('input', markDescriptionEdited);
+         descObj.addEventListener('input', markDescriptionEdited);
       }
     }, 500);
     
@@ -1568,6 +1715,11 @@ function updateNav() {
     document.getElementById('navLogin').style.display = 'flex';
     document.getElementById('navRegister').style.display = 'flex';
   }
+}
+
+function markDescriptionEdited() {
+  const descField = document.getElementById('publishDescription');
+  if (descField) descField.dataset.userEdited = 'true';
 }
 
 function autoGenDescription() {
@@ -1615,7 +1767,7 @@ checkAuth().then(() => {
 });
 
 // Poll notification count every 30 seconds
-setInterval(() => {
+let notifInterval = setInterval(() => {
   if (currentUser) loadNotificationCount();
 }, 30000);
 
