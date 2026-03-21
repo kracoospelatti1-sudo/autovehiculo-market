@@ -825,7 +825,6 @@ app.put('/api/profile', authenticateToken, async (req, res) => {
       .maybeSingle();
 
     const updates = { user_id: req.user.id, updated_at: new Date().toISOString() };
-    if (req.body.username !== undefined) updates.username = req.body.username?.trim() || existingProfile?.username;
     if (req.body.phone !== undefined) updates.phone = req.body.phone?.trim() || existingProfile?.phone || '';
     if (req.body.city !== undefined) updates.city = req.body.city?.trim() || existingProfile?.city || '';
     if (req.body.bio !== undefined) updates.bio = req.body.bio?.trim() || existingProfile?.bio || '';
