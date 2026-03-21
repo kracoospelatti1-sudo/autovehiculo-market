@@ -1568,11 +1568,25 @@ select {
 .city-option {
   padding: 0.6rem 1rem;
   cursor: pointer;
-  font-size: 0.9rem;
   color: var(--text);
   transition: background 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
 }
 .city-option:hover, .city-option.active {
   background: rgba(245,158,11,0.12);
   color: var(--primary-light);
+}
+.city-name {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+.city-prov {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.city-option:hover .city-prov, .city-option.active .city-prov {
+  color: inherit;
+  opacity: 0.75;
 }
