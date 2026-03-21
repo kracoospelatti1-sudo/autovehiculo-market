@@ -1155,6 +1155,7 @@ select {
 @media (max-width: 768px) {
   .navbar { padding: 0 1rem; }
   .container { padding: 1rem; padding-bottom: 5.5rem; }
+  .section { padding-bottom: 70px; }
   .hero { padding: 3.5rem 1rem 3rem; min-height: auto; }
   .hero h1 { font-size: 2.25rem; }
   .hero-stats { gap: 1.5rem; flex-wrap: wrap; }

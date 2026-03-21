@@ -301,7 +301,7 @@ app.get('/api/vehicles/:id', optionalAuth, async (req, res) => {
       .from('vehicles')
       .select('*')
       .eq('id', req.params.id)
-      .single();
+      .maybeSingle();
 
     if (error || !vehicle) {
       return res.status(404).json({ error: 'Vehículo no encontrado' });
@@ -488,10 +488,13 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
 
 app.delete('/api/vehicles/:id', authenticateToken, async (req, res) => {
   try {
+    const vid = parseInt(req.params.id);
+    if (isNaN(vid)) return res.status(400).json({ error: 'ID inválido' });
+
     const { data: vehicle, error: vehicleError } = await supabase
       .from('vehicles')
       .select('user_id')
-      .eq('id', req.params.id)
+      .eq('id', vid)
       .single();
 
     if (vehicleError || !vehicle) {
@@ -506,7 +509,7 @@ app.delete('/api/vehicles/:id', authenticateToken, async (req, res) => {
     const { data: images } = await supabase
       .from('vehicle_images')
       .select('url')
-      .eq('vehicle_id', req.params.id);
+      .eq('vehicle_id', vid);
 
     for (const img of images || []) {
       if (img.url && img.url.includes('supabase.co/storage')) {
@@ -514,9 +517,6 @@ app.delete('/api/vehicles/:id', authenticateToken, async (req, res) => {
         if (fileName) await supabase.storage.from('vehicle-images').remove([fileName]);
       }
     }
-
-    const vid = parseInt(req.params.id);
-    if (isNaN(vid)) return res.status(400).json({ error: 'ID inválido' });
     const safeDelete = async (table, filter) => {
       try { const r = await filter(supabase.from(table)); if (r?.error) console.error(`${table} cleanup:`, r.error.message); }
       catch (e) { console.error(`${table} cleanup threw:`, e.message); }
@@ -612,18 +612,18 @@ app.post('/api/upload', authenticateToken, upload.single('image'), async (req, r
 // PROFILE
 app.get('/api/profile/:id', async (req, res) => {
   try {
+    const targetId = parseInt(req.params.id);
+    if (isNaN(targetId)) return res.status(400).json({ error: 'ID de usuario inválido' });
+
     const { data: user, error: userError } = await supabase
       .from('users')
       .select('id, username')
-      .eq('id', req.params.id)
+      .eq('id', targetId)
       .single();
 
     if (userError || !user) {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
-
-    const targetId = parseInt(req.params.id);
-    if (isNaN(targetId)) return res.status(400).json({ error: 'ID de usuario inválido' });
 
     // Resolve optional auth for is_following
     let viewerId = null;
@@ -723,8 +723,11 @@ app.put('/api/admin/users/:id/ban', authenticateToken, async (req, res) => {
   if (!await isAdmin(req.user.id)) return res.status(403).json({ error: 'Acceso denegado' });
   try {
     const targetUser = req.params.id;
-    const { data: profile } = await supabase.from('profiles').select('is_banned').eq('user_id', targetUser).maybeSingle();
-    const newStatus = !profile?.is_banned;
+    const { data: targetProfile } = await supabase.from('profiles').select('is_admin, is_banned').eq('user_id', targetUser).maybeSingle();
+    if (targetProfile?.is_admin) {
+      return res.status(403).json({ error: 'No podés banear a otro administrador' });
+    }
+    const newStatus = !targetProfile?.is_banned;
     const { error } = await supabase.from('profiles').update({ is_banned: newStatus }).eq('user_id', targetUser);
     if (error) throw error;
     res.json({ is_banned: newStatus });
@@ -767,16 +770,22 @@ app.put('/api/profile', authenticateToken, async (req, res) => {
       }
     }
 
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', req.user.id)
+      .maybeSingle();
+
+    const updates = { user_id: req.user.id, updated_at: new Date().toISOString() };
+    if (req.body.username !== undefined) updates.username = req.body.username?.trim() || existingProfile?.username;
+    if (req.body.phone !== undefined) updates.phone = req.body.phone?.trim() || existingProfile?.phone || '';
+    if (req.body.city !== undefined) updates.city = req.body.city?.trim() || existingProfile?.city || '';
+    if (req.body.bio !== undefined) updates.bio = req.body.bio?.trim() || existingProfile?.bio || '';
+    if (req.body.avatar_url !== undefined) updates.avatar_url = req.body.avatar_url || existingProfile?.avatar_url || '';
+
     const { data, error } = await supabase
       .from('profiles')
-      .upsert({
-        user_id: req.user.id,
-        phone: phone || '',
-        city: city || '',
-        bio: bio || '',
-        avatar_url: avatar_url || '',
-        updated_at: new Date().toISOString()
-      })
+      .upsert(updates)
       .select()
       .single();
 
@@ -805,8 +814,7 @@ app.get('/api/favorites', authenticateToken, async (req, res) => {
     const { data: vehicles } = await supabase
       .from('vehicles')
       .select('*')
-      .in('id', vehicleIds)
-      .eq('status', 'active');
+      .in('id', vehicleIds);
 
     const ids = (vehicles || []).map(v => v.id);
     let imagesMap = {};
@@ -905,21 +913,23 @@ app.get('/api/conversations', authenticateToken, async (req, res) => {
     const userIds = [...new Set(data.flatMap(c => [c.buyer_id, c.seller_id]))];
     const convIds = data.map(c => c.id);
 
-    const [vehiclesRes, usersRes, profilesRes, unreadRes, ...messagesResArr] = await Promise.all([
+    const [vehiclesRes, usersRes, profilesRes, unreadRes, allMessagesRes] = await Promise.all([
       supabase.from('vehicles').select('id, title, image_url, price, brand, model, user_id').in('id', vehicleIds),
       supabase.from('users').select('id, username').in('id', userIds),
       supabase.from('profiles').select('user_id, avatar_url').in('user_id', userIds),
       supabase.from('messages').select('conversation_id').in('conversation_id', convIds).neq('sender_id', req.user.id).is('read_at', null),
-      ...convIds.map(id => supabase.from('messages').select('conversation_id, content, created_at, sender_id').eq('conversation_id', id).order('created_at', { ascending: false }).limit(1).maybeSingle())
+      supabase.from('messages').select('id, conversation_id, content, created_at, sender_id').in('conversation_id', convIds).order('created_at', { ascending: false })
     ]);
 
     const vehiclesMap = Object.fromEntries((vehiclesRes.data || []).map(v => [v.id, v]));
     const usersMap = Object.fromEntries((usersRes.data || []).map(u => [u.id, u]));
     const profilesMap = Object.fromEntries((profilesRes.data || []).map(p => [p.user_id, p]));
     const lastMessageMap = {};
-    messagesResArr.forEach(res => {
-      if (res.data) lastMessageMap[res.data.conversation_id] = res.data;
-    });
+    for (const msg of (allMessagesRes.data || [])) {
+      if (!lastMessageMap[msg.conversation_id]) {
+        lastMessageMap[msg.conversation_id] = msg;
+      }
+    }
 
     const unreadMap = {};
     (unreadRes.data || []).forEach(m => {
@@ -993,7 +1003,7 @@ app.post('/api/conversations', authenticateToken, async (req, res) => {
       .from('vehicles')
       .select('user_id, title, status')
       .eq('id', vehicle_id)
-      .single();
+      .maybeSingle();
 
     if (vehicleError || !vehicle) {
       return res.status(404).json({ error: 'Vehículo no encontrado' });
@@ -1021,6 +1031,13 @@ app.post('/api/conversations', authenticateToken, async (req, res) => {
         content: initial_message
       });
       await supabase.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', existingConv.id);
+      await supabase.from('notifications').insert({
+        user_id: vehicle.user_id,
+        type: 'message',
+        title: 'Nuevo mensaje',
+        message: `Te enviaron un mensaje sobre "${vehicle.title}"`,
+        link: `messages/${existingConv.id}`
+      });
       return res.json(existingConv);
     }
 
@@ -1119,6 +1136,9 @@ app.get('/api/conversations/:id/messages', authenticateToken, async (req, res) =
       return res.status(403).json({ error: 'No tienes acceso' });
     }
 
+    const pageLimit = parseInt(req.query.limit) || 50;
+    const beforeId = req.query.before ? parseInt(req.query.before) : null;
+
     let msgQuery = supabase
       .from('messages')
       .select('*')
@@ -1128,18 +1148,28 @@ app.get('/api/conversations/:id/messages', authenticateToken, async (req, res) =
     const afterId = parseInt(req.query.after);
     if (!isNaN(afterId) && afterId > 0) {
       msgQuery = msgQuery.gt('id', afterId);
+    } else if (beforeId && !isNaN(beforeId) && beforeId > 0) {
+      // Paginación hacia atrás: mensajes anteriores al ID indicado
+      msgQuery = msgQuery
+        .lt('id', beforeId)
+        .order('created_at', { ascending: false })
+        .limit(pageLimit);
     } else {
-      // Sin after = carga inicial, limitar a los últimos 200
-      msgQuery = msgQuery.order('created_at', { ascending: false }).limit(200);
+      // Sin after ni before = carga inicial, limitar a los últimos N mensajes
+      msgQuery = msgQuery.order('created_at', { ascending: false }).limit(pageLimit);
     }
 
     let { data: messages, error } = await msgQuery;
     if (error) throw error;
 
-    // Si era carga inicial (sin after), revertir el orden para mostrar cronológicamente
+    // Si era carga inicial o paginación hacia atrás (sin after), revertir el orden para mostrar cronológicamente
     if (isNaN(afterId) || afterId <= 0) {
       messages = (messages || []).reverse();
     }
+
+    const hasMore = (!isNaN(beforeId) && beforeId > 0)
+      ? (messages || []).length === pageLimit
+      : ((isNaN(afterId) || afterId <= 0) ? (messages || []).length === pageLimit : false);
 
     // Batch fetch usernames (only 2 unique senders max)
     const senderIds = [...new Set((messages || []).map(m => m.sender_id))];
@@ -1159,8 +1189,9 @@ app.get('/api/conversations/:id/messages', authenticateToken, async (req, res) =
       .not('read_at', 'is', null);
     const readReceipts = receipts || [];
 
-    res.json({ messages: messagesWithUsers, read_receipts: readReceipts });
+    res.json({ messages: messagesWithUsers, hasMore, read_receipts: readReceipts });
   } catch (error) {
+    console.error('Error en GET messages:', error);
     res.status(500).json({ error: 'Error' });
   }
 });
@@ -1403,7 +1434,7 @@ app.get('/api/trade-offers', authenticateToken, async (req, res) => {
     const userIds = [...new Set(allOffers.flatMap(o => [o.proposer_id, o.owner_id]))];
 
     const [vehiclesRes, usersRes] = await Promise.all([
-      vehicleIds.length ? supabase.from('vehicles').select('id, title, brand, model, year, price, image_url').in('id', vehicleIds) : { data: [] },
+      vehicleIds.length ? supabase.from('vehicles').select('id, title, brand, model, year, price').in('id', vehicleIds) : { data: [] },
       userIds.length ? supabase.from('users').select('id, username').in('id', userIds) : { data: [] }
     ]);
 
@@ -1557,7 +1588,11 @@ app.put('/api/notifications/read-all', authenticateToken, async (req, res) => {
 app.post('/api/ratings', authenticateToken, async (req, res) => {
   try {
     const { to_user_id, vehicle_id, stars, review } = req.body;
-    
+
+    if (String(req.user.id) === String(to_user_id)) {
+      return res.status(400).json({ error: 'No podés calificarte a vos mismo' });
+    }
+
     if (!vehicle_id || vehicle_id === undefined || vehicle_id === null) {
       return res.status(400).json({ error: 'vehicle_id es requerido' });
     }
@@ -1854,6 +1889,10 @@ app.put('/api/admin/users/:id/admin', authenticateToken, async (req, res) => {
   try {
     const admin = await isAdmin(req.user.id);
     if (!admin) return res.status(403).json({ error: 'Acceso denegado' });
+
+    if (String(req.params.id) === String(req.user.id)) {
+      return res.status(400).json({ error: 'No podés modificar tus propios privilegios de admin' });
+    }
 
     const { is_admin } = req.body;
     const { error } = await supabase

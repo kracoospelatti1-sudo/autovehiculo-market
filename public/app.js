@@ -1,3 +1,5 @@
+const PLACEHOLDER_IMG = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"><rect width="400" height="300" fill="#1a1a2e"/><text x="200" y="140" text-anchor="middle" fill="#444" font-size="48">&#x1F697;</text><text x="200" y="185" text-anchor="middle" fill="#555" font-size="16">Sin imagen</text></svg>')}`;
+
 let currentUser = null;
 let currentVehicleId = null;
 let vehicleMapInstance = null;
@@ -12,7 +14,6 @@ let rateRecipientId = null;
 let rateVehicleId = null;
 let lastMessageId = 0;
 let isLoadingMessages = false;
-let onlineStatusInterval = null;
 let pollCount = 0;
 
 const API_URL = '/api';
@@ -325,6 +326,8 @@ async function handleRegister(e) {
     const data = await request('/register', { method: 'POST', body: JSON.stringify({ username, email, password }) });
     localStorage.setItem('token', data.token);
     currentUser = data.user;
+    if (!heartbeatInterval) heartbeatInterval = setInterval(() => { if (currentUser && document.visibilityState === 'visible') request('/ping', { method: 'PUT' }).catch(() => {}); }, 30000);
+    if (!notifInterval) notifInterval = setInterval(() => { if (currentUser) { loadNotificationCount(); loadUnreadMessageCount(); } }, 30000);
     updateNav();
     showToast('Registro exitoso. ¡Bienvenido!', 'success');
     showSection('home');
@@ -348,6 +351,8 @@ async function handleLogin(e) {
     const data = await request('/login', { method: 'POST', body: JSON.stringify({ email, password }) });
     localStorage.setItem('token', data.token);
     currentUser = data.user;
+    if (!heartbeatInterval) heartbeatInterval = setInterval(() => { if (currentUser && document.visibilityState === 'visible') request('/ping', { method: 'PUT' }).catch(() => {}); }, 30000);
+    if (!notifInterval) notifInterval = setInterval(() => { if (currentUser) { loadNotificationCount(); loadUnreadMessageCount(); } }, 30000);
     updateNav();
     showToast('¡Bienvenido!', 'success');
     showSection('home');
@@ -363,7 +368,9 @@ function logout() {
   currentUser = null;
   uploadedImages = [];
   clearInterval(heartbeatInterval);
+  heartbeatInterval = null;
   clearInterval(notifInterval);
+  notifInterval = null;
   stopPolling();
   updateNav();
   showToast('Sesión cerrada', 'success');
@@ -394,7 +401,7 @@ async function loadVehicles(page = 1) {
       if (el?.value) params.append(key, el.value);
     });
     params.append('page', page);
-    const { vehicles, total } = await request(`/vehicles?${params}`);
+    const { vehicles = [], total = 0 } = await request(`/vehicles?${params}`) || {};
     document.getElementById('vehiclesCount').textContent = `${total} vehículo${total !== 1 ? 's' : ''} encontrado${total !== 1 ? 's' : ''}`;
     if (!vehicles?.length) {
       container.innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99z"/></svg><h3>No hay vehículos</h3><p>Sé el primero en publicar</p></div>';
@@ -403,8 +410,8 @@ async function loadVehicles(page = 1) {
     container.innerHTML = vehicles.map(v => `
       <div class="vehicle-card" onclick="viewVehicle(${v.id})">
         <div class="vehicle-image-container">
-          <img src="${v.images?.find(i => i.is_primary)?.url || v.images?.[0]?.url || v.image_url || 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400&h=300&fit=crop'}" class="vehicle-image" alt="${escapeHtml(v.title)}" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400&h=300&fit=crop'">
-          <span class="vehicle-badge">${v.year}</span>
+          <img src="${v.images?.find(i => i.is_primary)?.url || v.images?.[0]?.url || v.image_url || PLACEHOLDER_IMG}" class="vehicle-image" alt="${escapeHtml(v.title)}" loading="lazy" onerror="this.src=PLACEHOLDER_IMG">
+          <span class="vehicle-badge">${escapeHtml(String(v.year))}</span>
           ${localStorage.getItem('token') ? `<button class="favorite-btn ${v.is_favorite ? 'active' : ''}" onclick="toggleFavorite(${v.id}, event)"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>` : ''}
         </div>
         <div class="vehicle-info">
@@ -413,7 +420,7 @@ async function loadVehicles(page = 1) {
           <p class="vehicle-price">$${formatNumber(v.price)}</p>
           <div class="vehicle-meta">
             <span>${formatNumber(v.mileage || 0)} km</span>
-            <span>${v.fuel || 'N/A'}</span>
+            <span>${escapeHtml(v.fuel || '') || 'N/A'}</span>
             ${v.transmission ? `<span>${escapeHtml(v.transmission)}</span>` : ''}
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.75rem;">
@@ -448,7 +455,8 @@ function debounceSearch() {
 
 function toggleFilters() {
   const panel = document.getElementById('filtersPanel');
-  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  const isHidden = getComputedStyle(panel).display === 'none';
+  panel.style.display = isHidden ? 'block' : 'none';
 }
 
 function applyFilters() { loadVehicles(1); }
@@ -518,7 +526,7 @@ async function viewVehicle(id) {
       try { const r = await request(`/favorites/${id}/check`); isFavorite = r.favorited; } catch {}
     }
 
-    const images = vehicle.vehicle_images?.length ? vehicle.vehicle_images : [{ url: vehicle.image_url || 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=800&h=600&fit=crop' }];
+    const images = vehicle.vehicle_images?.length ? vehicle.vehicle_images : [{ url: vehicle.image_url || PLACEHOLDER_IMG }];
     const mainImgUrl = images[0].url;
 
     const content = document.getElementById('vehicleDetailContent');
@@ -526,7 +534,7 @@ async function viewVehicle(id) {
       <div class="detail-container">
         <div class="detail-gallery desktop-only">
           <div class="main-image">
-            <img src="${mainImgUrl}" id="detailMainImage" alt="Vehículo" style="cursor:pointer;" onclick="openLightbox(window._detailImages, window._detailImages.indexOf(this.src) >= 0 ? window._detailImages.indexOf(this.src) : 0)">
+            <img src="${escapeHtml(mainImgUrl)}" id="detailMainImage" alt="Vehículo" style="cursor:pointer;" onclick="openLightbox(window._detailImages, window._detailImages.indexOf(this.src) >= 0 ? window._detailImages.indexOf(this.src) : 0)">
           </div>
           <div class="thumbnail-list" id="imageThumbnails">
             ${images.map((img, i) => `<img src="${escapeHtml(img.url || '')}" class="${i === 0 ? 'active' : ''}" data-url="${escapeHtml(img.url || '')}" data-index="${i}" onclick="document.getElementById('detailMainImage').src=this.dataset.url;this.parentElement.querySelectorAll('img').forEach(x=>x.classList.remove('active'));this.classList.add('active')">`).join('')}
@@ -541,7 +549,7 @@ async function viewVehicle(id) {
           <p class="detail-subtitle">${escapeHtml(vehicle.brand)} ${escapeHtml(vehicle.model)}</p>
           <p class="detail-price">$${formatNumber(vehicle.price)}</p>
           <div class="detail-specs">
-            <div class="spec-card"><div class="label">Año</div><div class="value">${vehicle.year}</div></div>
+            <div class="spec-card"><div class="label">Año</div><div class="value">${escapeHtml(String(vehicle.year))}</div></div>
             <div class="spec-card"><div class="label">Kilometraje</div><div class="value">${formatNumber(vehicle.mileage || 0)} km</div></div>
             <div class="spec-card"><div class="label">Combustible</div><div class="value">${vehicle.fuel || 'N/A'}</div></div>
             <div class="spec-card"><div class="label">Transmisión</div><div class="value">${vehicle.transmission || 'N/A'}</div></div>
@@ -762,6 +770,7 @@ async function handlePublish(e) {
     await request('/vehicles', { method: 'POST', body: JSON.stringify(data) });
     showToast('¡Vehículo publicado!', 'success');
     uploadedImages = [];
+    renderImagePreviews();
     e.target.reset();
     document.getElementById('publishProvince').value = '';
     document.getElementById('publishCity').innerHTML = '<option value="">Primero seleccioná una provincia</option>';
@@ -789,7 +798,7 @@ async function loadMyVehicles() {
     container.innerHTML = vehicles.map(v => `
       <div class="vehicle-card" onclick="viewVehicle(${v.id})">
         <div class="vehicle-image-container">
-          <img src="${v.images?.find(i => i.is_primary)?.url || v.images?.[0]?.url || v.image_url || 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400&h=300&fit=crop'}" class="vehicle-image" alt="${escapeHtml(v.title)}" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400&h=300&fit=crop'">
+          <img src="${v.images?.find(i => i.is_primary)?.url || v.images?.[0]?.url || v.image_url || PLACEHOLDER_IMG}" class="vehicle-image" alt="${escapeHtml(v.title)}" loading="lazy" onerror="this.src=PLACEHOLDER_IMG">
           <span class="vehicle-badge ${v.status === 'sold' ? 'badge-sold' : ''}">${v.status === 'active' ? 'Activo' : v.status === 'sold' ? 'VENDIDO' : v.status === 'paused' ? 'Pausado' : v.status}</span>
         </div>
         <div class="vehicle-info">
@@ -829,7 +838,9 @@ async function openEditModal(id, e) {
     const editCitySelect = document.getElementById('editCity');
     editProvSelect.value = v.province || '';
     editProvSelect.dispatchEvent(new Event('change'));
-    editCitySelect.value = v.city || '';
+    requestAnimationFrame(() => {
+      if (editCitySelect) editCitySelect.value = v.city || '';
+    });
     document.getElementById('editStatus').value = v.status || 'active';
     document.getElementById('editDescription').value = v.description || '';
     document.getElementById('editAcceptsTrade').checked = !!v.accepts_trade;
@@ -890,8 +901,8 @@ async function loadFavorites() {
     container.innerHTML = vehicles.map(v => `
       <div class="vehicle-card" onclick="viewVehicle(${v.id})">
         <div class="vehicle-image-container">
-          <img src="${v.images?.[0]?.url || v.image_url || 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400&h=300&fit=crop'}" class="vehicle-image" alt="${escapeHtml(v.title)}" onerror="this.src='https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400&h=300&fit=crop'">
-          <span class="vehicle-badge">${v.year}</span>
+          <img src="${v.images?.[0]?.url || v.image_url || PLACEHOLDER_IMG}" class="vehicle-image" alt="${escapeHtml(v.title)}" onerror="this.src=PLACEHOLDER_IMG">
+          <span class="vehicle-badge">${escapeHtml(String(v.year))}</span>
         </div>
         <div class="vehicle-info">
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
@@ -953,7 +964,7 @@ async function loadConversations(page = 1) {
         <div class="conversation-info">
           <div class="conversation-name">${escapeHtml(c.other_user?.username || 'Usuario')}</div>
           <div class="conversation-vehicle">${escapeHtml(c.vehicle?.title || '')}</div>
-          <div class="conversation-preview">${escapeHtml(c.last_message || '')}</div>
+          <div class="conversation-preview">${escapeHtml(c.last_message?.startsWith('__TRADE_CARD__') ? 'Propuesta de permuta' : (c.last_message || ''))}</div>
         </div>
         <div class="conversation-meta" style="display:flex;flex-direction:column;align-items:flex-end;">
           <span class="conversation-time">${formatRelTime(c.updated_at)}</span>
@@ -1003,7 +1014,7 @@ async function loadChatFull(convId) {
     // Also use read_at from messages themselves
     (messages || []).forEach(m => { if (m.read_at) readMap[m.id] = m.read_at; });
 
-    const vehicleImg = vehicle?.image_url || 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=120&h=80&fit=crop';
+    const vehicleImg = vehicle?.image_url || PLACEHOLDER_IMG;
 
     chatView.innerHTML = `
       <div class="chat-active-header">
@@ -1016,7 +1027,7 @@ async function loadChatFull(convId) {
 
         ${vehicle ? `
         <div class="chat-vehicle-ref-inline" onclick="viewVehicle(${vehicle.id})" title="Ver publicación">
-          <img src="${vehicleImg}" onerror="this.src='https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=120&h=80&fit=crop'" alt="">
+          <img src="${escapeHtml(vehicleImg)}" onerror="this.src=PLACEHOLDER_IMG" alt="">
           <div class="chat-vehicle-ref-inline-info">
             <div class="chat-vehicle-ref-title">${escapeHtml(vehicle.title || (vehicle.brand + ' ' + vehicle.model))}</div>
             <div class="chat-vehicle-ref-price">$${formatNumber(vehicle.price)}</div>
@@ -1069,6 +1080,7 @@ async function pollNewMessages(convId) {
       // Mark new incoming messages as read
       if (incoming.length > 0) {
         request(`/conversations/${convId}/read`, { method: 'PUT' }).catch(() => {});
+        loadUnreadMessageCount();
       }
     }
 
@@ -1108,16 +1120,15 @@ function appendMessageToDOM(message, readAt) {
     const extraText = firstNewline === -1 ? '' : raw.slice(firstNewline + 1).trim();
     try {
       const v = JSON.parse(jsonPart);
-      const fallbackImg = 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400&h=220&fit=crop';
       html += `
         <div class="trade-card" onclick="viewVehicle(${v.id})">
           <div class="trade-card-badge">🔄 Propuesta de permuta</div>
           <div class="trade-card-img">
-            <img src="${escapeHtml(v.image || fallbackImg)}" onerror="this.src='${fallbackImg}'" alt="${escapeHtml(v.title)}">
+            <img src="${escapeHtml(v.image) || PLACEHOLDER_IMG}" onerror="this.src=PLACEHOLDER_IMG" alt="${escapeHtml(v.title)}">
           </div>
           <div class="trade-card-body">
             <div class="trade-card-title">${escapeHtml(v.title)}</div>
-            <div class="trade-card-sub">${escapeHtml(v.brand)} ${escapeHtml(v.model)} · ${v.year}</div>
+            <div class="trade-card-sub">${escapeHtml(v.brand)} ${escapeHtml(v.model)} · ${escapeHtml(String(v.year))}</div>
             <div class="trade-card-price">$${formatNumber(v.price)}</div>
             ${v.city ? `<div class="trade-card-location">📍 ${escapeHtml(v.city)}${v.province ? ', ' + escapeHtml(v.province.replace(/\s*\(.*?\)/g,'').trim()) : ''}</div>` : ''}
             <div class="trade-card-cta">Ver vehículo →</div>
@@ -1272,7 +1283,7 @@ async function loadNotifications() {
     const container = document.getElementById('notificationsList');
     if (!notifications?.length) { container.innerHTML = '<div class="empty-state"><p>Sin notificaciones</p></div>'; return; }
     container.innerHTML = notifications.map(n => `
-      <div class="notification-item ${n.read ? '' : 'unread'}" onclick="handleNotificationClick('${n.link || ''}', ${n.id})">
+      <div class="notification-item ${n.read ? '' : 'unread'}" data-link="${escapeHtml(n.link || '')}" data-notif-id="${n.id}" onclick="handleNotificationClick(this.dataset.link, this.dataset.notifId)">
         ${notifIcon(n.type)}
         <div class="notification-content"><h4>${escapeHtml(n.title)}</h4><p>${escapeHtml(n.message)}</p><div class="notification-time">${formatRelTime(n.created_at)}</div></div>
       </div>
@@ -1293,7 +1304,7 @@ async function handleNotificationClick(link, id) {
   request(`/notifications/${id}/read`, { method: 'PUT' }).catch(() => {});
   loadNotificationCount();
   if (link.includes('messages/')) {
-    const convId = link.split('/').pop();
+    const convId = parseInt(link.split('/').pop(), 10);
     currentConversationId = convId;
     lastMessageId = 0;
     pollCount = 0;
@@ -1309,6 +1320,8 @@ async function handleNotificationClick(link, id) {
     viewVehicle(link.split('/').pop());
   } else if (link.includes('profile/')) {
     viewProfile(link.split('/').pop());
+  } else if (link === 'trade-offers') {
+    showSection('my-vehicles');
   }
 }
 
@@ -1371,11 +1384,11 @@ async function viewProfile(id) {
     const vehicles = await request(`/vehicles?user_id=${id}`).catch(() => ({ vehicles: [] }));
     document.getElementById('profileVehiclesList').innerHTML = vehicles.vehicles?.length ? vehicles.vehicles.map(v => `
       <div class="vehicle-card" onclick="viewVehicle(${v.id})">
-        <div class="vehicle-image-container"><img src="${v.images?.[0]?.url || v.image_url || 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400&h=300&fit=crop'}" class="vehicle-image" alt="${escapeHtml(v.title)}" onerror="this.src='https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400&h=300&fit=crop'"></div>
+        <div class="vehicle-image-container"><img src="${v.images?.[0]?.url || v.image_url || PLACEHOLDER_IMG}" class="vehicle-image" alt="${escapeHtml(v.title)}" onerror="this.src=PLACEHOLDER_IMG"></div>
         <div class="vehicle-info">
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
           <p class="vehicle-price">$${formatNumber(v.price)}</p>
-          ${isViewerAdmin && !isOwn ? `<button class="btn btn-sm btn-danger" style="margin-top:0.5rem;width:100%;" onclick="event.stopPropagation(); adminDeleteVehicle(${v.id}, ${JSON.stringify(escapeHtml(v.title))})">🗑 Eliminar</button>` : ''}
+          ${isViewerAdmin && !isOwn ? `<button class="btn btn-sm btn-danger" style="margin-top:0.5rem;width:100%;" onclick="event.stopPropagation(); adminDeleteVehicle(${v.id}, ${JSON.stringify(v.title)})">🗑 Eliminar</button>` : ''}
         </div>
       </div>
     `).join('') : '<p style="color:var(--text-secondary)">Sin vehículos publicados</p>';
@@ -1402,7 +1415,7 @@ function editProfile() {
       </div>
       <div class="form-group"><label>Nombre</label><input type="text" id="editUsername" value="${escapeHtml(currentUser.username)}" required></div>
       <div class="form-group"><label>Teléfono</label><input type="tel" id="editPhone" value="${escapeHtml(currentUser.profile?.phone || '')}" placeholder="+54..."></div>
-      <div class="form-group"><label>Ciudad</label><input type="text" id="editCity" value="${escapeHtml(currentUser.profile?.city || '')}" placeholder="Buenos Aires"></div>
+      <div class="form-group"><label>Ciudad</label><input type="text" id="profileEditCity" value="${escapeHtml(currentUser.profile?.city || '')}" placeholder="Buenos Aires"></div>
       <div class="form-group"><label>Bio</label><textarea id="editBio" rows="3" placeholder="Cuéntanos sobre ti...">${escapeHtml(currentUser.profile?.bio || '')}</textarea></div>
       <button type="submit" class="btn btn-primary" style="width:100%;">Guardar</button>
     </form>
@@ -1449,7 +1462,7 @@ async function saveProfile(e) {
     await request('/profile', { method: 'PUT', body: JSON.stringify({
       username: document.getElementById('editUsername').value,
       phone: document.getElementById('editPhone').value,
-      city: document.getElementById('editCity').value,
+      city: document.getElementById('profileEditCity').value,
       bio: document.getElementById('editBio').value,
       avatar_url: avatarUrl
     }) });
@@ -1478,9 +1491,9 @@ async function loadAdmin() {
   } catch (err) { showToast(err.message, 'error'); }
 }
 
-function showAdminTab(tab) {
+function showAdminTab(tab, el) {
   document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
-  event?.currentTarget?.classList?.add('active') || document.querySelector(`.admin-tab[onclick*="'${tab}'"]`)?.classList.add('active');
+  (el || document.querySelector(`.admin-tab[onclick*="'${tab}'"]`))?.classList.add('active');
   if (tab === 'reports') loadAdminReports();
   else if (tab === 'users') loadAdminUsers();
   else if (tab === 'vehicles') loadAdminVehicles(1);
@@ -1504,7 +1517,7 @@ async function loadAdminReports() {
                   <button class="btn btn-sm btn-secondary" onclick="resolveReport(${r.id}, 'resolved')">Resolver</button>
                   <button class="btn btn-sm btn-ghost" onclick="resolveReport(${r.id}, 'dismissed')">Descartar</button>
                 ` : ''}
-                ${r.vehicle?.id ? `<button class="btn btn-sm btn-danger" onclick="adminDeleteVehicle(${r.vehicle.id}, ${JSON.stringify(escapeHtml(r.vehicle.title || ''))})">🗑 Eliminar pub.</button>` : ''}
+                ${r.vehicle?.id ? `<button class="btn btn-sm btn-danger" onclick="adminDeleteVehicle(${r.vehicle.id}, ${JSON.stringify(r.vehicle.title || '')})">🗑 Eliminar pub.</button>` : ''}
               </td>
             </tr>
           `).join('')}
@@ -1577,7 +1590,7 @@ async function loadAdminVehicles(page = 1) {
                   <td style="font-size:0.78rem;color:var(--text-3);">${formatRelTime(v.created_at)}</td>
                   <td>
                     <button class="btn btn-sm btn-danger"
-                      onclick="adminDeleteVehicle(${v.id}, ${JSON.stringify(escapeHtml(v.title))})">Eliminar</button>
+                      onclick="adminDeleteVehicle(${v.id}, ${JSON.stringify(v.title)})">Eliminar</button>
                   </td>
                 </tr>
               `).join('')}
@@ -1627,7 +1640,7 @@ async function loadAdminUsers() {
                       ${isBanned ? 'Reactivar' : 'Suspender'}
                     </button>
                     ${!isAdm ? `<button class="btn btn-sm btn-ghost" onclick="toggleAdmin('${u.id}', true)">Hacer admin</button>` : `<button class="btn btn-sm btn-ghost" onclick="toggleAdmin('${u.id}', false)">Quitar admin</button>`}
-                    <button class="btn btn-sm" style="${isVerified ? 'background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.3);' : 'background:rgba(99,102,241,0.1);color:#a5b4fc;border:1px solid rgba(99,102,241,0.25);'}" onclick="toggleVerify('${u.id}', ${!isVerified})">
+                    <button class="btn btn-sm" style="${isVerified ? 'background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.3);' : 'background:rgba(99,102,241,0.1);color:#a5b4fc;border:1px solid rgba(99,102,241,0.25);'}" onclick="toggleVerify('${u.id}')">
                       ${isVerified ? '✓ Verificado' : 'Verificar'}
                     </button>
                   </td>
