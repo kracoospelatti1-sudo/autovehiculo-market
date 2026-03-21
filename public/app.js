@@ -259,7 +259,15 @@ async function initVehicleMap(city, province) {
     const data = await res.json();
     if (!data?.length) { el.parentElement.style.display = 'none'; return; }
     const { lat, lon, display_name } = data[0];
-    vehicleMapInstance = L.map('vehicleMap', { zoomControl: true, scrollWheelZoom: false }).setView([parseFloat(lat), parseFloat(lon)], 12);
+    vehicleMapInstance = L.map('vehicleMap', {
+      zoomControl: false,
+      scrollWheelZoom: false,
+      dragging: false,
+      touchZoom: false,
+      doubleClickZoom: false,
+      boxZoom: false,
+      keyboard: false
+    }).setView([parseFloat(lat), parseFloat(lon)], 12);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       maxZoom: 19
@@ -1413,9 +1421,7 @@ async function viewProfile(id) {
         <div class="vehicle-info">
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
           <p class="vehicle-price">$${formatNumber(v.price)}</p>
-          <div class="vehicle-meta" style="margin-top:0.4rem;">
-            <span style="background:${v.accepts_trade ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.08)'};color:${v.accepts_trade ? '#22c55e' : '#ef4444'};padding:1px 6px;border-radius:4px;font-size:0.75rem;font-weight:600;">${v.accepts_trade ? '🔄 Permuta' : 'Sin permuta'}</span>
-          </div>
+          <span class="vehicle-trade-badge ${v.accepts_trade ? 'trade-yes' : 'trade-no'}" style="position:static;display:inline-block;margin-top:0.3rem;">${v.accepts_trade ? '🔄 Permuta' : 'Sin permuta'}</span>
           ${isViewerAdmin && !isOwn ? `<button class="btn btn-sm btn-danger" style="margin-top:0.5rem;width:100%;" data-vid="${v.id}" data-title="${escapeHtml(v.title)}" onclick="event.stopPropagation(); adminDeleteVehicle(+this.dataset.vid, this.dataset.title)">🗑 Eliminar</button>` : ''}
         </div>
       </div>
