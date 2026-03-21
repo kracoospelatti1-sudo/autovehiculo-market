@@ -67,7 +67,7 @@ function showSection(sectionId) {
   }
   if (sectionId === 'vehicles') loadVehicles(1);
   else if (sectionId === 'my-vehicles') loadMyVehicles();
-  else if (sectionId === 'messages') loadConversations();
+  else if (sectionId === 'messages') { document.querySelector('.messages-container')?.classList.remove('chat-open'); loadConversations(); }
   else if (sectionId === 'favorites') loadFavorites();
   else if (sectionId === 'notifications') loadNotifications();
   else if (sectionId === 'admin') loadAdmin();
@@ -610,6 +610,7 @@ async function openConversation(convId, el) {
   document.querySelectorAll('.conversation-item').forEach(e => e.classList.remove('active'));
   const target = el || (event && event.currentTarget);
   if (target) target.classList.add('active');
+  openMobileChat();
   await loadChatFull(convId);
   startPolling();
 }
@@ -637,6 +638,7 @@ async function loadChatFull(convId) {
 
     chatView.innerHTML = `
       <div class="chat-active-header">
+        <button class="chat-back-btn" style="display:none;align-items:center;background:none;border:none;color:var(--text);cursor:pointer;padding:0.25rem;margin-right:0.5rem;font-size:1.3rem;" onclick="closeMobileChat()">&#8249;</button>
         <div class="conversation-avatar">${otherUser?.avatar_url ? `<img src="${otherUser.avatar_url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (otherUser?.username ? otherUser.username.charAt(0).toUpperCase() : '?')}</div>
         <div class="chat-header-info">
           <h4>${escapeHtml(otherUser?.username || 'Usuario')}</h4>
@@ -780,6 +782,15 @@ async function sendMessage() {
     showToast(err.message, 'error');
     if (input) input.value = content;
   }
+}
+
+function openMobileChat() {
+  document.querySelector('.messages-container')?.classList.add('chat-open');
+}
+function closeMobileChat() {
+  document.querySelector('.messages-container')?.classList.remove('chat-open');
+  currentConversationId = null;
+  stopPolling();
 }
 
 function renderEmptyChat() {

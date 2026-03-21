@@ -1165,7 +1165,11 @@ select {
   .form-row { grid-template-columns: 1fr; }
   .vehicles-grid { grid-template-columns: 1fr; }
   .messages-container { grid-template-columns: 1fr; height: auto; }
-  .conversations-list { display: none; }
+  .messages-container.chat-open .conversations-list { display: none; }
+  .messages-container.chat-open .chat-view { display: flex; }
+  .messages-container:not(.chat-open) .conversations-list { display: block; }
+  .messages-container:not(.chat-open) .chat-view { display: none; }
+  .chat-back-btn { display: flex !important; }
   .profile-content { grid-template-columns: 1fr; }
   .detail-specs { grid-template-columns: 1fr 1fr; }
   .nav-links {
