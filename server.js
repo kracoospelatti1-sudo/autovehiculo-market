@@ -453,7 +453,6 @@ app.delete('/api/vehicles/:id', authenticateToken, async (req, res) => {
     await supabase.from('conversations').delete().eq('vehicle_id', req.params.id);
     await supabase.from('vehicle_images').delete().eq('vehicle_id', req.params.id);
     await supabase.from('favorites').delete().eq('vehicle_id', req.params.id);
-    await supabase.from('vehicle_views').delete().eq('vehicle_id', req.params.id);
     await supabase.from('vehicles').delete().eq('id', req.params.id);
     
     res.json({ message: 'Vehículo eliminado' });
