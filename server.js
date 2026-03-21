@@ -179,7 +179,7 @@ app.get('/api/vehicles', async (req, res) => {
       .select('*, users!vehicles_user_id_fkey(id, username)', { count: 'exact' })
       .eq('status', 'active');
 
-    const { brand, model, minPrice, maxPrice, minYear, maxYear, minMileage, maxMileage, fuel, city, search, sort, page = 1 } = req.query;
+    const { brand, model, minPrice, maxPrice, minYear, maxYear, minMileage, maxMileage, fuel, city, search, sort, user_id, page = 1 } = req.query;
     const limit = 12;
     const offset = (page - 1) * limit;
 
@@ -187,6 +187,7 @@ app.get('/api/vehicles', async (req, res) => {
       const s = search.replace(/[%_\\]/g, '');
       query = query.or(`title.ilike.%${s}%,brand.ilike.%${s}%,model.ilike.%${s}%`);
     }
+    if (user_id) query = query.eq('user_id', user_id);
     if (brand) query = query.eq('brand', brand);
     if (model) query = query.ilike('model', `%${model}%`);
     if (minPrice) query = query.gte('price', parseFloat(minPrice));
