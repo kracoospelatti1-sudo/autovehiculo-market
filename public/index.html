@@ -21,6 +21,7 @@
     <div class="nav-links">
       <a onclick="showSection('home')" id="navHome">Inicio</a>
       <a onclick="showSection('vehicles')" id="navVehicles">Vehículos</a>
+      <a onclick="showSection('vehicle-map')" id="navMap">Mapa</a>
       <!-- Logged in only -->
       <a onclick="showSection('messages')" id="navMessages" style="display:none;">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
@@ -253,6 +254,12 @@
     <!-- VEHICLE DETAIL -->
     <section id="vehicle-detail" class="section" style="display:none;">
       <div id="vehicleDetailContent" class="fade-in"></div>
+    </section>
+
+    <!-- VEHICLE MAP -->
+    <section id="vehicle-map" class="section" style="display:none;">
+      <h2 style="margin-bottom:1rem">Vehículos en el mapa</h2>
+      <div id="vehiclesMap" style="height:600px;border-radius:12px;overflow:hidden"></div>
     </section>
 
     <!-- PUBLISH -->

@@ -395,6 +395,11 @@ app.post('/api/vehicles', authenticateToken, async (req, res) => {
 
     if (error) throw error;
 
+    await supabase.from('vehicle_price_history').insert({
+      vehicle_id: data.id,
+      price: parseFloat(price)
+    });
+
     if (images && images.length > 0) {
       const imageRecords = images.map((url, index) => ({
         vehicle_id: data.id,
@@ -431,7 +436,7 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
   try {
     const { data: vehicle, error: vehicleError } = await supabase
       .from('vehicles')
-      .select('user_id')
+      .select('user_id, price')
       .eq('id', req.params.id)
       .single();
 
@@ -481,6 +486,15 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
       .single();
 
     if (error) throw error;
+
+    const newPrice = price !== undefined ? parseFloat(price) : null;
+    if (newPrice && vehicle.price !== newPrice) {
+      await supabase.from('vehicle_price_history').insert({
+        vehicle_id: parseInt(req.params.id),
+        price: newPrice
+      });
+    }
+
     res.json(data);
   } catch (error) {
     console.error(error);
@@ -552,6 +566,25 @@ app.delete('/api/vehicles/:id', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Error en el servidor' });
+  }
+});
+
+app.get('/api/vehicles/:id/price-history', optionalAuth, async (req, res) => {
+  try {
+    const vid = parseInt(req.params.id);
+    if (isNaN(vid)) return res.status(400).json({ error: 'ID inválido' });
+
+    const { data, error } = await supabase
+      .from('vehicle_price_history')
+      .select('price, created_at')
+      .eq('vehicle_id', vid)
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    res.json({ history: data || [] });
+  } catch (err) {
+    console.error('Error en price-history:', err);
+    res.status(500).json({ error: 'Error al obtener historial de precios' });
   }
 });
 

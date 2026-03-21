@@ -305,6 +305,7 @@ function showSection(sectionId) {
   else if (sectionId === 'notifications') loadNotifications();
   else if (sectionId === 'admin') loadAdmin();
   else if (sectionId === 'publish') { uploadedImages = []; renderImagePreviews(); }
+  else if (sectionId === 'vehicle-map') loadVehicleMap();
   if (sectionId !== 'messages') stopPolling();
   if (sectionId !== 'messages') currentConversationId = null;
   if (sectionId !== 'vehicle-detail') currentVehicleId = null;
@@ -529,6 +530,25 @@ async function viewVehicle(id) {
     const images = vehicle.vehicle_images?.length ? vehicle.vehicle_images : [{ url: vehicle.image_url || PLACEHOLDER_IMG }];
     const mainImgUrl = images[0].url;
 
+    // Price history
+    let priceChangeHtml = '';
+    try {
+      const priceHistoryRes = await request(`/vehicles/${id}/price-history`);
+      const history = priceHistoryRes?.history || [];
+      if (history.length >= 2) {
+        const oldest = history[0].price;
+        const latest = history[history.length - 1].price;
+        const diff = latest - oldest;
+        const pct = Math.round(Math.abs(diff) / oldest * 100);
+        const days = Math.round((new Date() - new Date(history[0].created_at)) / 86400000);
+        if (diff < 0) {
+          priceChangeHtml = `<span class="price-change price-down">&#9660; Bajó ${pct}% (hace ${days} días)</span>`;
+        } else if (diff > 0) {
+          priceChangeHtml = `<span class="price-change price-up">&#9650; Subió ${pct}% (hace ${days} días)</span>`;
+        }
+      }
+    } catch {}
+
     const content = document.getElementById('vehicleDetailContent');
     content.innerHTML = `
       <div class="detail-container">
@@ -547,7 +567,7 @@ async function viewVehicle(id) {
           ${vehicle.status === 'sold' ? '<div class="sold-banner">VENDIDO</div>' : vehicle.status === 'paused' ? '<div class="sold-banner" style="border-color:rgba(245,158,11,0.3);color:var(--primary);background:rgba(245,158,11,0.08);">PAUSADO</div>' : ''}
           <h1>${escapeHtml(vehicle.title)}</h1>
           <p class="detail-subtitle">${escapeHtml(vehicle.brand)} ${escapeHtml(vehicle.model)}</p>
-          <p class="detail-price">$${formatNumber(vehicle.price)}</p>
+          <p class="detail-price">$${formatNumber(vehicle.price)}${priceChangeHtml}</p>
           <div class="detail-specs">
             <div class="spec-card"><div class="label">Año</div><div class="value">${escapeHtml(String(vehicle.year))}</div></div>
             <div class="spec-card"><div class="label">Kilometraje</div><div class="value">${formatNumber(vehicle.mileage || 0)} km</div></div>
@@ -613,7 +633,7 @@ async function viewVehicle(id) {
           ` : ''}
 
           <div class="detail-actions" style="margin-top:1.5rem;display:flex;gap:1rem;flex-direction:column;">
-            <button class="btn btn-secondary" onclick="shareVehicle(${vehicle.id}, ${JSON.stringify(escapeHtml(vehicle.title))})"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="margin-right:0.5rem;"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>Compartir</button>
+            <button class="btn btn-secondary share-btn" onclick="shareVehicle(${vehicle.id}, ${JSON.stringify(escapeHtml(vehicle.title))}, ${vehicle.price})"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="margin-right:0.5rem;"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>Compartir</button>
             ${isLoggedIn ? `<button class="btn ${isFavorite ? 'btn-primary' : 'btn-secondary'}" onclick="toggleFavorite(${vehicle.id}, event)"><svg width="18" height="18" viewBox="0 0 24 24" fill="${isFavorite ? 'currentColor' : 'none'}" stroke="currentColor" style="margin-right:0.5rem;"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>${isFavorite ? 'En favoritos' : 'Guardar en favoritos'}</button>` : ''}
             ${isLoggedIn && !isOwner ? `<button class="btn btn-ghost" onclick="openReportModal(${vehicle.id})" style="color:var(--text-3);">Reportar esta publicación</button>` : ''}
             ${!isLoggedIn ? `<button class="btn btn-primary" style="width:100%" onclick="showSection('login')">Inicia sesión para contactar</button>` : ''}
@@ -1952,16 +1972,151 @@ function formatRelTime(d) {
 }
 function escapeHtml(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
 
-async function shareVehicle(id, title) {
+function shareVehicle(id, title, price) {
   const url = `${window.location.origin}${window.location.pathname}?vehicle=${id}`;
-  if (navigator.share) {
-    try { await navigator.share({ title, url }); } catch {}
-  } else {
-    try {
-      await navigator.clipboard.writeText(url);
-      showToast('Enlace copiado al portapapeles', 'success');
-    } catch { showToast('No se pudo copiar el enlace', 'error'); }
+  const text = `🚗 ${title}\n💰 $${Number(price).toLocaleString('es-AR')}\n${url}`;
+  const waUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+
+  const existing = document.getElementById('shareDropdown');
+  if (existing) { existing.remove(); return; }
+
+  const dropdown = document.createElement('div');
+  dropdown.id = 'shareDropdown';
+  dropdown.className = 'share-dropdown';
+  dropdown.innerHTML = `
+    <a href="${escapeHtml(waUrl)}" target="_blank" rel="noopener" class="share-option">
+      <span>📱</span> Compartir por WhatsApp
+    </a>
+    <button class="share-option" id="copyLinkBtn">
+      <span>🔗</span> Copiar link
+    </button>
+  `;
+
+  const shareBtn = document.querySelector('[onclick*="shareVehicle"]');
+  if (shareBtn) {
+    shareBtn.parentNode.style.position = 'relative';
+    shareBtn.parentNode.appendChild(dropdown);
   }
+
+  document.getElementById('copyLinkBtn').addEventListener('click', () => {
+    navigator.clipboard.writeText(url)
+      .then(() => showToast('Link copiado', 'success'))
+      .catch(() => showToast('No se pudo copiar el link', 'error'));
+    document.getElementById('shareDropdown')?.remove();
+  });
+
+  setTimeout(() => document.addEventListener('click', function handler(e) {
+    if (!dropdown.contains(e.target)) { dropdown.remove(); document.removeEventListener('click', handler); }
+  }), 0);
+}
+
+// VEHICLE MAP
+const CITY_COORDS = {
+  'Buenos Aires': [-34.6037, -58.3816],
+  'Córdoba': [-31.4201, -64.1888],
+  'Rosario': [-32.9442, -60.6505],
+  'Mendoza': [-32.8908, -68.8272],
+  'La Plata': [-34.9215, -57.9545],
+  'Mar del Plata': [-38.0023, -57.5575],
+  'Tucumán': [-26.8241, -65.2226],
+  'Salta': [-24.7859, -65.4117],
+  'Santa Fe': [-31.6333, -60.7],
+  'Bahía Blanca': [-38.7196, -62.2724],
+  'Chivilcoy': [-34.8984, -60.0197],
+  'Chacabuco': [-34.6418, -60.4715],
+  'Quilmes': [-34.7206, -58.2539],
+  'Lanús': [-34.7006, -58.3953],
+  'Lomas de Zamora': [-34.7605, -58.4],
+  'San Isidro': [-34.4725, -58.5231],
+  'Morón': [-34.6534, -58.6198],
+  'Tigre': [-34.4261, -58.5796],
+  'Pilar': [-34.4588, -58.9142],
+  'Paraná': [-31.7333, -60.5333],
+  'Resistencia': [-27.4515, -58.9867],
+  'Corrientes': [-27.4806, -58.8341],
+  'Posadas': [-27.3671, -55.8961],
+  'Neuquén': [-38.9516, -68.0591],
+  'San Carlos de Bariloche': [-41.1335, -71.3103],
+  'Comodoro Rivadavia': [-45.8645, -67.4674],
+  'Río Gallegos': [-51.6230, -69.2168],
+  'Ushuaia': [-54.8019, -68.3030],
+  'San Juan': [-31.5375, -68.5364],
+  'San Luis': [-33.2960, -66.3356],
+  'Catamarca': [-28.4696, -65.7795],
+  'La Rioja': [-29.4131, -66.8558],
+  'Jujuy': [-24.1858, -65.2995],
+  'Santiago del Estero': [-27.7951, -64.2615],
+  'Formosa': [-26.1775, -58.1781],
+  'Viedma': [-40.8135, -62.9967],
+  'Santa Rosa': [-36.6167, -64.2833],
+  'Rawson': [-43.3002, -65.1023],
+};
+
+let vehiclesMapInstance = null;
+
+async function loadVehicleMap() {
+  if (!window.L) return;
+  const el = document.getElementById('vehiclesMap');
+  if (!el) return;
+
+  // Destroy previous map instance if any
+  if (vehiclesMapInstance) {
+    vehiclesMapInstance.remove();
+    vehiclesMapInstance = null;
+  }
+
+  el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-2);">Cargando vehículos...</div>';
+
+  let vehicles = [];
+  try {
+    const res = await request('/vehicles?limit=200&status=active');
+    vehicles = res.vehicles || res || [];
+  } catch {
+    el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-2);">Error al cargar los vehículos.</div>';
+    return;
+  }
+
+  el.innerHTML = '';
+  vehiclesMapInstance = L.map('vehiclesMap', { zoomControl: true, scrollWheelZoom: false }).setView([-38, -63], 5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 19
+  }).addTo(vehiclesMapInstance);
+
+  // Group vehicles by city
+  const byCity = {};
+  vehicles.forEach(v => {
+    const cityKey = v.city;
+    if (!cityKey) return;
+    if (!byCity[cityKey]) byCity[cityKey] = [];
+    byCity[cityKey].push(v);
+  });
+
+  const markerIcon = (count) => L.divIcon({
+    className: '',
+    html: `<div style="background:#f59e0b;color:#000;border-radius:50%;width:${count > 1 ? 36 : 28}px;height:${count > 1 ? 36 : 28}px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:${count > 1 ? 13 : 11}px;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.4)">${count > 1 ? count : '🚗'}</div>`,
+    iconSize: [count > 1 ? 36 : 28, count > 1 ? 36 : 28],
+    iconAnchor: [count > 1 ? 18 : 14, count > 1 ? 18 : 14]
+  });
+
+  Object.entries(byCity).forEach(([city, cityVehicles]) => {
+    const coords = CITY_COORDS[city];
+    if (!coords) return;
+    const count = cityVehicles.length;
+    let popupHtml = '';
+    if (count === 1) {
+      const v = cityVehicles[0];
+      popupHtml = `<strong>${escapeHtml(v.title)}</strong><br>$${formatNumber(v.price)}<br><a href="#" onclick="viewVehicle(${v.id});return false;" style="color:#f59e0b">Ver anuncio</a>`;
+    } else {
+      const list = cityVehicles.slice(0, 3).map(v =>
+        `<div style="margin-top:4px"><a href="#" onclick="viewVehicle(${v.id});return false;" style="color:#f59e0b">${escapeHtml(v.title)}</a> — $${formatNumber(v.price)}</div>`
+      ).join('');
+      popupHtml = `<strong>${count} vehículos en ${escapeHtml(city)}</strong>${list}${count > 3 ? `<div style="margin-top:4px;color:#888;">y ${count - 3} más...</div>` : ''}`;
+    }
+    L.marker(coords, { icon: markerIcon(count) })
+      .addTo(vehiclesMapInstance)
+      .bindPopup(popupHtml);
+  });
 }
 
 function showToast(msg, type = 'info') {

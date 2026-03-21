@@ -1702,3 +1702,49 @@ select {
 .mobile-menu-item:active {
   background: rgba(255,255,255,0.05);
 }
+
+/* ===== SHARE DROPDOWN ===== */
+.share-dropdown {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  background: #1e1e2e;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 220px;
+  z-index: 100;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+}
+.share-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 6px;
+  color: #fff;
+  text-decoration: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  width: 100%;
+  text-align: left;
+  transition: background 0.15s;
+}
+.share-option:hover { background: #2a2a3e; }
+
+/* ===== PRICE CHANGE INDICATOR ===== */
+.price-change {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  margin-left: 0.5rem;
+  vertical-align: middle;
+}
+.price-down { background: rgba(34,197,94,0.15); color: #22c55e; }
+.price-up   { background: rgba(239,68,68,0.15);  color: #ef4444; }
