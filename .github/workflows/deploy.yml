@@ -19,6 +19,5 @@ jobs:
           script: |
             cd ~/domains/autoventa.online/nodejs
             git pull origin master
-            npm install --production
-            pm2 restart autovehiculo || pm2 start server.js --name autovehiculo
-            pm2 save
+            /opt/alt/alt-nodejs22/root/usr/bin/npm install --production
+            mkdir -p tmp && touch tmp/restart.txt
