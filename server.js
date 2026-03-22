@@ -548,7 +548,7 @@ app.get('/api/vehicles/:id', optionalAuth, async (req, res) => {
     const requesterId = req.user?.id;
     const isOwner = requesterId && vehicle.user_id === requesterId;
     const admin = requesterId ? (req.user.is_admin === true || (req.user.is_admin === undefined && await isAdmin(requesterId))) : false;
-    if (!isOwner && !admin && vehicle.status !== 'active') {
+    if (!isOwner && !admin && !['active', 'sold', 'reserved'].includes(vehicle.status)) {
       return res.status(404).json({ error: 'Vehículo no encontrado' });
     }
 
