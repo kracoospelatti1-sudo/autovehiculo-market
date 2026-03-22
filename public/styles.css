@@ -4241,17 +4241,16 @@ select {
   align-items: center;
 }
 
-/* hCaptcha iOS fix */
+/* hCaptcha */
 .h-captcha {
-  transform: scale(1);
-  -webkit-transform: scale(1);
-  transform-origin: left top;
-  -webkit-transform-origin: left top;
+  display: flex;
+  justify-content: center;
+  margin: 1rem 0 0.5rem;
 }
 
 .h-captcha iframe {
-  width: 100% !important;
-  min-height: 78px;
+  border-radius: 12px;
+  overflow: hidden;
 }
 
 /* Price drop badge */
