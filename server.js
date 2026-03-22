@@ -457,8 +457,8 @@ app.get('/api/vehicles', async (req, res) => {
       query = query.not('user_id', 'in', `(${bannedIds.join(',')})`);
     }
 
-    const { brand, model, minPrice, maxPrice, minYear, maxYear, minMileage, maxMileage, fuel, transmission, city, province, search, sort, user_id, vehicle_type, page = 1 } = req.query;
-    const limit = 12;
+    const { brand, model, minPrice, maxPrice, minYear, maxYear, minMileage, maxMileage, fuel, transmission, city, province, search, sort, user_id, vehicle_type, page = 1, limit: limitParam } = req.query;
+    const limit = Math.min(parseInt(limitParam) || 12, 12);
     const offset = (page - 1) * limit;
 
     if (search) {

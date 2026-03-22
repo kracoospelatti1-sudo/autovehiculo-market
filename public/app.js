@@ -326,6 +326,8 @@ function applyTheme(day) {
   document.body.classList.toggle('day-mode', day);
   const btn = document.getElementById('themeToggle');
   if (btn) btn.textContent = day ? '🌙' : '☀️';
+  const mobileBtn = document.getElementById('mobileThemeToggle');
+  if (mobileBtn) mobileBtn.textContent = day ? '🌙 Cambiar a modo noche' : '☀️ Cambiar a modo día';
 }
 
 function initTheme() {
@@ -509,7 +511,8 @@ function showSection(sectionId) {
     section.style.display = 'block';
     section.classList.add('fade-in');
   }
-  if (sectionId === 'vehicles') loadVehicles(1);
+  if (sectionId === 'home') { loadHomeRecent(); loadPublicStats(); }
+  else if (sectionId === 'vehicles') loadVehicles(1);
   else if (sectionId === 'my-vehicles') loadMyVehicles();
   else if (sectionId === 'messages') { document.querySelector('.messages-container')?.classList.remove('chat-open'); loadConversations(); }
   else if (sectionId === 'favorites') loadFavorites();
@@ -718,6 +721,7 @@ async function loadVehicles(page = 1) {
         </div>
       </div>
     `).join('');
+    applyCardCascade(container);
     renderPagination(total, page);
   } catch (err) {
     if (err.name === 'AbortError') return;
@@ -1262,6 +1266,7 @@ async function loadMyVehicles() {
         </div>
       </div>
     `).join('');
+    applyCardCascade(container);
     loadTradeOffers();
   } catch (err) { showToast(err.message, 'error'); }
 }
@@ -1381,6 +1386,7 @@ async function loadFavorites() {
         </div>
       </div>
     `).join('');
+    applyCardCascade(container);
   } catch (err) { showToast(err.message, 'error'); }
 }
 
@@ -3278,6 +3284,7 @@ async function loadFollowingFeed(page = 1, reset = false) {
       </div>
     `).join('');
     container.insertAdjacentHTML('beforeend', html);
+    applyCardCascade(container);
     followingFeedPage = page;
     // Infinite scroll: if more pages, set up observer
     if (vehicles.length === 12 && total > page * 12) {
@@ -3300,6 +3307,67 @@ function setupFollowingFeedScroll() {
     }
   }, { threshold: 0.1 });
   observer.observe(loadingEl);
+}
+
+async function loadHomeRecent() {
+  const container = document.getElementById('homeRecentVehicles');
+  if (!container) return;
+  // Show skeletons
+  container.innerHTML = Array(6).fill().map(() => `
+    <div class="vehicle-card" style="padding:1rem;">
+      <div class="skeleton skeleton-img"></div>
+      <div style="padding:1rem 0;">
+        <div class="skeleton skeleton-text" style="width:70%;margin-bottom:0.5rem;"></div>
+        <div class="skeleton skeleton-text" style="width:40%;"></div>
+      </div>
+    </div>
+  `).join('');
+  try {
+    const data = await request('/vehicles?limit=6&sort=newest');
+    const vehicles = data.vehicles || data;
+    if (!vehicles?.length) {
+      container.innerHTML = '<div class="empty-state"><p>No hay vehículos publicados aún</p></div>';
+      return;
+    }
+    container.innerHTML = vehicles.slice(0, 6).map(v => `
+      <div class="vehicle-card" onclick="viewVehicle(${v.id})">
+        <div class="vehicle-image-container">
+          <img src="${v.images?.find(i => i.is_primary)?.url || v.images?.[0]?.url || v.image_url || PLACEHOLDER_IMG}" class="vehicle-image" alt="${escapeHtml(v.title)}" loading="lazy" onerror="this.src=PLACEHOLDER_IMG">
+          <div class="vehicle-img-overlay"></div>
+          <span class="vehicle-badge">${escapeHtml(String(v.year))}</span>
+          ${v.status === 'sold' ? '<span class="vehicle-badge badge-sold">VENDIDO</span>' : ''}
+          ${v.status !== 'sold' ? `<span class="vehicle-trade-badge ${v.accepts_trade ? 'trade-yes' : 'trade-no'}">${v.accepts_trade ? '🔄 Permuta' : 'Sin permuta'}</span>` : ''}
+          ${v.status !== 'sold' ? `<button class="favorite-btn ${userFavoriteIds.has(v.id) ? 'active' : ''}" data-vehicle-id="${v.id}" onclick="toggleFavorite(${v.id}, event)"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>` : ''}
+        </div>
+        <div class="vehicle-info">
+          <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
+          ${v.city ? `<p class="vehicle-location"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> ${escapeHtml(v.city)}${v.province ? ', ' + escapeHtml(v.province.replace(/\s*\(.*?\)/g,'').trim()) : ''}</p>` : ''}
+          <div class="vehicle-price-block">
+            <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
+            ${formatPesos(v.price) ? `<p class="vehicle-price-ars">${formatPesos(v.price)}</p>` : ''}
+          </div>
+          <div class="vehicle-meta">
+            ${v.mileage === 0 ? '<span class="badge-nuevo">NUEVO</span>' : `<span>${formatNumber(v.mileage)} km</span>`}
+            <span>${escapeHtml(v.fuel || 'N/A')}</span>
+            ${v.transmission ? `<span>${escapeHtml(v.transmission)}</span>` : ''}
+          </div>
+          <div class="vehicle-card-footer">
+            <div class="vehicle-seller">
+              <div class="avatar-tiny">${v.seller_name?.charAt(0)?.toUpperCase()}</div>
+              <span>${escapeHtml(v.seller_name || 'Anónimo')}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `).join('');
+    applyCardCascade(container);
+  } catch { container.innerHTML = ''; }
+}
+
+function applyCardCascade(container) {
+  container.querySelectorAll('.vehicle-card[onclick]').forEach((card, i) => {
+    card.style.animationDelay = `${i * 65}ms`;
+  });
 }
 
 async function loadPublicStats() {

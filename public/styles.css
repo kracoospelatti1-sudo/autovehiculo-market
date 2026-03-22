@@ -38,7 +38,7 @@ img {
   /* Text */
   --text: #ededf5;
   --text-2: #9898b8;
-  --text-3: #555570;
+  --text-3: #7878a0;
   --text-secondary: #9898b8;
 
   /* Shadows */
@@ -74,7 +74,7 @@ body.day-mode {
   --glow-primary: 0 0 40px rgba(245, 158, 11, 0.12);
 }
 
-/* Inputs, selects, textareas */
+/* ---- Inputs, selects, textareas ---- */
 body.day-mode input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
 body.day-mode select,
 body.day-mode textarea {
@@ -91,28 +91,113 @@ body.day-mode select option {
   color: var(--text);
 }
 
-/* Key hardcoded-white text on variable backgrounds */
-body.day-mode .profile-stat-value,
-body.day-mode .vehicle-price,
-body.day-mode .vehicle-title,
-body.day-mode .vehicle-card-title,
-body.day-mode .conversation-name,
-body.day-mode .profile-header h2,
-body.day-mode .modal-header h3,
+/* ---- All general headings in variable-bg sections ---- */
+body.day-mode h1:not(.hero h1),
+body.day-mode h2:not(.hero h2),
+body.day-mode h3,
+body.day-mode h4,
+body.day-mode h5,
+body.day-mode h6 {
+  color: var(--text);
+}
+body.day-mode .section-title,
 body.day-mode .section-header h2,
-body.day-mode .message-content {
+body.day-mode .home-section-header h2 {
   color: var(--text);
 }
 
-/* Filter chips */
-body.day-mode .filters-section select,
-body.day-mode .filters-section input {
-  color: var(--text) !important;
+/* ---- Vehicle cards & lists ---- */
+body.day-mode .vehicle-title,
+body.day-mode .vehicle-card-title,
+body.day-mode .vehicle-location,
+body.day-mode .vehicle-seller span,
+body.day-mode .vehicle-views {
+  color: var(--text-2);
+}
+body.day-mode .vehicle-price {
+  color: var(--primary-dark);
+}
+body.day-mode .vehicle-meta span {
+  color: var(--text-3);
 }
 
-/* Mobile menu stays dark, keep white text */
-body.day-mode .mobile-menu {
+/* ---- Profile ---- */
+body.day-mode .profile-stat-value {
+  color: var(--text);
+}
+body.day-mode .profile-header h2 {
+  color: var(--text);
+}
+
+/* ---- Chat messages ---- */
+body.day-mode .chat-bubble.received .content {
+  color: var(--text);
+  background: var(--dark-3);
+  border-color: var(--border);
+}
+body.day-mode .chat-header-info h4,
+body.day-mode .conversation-name,
+body.day-mode .conversation-preview {
+  color: var(--text);
+}
+
+/* ---- Modals ---- */
+body.day-mode .modal-header h3,
+body.day-mode .modal-content,
+body.day-mode .modal-content label,
+body.day-mode .modal-content p {
+  color: var(--text);
+}
+
+/* ---- Forms / auth containers ---- */
+body.day-mode .form-container {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+body.day-mode .form-container h2 {
+  color: var(--text);
+}
+body.day-mode .form-container label {
+  color: var(--text-2);
+}
+
+/* ---- Detail page ---- */
+body.day-mode .detail-title,
+body.day-mode .detail-price,
+body.day-mode .vehicle-detail h2,
+body.day-mode .vehicle-detail h3,
+body.day-mode .vehicle-detail p,
+body.day-mode .vehicle-detail span:not(.badge):not(.vehicle-badge):not(.badge-nuevo):not(.badge-sold) {
+  color: var(--text);
+}
+
+/* ---- Notifications & misc text ---- */
+body.day-mode .notification-title,
+body.day-mode .notification-message,
+body.day-mode .notification-item,
+body.day-mode .rating-review,
+body.day-mode .seller-name,
+body.day-mode .section-subtitle {
+  color: var(--text);
+}
+body.day-mode .notification-time,
+body.day-mode .conversation-time {
+  color: var(--text-3);
+}
+
+/* ---- Mobile menu stays dark ---- */
+body.day-mode .mobile-menu,
+body.day-mode .mobile-menu-panel {
   background: rgba(14, 14, 25, 0.97) !important;
+}
+
+/* ---- Home sections ---- */
+body.day-mode .home-section-header p,
+body.day-mode .home-feature-card strong {
+  color: var(--text);
+}
+body.day-mode .home-feature-card span {
+  color: var(--text-3);
 }
 
 /* Theme toggle button */
@@ -318,8 +403,8 @@ body::before {
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 8rem 2rem 6rem;
-  min-height: 85vh;
+  padding: 7rem 2rem 5rem;
+  min-height: 60vh;
   overflow: hidden;
   background-color: #0d0d14;
   background-image: url('https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=1920&q=90');
@@ -362,20 +447,13 @@ body::before {
 }
 
 @keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-20px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(-20px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .hero h1 {
   font-family: 'Space Grotesk', sans-serif;
-  font-size: clamp(3rem, 8vw, 5.5rem);
+  font-size: clamp(2.8rem, 7vw, 5.5rem);
   font-weight: 800;
   line-height: 0.95;
   letter-spacing: -0.05em;
@@ -397,7 +475,7 @@ body::before {
 
 .hero p {
   font-size: 1.1rem;
-  color: var(--text-2);
+  color: rgba(255,255,255,0.7);
   max-width: 540px;
   margin-bottom: 2.5rem;
   line-height: 1.7;
@@ -408,51 +486,130 @@ body::before {
   gap: 1rem;
   flex-wrap: wrap;
   justify-content: center;
-  margin-bottom: 4rem;
 }
 
-.hero-stats {
+/* ===== HOME SECTIONS ===== */
+.home-stats-bar {
   display: flex;
-  gap: 1.5rem;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  padding: 1.5rem 3rem;
-  border-radius: 24px;
-  backdrop-filter: blur(15px);
-  -webkit-backdrop-filter: blur(15px);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  flex-wrap: wrap;
+  gap: 0;
+  background: var(--dark-2);
+  border-bottom: 1px solid var(--border);
+  padding: 1.5rem 2rem;
 }
 
-.hero-stats .stat {
+.home-stat {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0 1rem;
+  padding: 0.5rem 2.5rem;
+  gap: 0.2rem;
 }
 
-.hero-stats .stat-value {
+.home-stat-value {
   font-family: 'Space Grotesk', sans-serif;
-  font-size: 2.2rem;
+  font-size: 1.9rem;
   font-weight: 800;
-  color: #fff;
+  color: var(--primary);
   line-height: 1;
 }
 
-.hero-stats .stat-label {
-  font-size: 0.75rem;
+.home-stat-label {
+  font-size: 0.72rem;
   color: var(--text-3);
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
 }
 
-.hero-divider {
+.home-stat-sep {
   width: 1px;
   height: 40px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+.home-wrap {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 3rem 2rem;
+}
+
+.home-section-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 1.75rem;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.home-section-header h2 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 0.3rem;
+}
+
+.home-section-header p {
+  font-size: 0.88rem;
+  color: var(--text-3);
+  margin: 0;
+}
+
+.home-features {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
+}
+
+.home-feature-card {
+  background: var(--dark-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.75rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.home-feature-card:hover {
+  border-color: var(--border-hover);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+
+.home-feature-card .home-feature-icon {
+  font-size: 1.75rem;
+  width: 52px;
+  height: 52px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(245, 158, 11, 0.05) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.home-feature-card strong {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.home-feature-card span {
+  font-size: 0.85rem;
+  color: var(--text-3);
+  line-height: 1.55;
 }
 
 /* ===== BUTTONS ===== */
@@ -2767,6 +2924,16 @@ select {
   animation: fadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Cascade card entrance */
+@keyframes cardEnter {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.vehicle-card {
+  animation: cardEnter 0.38s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -2809,17 +2976,28 @@ select {
   }
 
   .hero {
-    padding: 3.5rem 1rem 3rem;
-    min-height: auto;
+    padding: 4rem 1.25rem 3rem;
+    min-height: 50vh;
   }
 
   .hero h1 {
     font-size: 2.25rem;
   }
 
-  .hero-stats {
-    gap: 1.5rem;
-    flex-wrap: wrap;
+  .home-stat {
+    padding: 0.5rem 1.25rem;
+  }
+
+  .home-stat-sep {
+    height: 30px;
+  }
+
+  .home-features {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .home-wrap {
+    padding: 2rem 1rem;
   }
 
   .form-row {
@@ -2882,12 +3060,15 @@ select {
     grid-template-columns: 1fr 1fr;
   }
 
-  .hero-stats {
-    gap: 1rem;
+  .home-features {
+    grid-template-columns: 1fr;
   }
-
-  .hero-divider {
-    height: 30px;
+  .home-stat-sep {
+    width: 100%;
+    height: 1px;
+  }
+  .home-stat {
+    padding: 0.75rem 1rem;
   }
 }
 
@@ -4213,14 +4394,14 @@ select {
 }
 
 .sort-wrapper {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 0.6rem;
   background: var(--dark-3);
   border: 1px solid var(--border);
   border-radius: 14px;
-  padding: 0 1rem;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
 }
 
 .sort-wrapper:hover {
@@ -4229,7 +4410,7 @@ select {
 }
 
 .sort-select {
-  padding: 0.65rem 0.5rem 0.65rem 0;
+  padding: 0.65rem 1rem 0.65rem 2.5rem;
   background: transparent;
   color: var(--text);
   border: none;
@@ -4237,13 +4418,19 @@ select {
   font-weight: 600;
   cursor: pointer;
   outline: none;
+  width: 100%;
 }
 
 .sort-wrapper i[data-lucide] {
+  position: absolute;
+  left: 0.9rem;
+  top: 50%;
+  transform: translateY(-50%);
   width: 16px;
   height: 16px;
   color: var(--primary);
   opacity: 0.8;
+  pointer-events: none;
 }
 
 @media (max-width: 640px) {

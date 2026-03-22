@@ -62,6 +62,8 @@
 
     <!-- HOME -->
     <section id="home" class="section">
+
+      <!-- HERO -->
       <div class="hero fade-in">
         <div class="hero-tag">🚗 Marketplace de Vehículos #1 en Argentina</div>
         <h1>Encontrá tu próximo<br><em>vehículo ideal</em></h1>
@@ -69,60 +71,70 @@
         <div class="hero-actions">
           <button class="btn btn-primary btn-lg" onclick="showSection('vehicles')">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-              <path
-                d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+              <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
             </svg>
             Explorar Vehículos
           </button>
           <button class="btn btn-ghost btn-lg" onclick="tryPublish()">Publicar gratis →</button>
         </div>
-        <div class="hero-stats">
-          <div class="stat">
-            <div class="stat-value" id="statVehicles"><span class="skeleton" style="display:inline-block;width:3rem;height:1.5rem;border-radius:4px;vertical-align:middle;"></span></div>
-            <div class="stat-label">Vehículos</div>
-          </div>
-          <div class="hero-divider"></div>
-          <div class="stat">
-            <div class="stat-value" id="statUsers"><span class="skeleton" style="display:inline-block;width:3rem;height:1.5rem;border-radius:4px;vertical-align:middle;"></span></div>
-            <div class="stat-label">Usuarios</div>
-          </div>
-          <div class="hero-divider"></div>
-          <div class="stat">
-            <div class="stat-value" style="font-size: 1.4rem;">Gratis</div>
-            <div class="stat-label">Sin comisión</div>
-          </div>
+      </div>
+
+      <!-- STATS BAR -->
+      <div class="home-stats-bar">
+        <div class="home-stat">
+          <div class="home-stat-value" id="statVehicles"><span class="skeleton" style="display:inline-block;width:3rem;height:1.5rem;border-radius:4px;vertical-align:middle;"></span></div>
+          <div class="home-stat-label">Vehículos activos</div>
         </div>
-        <div class="features-strip">
-          <div class="feature-item">
-            <div class="feature-icon">🔍</div>
-            <div class="feature-text">
-              <strong>Buscá</strong>
-              <span>Miles de vehículos con filtros avanzados</span>
-            </div>
+        <div class="home-stat-sep"></div>
+        <div class="home-stat">
+          <div class="home-stat-value" id="statUsers"><span class="skeleton" style="display:inline-block;width:3rem;height:1.5rem;border-radius:4px;vertical-align:middle;"></span></div>
+          <div class="home-stat-label">Usuarios registrados</div>
+        </div>
+        <div class="home-stat-sep"></div>
+        <div class="home-stat">
+          <div class="home-stat-value" style="color:var(--success);">Gratis</div>
+          <div class="home-stat-label">Sin comisión</div>
+        </div>
+      </div>
+
+      <!-- ÚLTIMOS PUBLICADOS -->
+      <div class="home-wrap">
+        <div class="home-section-header">
+          <div>
+            <h2>Últimos publicados</h2>
+            <p>Los vehículos más recientes en el mercado</p>
           </div>
-          <div class="feature-item">
-            <div class="feature-icon">💬</div>
-            <div class="feature-text">
-              <strong>Consultá</strong>
-              <span>Chat directo con el vendedor</span>
-            </div>
+          <button class="btn btn-ghost" onclick="showSection('vehicles')">Ver todos →</button>
+        </div>
+        <div id="homeRecentVehicles" class="vehicles-grid"></div>
+      </div>
+
+      <!-- CÓMO FUNCIONA -->
+      <div class="home-wrap">
+        <div class="home-features">
+          <div class="home-feature-card" onclick="showSection('vehicles')">
+            <div class="home-feature-icon">🔍</div>
+            <strong>Buscá</strong>
+            <span>Miles de vehículos con filtros avanzados por marca, precio, año y más</span>
           </div>
-          <div class="feature-item">
-            <div class="feature-icon">🤝</div>
-            <div class="feature-text">
-              <strong>Negociá</strong>
-              <span>Cerrá el trato de forma segura</span>
-            </div>
+          <div class="home-feature-card" onclick="showSection('messages')">
+            <div class="home-feature-icon">💬</div>
+            <strong>Consultá</strong>
+            <span>Chat directo con el vendedor, sin intermediarios ni comisiones</span>
           </div>
-          <div class="feature-item">
-            <div class="feature-icon">⚡</div>
-            <div class="feature-text">
-              <strong>Publicá gratis</strong>
-              <span>Tu anuncio online en segundos</span>
-            </div>
+          <div class="home-feature-card">
+            <div class="home-feature-icon">🤝</div>
+            <strong>Negociá</strong>
+            <span>Cerrá el trato de forma segura con historial de conversación</span>
+          </div>
+          <div class="home-feature-card" onclick="tryPublish()">
+            <div class="home-feature-icon">⚡</div>
+            <strong>Publicá gratis</strong>
+            <span>Tu anuncio online en segundos, con fotos y descripción completa</span>
           </div>
         </div>
       </div>
+
     </section>
 
     <!-- LOGIN -->
@@ -926,12 +938,17 @@
         Mi Perfil</a>
       <a onclick="closeMobileMenu(); showSection('favorites');" class="mobile-menu-item"><i data-lucide="heart"></i>
         Favoritos</a>
+      <a onclick="closeMobileMenu(); showSection('following-feed');" class="mobile-menu-item"><i data-lucide="users"></i>
+        Siguiendo</a>
       <a onclick="closeMobileMenu(); showSection('my-vehicles');" class="mobile-menu-item"><i data-lucide="car"></i> Mis
         Anuncios</a>
       <a onclick="closeMobileMenu(); showSection('notifications');" class="mobile-menu-item"><i data-lucide="bell"></i>
         Notificaciones</a>
       <a id="mobileMenuAdmin" onclick="closeMobileMenu(); showSection('admin');" class="mobile-menu-item"
         style="display:none;"><i data-lucide="shield-check"></i> Admin</a>
+      <div style="height:1px;background:var(--border);margin:0.5rem 0.75rem;"></div>
+      <a onclick="toggleTheme()" class="mobile-menu-item" id="mobileThemeToggle">☀️ Cambiar a modo día</a>
+      <div style="height:1px;background:var(--border);margin:0.5rem 0.75rem;"></div>
       <a onclick="closeMobileMenu(); logout();" class="mobile-menu-item" style="color:#ef4444;"><i
           data-lucide="log-out"></i> Cerrar Sesión</a>
     </div>
