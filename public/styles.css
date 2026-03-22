@@ -1268,11 +1268,31 @@ select {
 .lightbox-prev { left: 1rem; }
 .lightbox-next { right: 1rem; }
 .lightbox-counter {
-  position: absolute; bottom: 1.5rem; left: 50%; transform: translateX(-50%);
+  position: absolute; bottom: 5.5rem; left: 50%; transform: translateX(-50%);
   color: rgba(255,255,255,0.7); font-size: 0.9rem; font-weight: 500;
+  pointer-events: none;
 }
+.lightbox-thumbs {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  display: flex; align-items: center; justify-content: center;
+  gap: 0.4rem; padding: 0.75rem 1rem;
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%);
+  scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.3) transparent;
+}
+.lightbox-thumbs::-webkit-scrollbar { height: 4px; }
+.lightbox-thumbs::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 2px; }
+.lightbox-thumb {
+  flex: 0 0 auto; width: 56px; height: 42px; object-fit: cover;
+  border-radius: 4px; cursor: pointer; opacity: 0.55;
+  border: 2px solid transparent; transition: opacity 0.2s, border-color 0.2s;
+}
+.lightbox-thumb:hover { opacity: 0.85; }
+.lightbox-thumb.active { opacity: 1; border-color: #fff; }
 @media (max-width: 768px) {
   .lightbox-prev, .lightbox-next { font-size: 2rem; padding: 0.3rem 0.7rem; }
+  .lightbox-counter { bottom: 5rem; }
+  .lightbox-thumb { width: 44px; height: 33px; }
 }
 
 /* ===== CONFIRM MODAL ===== */

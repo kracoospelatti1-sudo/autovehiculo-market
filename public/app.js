@@ -869,7 +869,7 @@ async function viewVehicle(id) {
 
           <div class="detail-actions" style="margin-top:1.5rem;display:flex;gap:1rem;flex-direction:column;">
             <button class="btn btn-secondary share-btn" onclick="shareVehicle(${vehicle.id}, '${escapeHtml(vehicle.title).replace(/'/g, '&#39;')}', ${vehicle.price})"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="margin-right:0.5rem;"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>Compartir</button>
-            ${isLoggedIn ? `<button class="btn ${isFavorite ? 'btn-primary' : 'btn-secondary'}" onclick="toggleFavorite(${vehicle.id}, event)"><svg width="18" height="18" viewBox="0 0 24 24" fill="${isFavorite ? 'currentColor' : 'none'}" stroke="currentColor" style="margin-right:0.5rem;"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>${isFavorite ? 'En favoritos' : 'Guardar en favoritos'}</button>` : ''}
+            ${isLoggedIn ? `<button id="detailFavBtn" class="btn ${isFavorite ? 'btn-primary' : 'btn-secondary'}" onclick="toggleFavorite(${vehicle.id}, event)"><svg width="18" height="18" viewBox="0 0 24 24" fill="${isFavorite ? 'currentColor' : 'none'}" stroke="currentColor" style="margin-right:0.5rem;"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>${isFavorite ? 'En favoritos' : 'Guardar en favoritos'}</button>` : ''}
             ${isLoggedIn && !isOwner ? `<button class="btn btn-ghost" onclick="openReportModal(${vehicle.id})" style="color:var(--text-3);">Reportar esta publicación</button>` : ''}
             ${!isLoggedIn ? `<button class="btn btn-primary" style="width:100%" onclick="showSection('login')">Inicia sesión para contactar</button>` : ''}
           </div>
@@ -1222,16 +1222,14 @@ async function toggleFavorite(id, e) {
     });
 
     // Update the favorite button in the detail view if open
-    if (document.getElementById('vehicle-detail')?.style.display !== 'none') {
-      const detailFavBtn = document.querySelector('#vehicleDetail .detail-actions .btn');
-      if (detailFavBtn && (detailFavBtn.textContent.includes('favoritos') || detailFavBtn.textContent.includes('Guardar'))) {
-        detailFavBtn.className = `btn ${res.favorited ? 'btn-primary' : 'btn-secondary'}`;
-        const svgPath = detailFavBtn.querySelector('svg path');
-        if (svgPath) svgPath.setAttribute('fill', res.favorited ? 'currentColor' : 'none');
-        const svgEl = detailFavBtn.querySelector('svg');
-        if (svgEl) svgEl.setAttribute('stroke', 'currentColor');
-        detailFavBtn.lastChild.textContent = res.favorited ? 'En favoritos' : 'Guardar en favoritos';
-      }
+    const detailFavBtn = document.getElementById('detailFavBtn');
+    if (detailFavBtn) {
+      detailFavBtn.className = `btn ${res.favorited ? 'btn-primary' : 'btn-secondary'}`;
+      const svgPath = detailFavBtn.querySelector('svg path');
+      if (svgPath) svgPath.setAttribute('fill', res.favorited ? 'currentColor' : 'none');
+      // Update text node (last child after SVG)
+      const textNode = [...detailFavBtn.childNodes].find(n => n.nodeType === Node.TEXT_NODE);
+      if (textNode) textNode.textContent = res.favorited ? 'En favoritos' : 'Guardar en favoritos';
     }
   } catch (err) { showToast(err.message, 'error'); }
 }
@@ -1938,7 +1936,8 @@ async function resolveReport(id, status) {
 
 async function loadAdminUsers() {
   try {
-    const users = await request('/admin/users');
+    const res = await request('/admin/users');
+    const users = res?.users ?? res;
     document.getElementById('adminContent').innerHTML = users?.length ? `
       <div class="table-responsive">
         <table class="admin-table">
@@ -2222,20 +2221,49 @@ let lightboxIndex = 0;
 function openLightbox(images, startIndex) {
   if (!images?.length) return;
   lightboxImages = images;
-  lightboxIndex = startIndex || 0;
+  lightboxIndex = typeof startIndex === 'number' ? startIndex : 0;
   const modal = document.getElementById('lightboxModal');
+  // Render thumbnail strip
+  const thumbsEl = document.getElementById('lightboxThumbs');
+  if (thumbsEl) {
+    if (images.length > 1) {
+      thumbsEl.innerHTML = images.map((url, i) =>
+        `<img src="${url}" class="lightbox-thumb${i === lightboxIndex ? ' active' : ''}" data-index="${i}" onclick="lightboxSetIndex(${i})" alt="">`
+      ).join('');
+      thumbsEl.style.display = 'flex';
+    } else {
+      thumbsEl.innerHTML = '';
+      thumbsEl.style.display = 'none';
+    }
+  }
   document.getElementById('lightboxImage').src = lightboxImages[lightboxIndex];
-  document.getElementById('lightboxCounter').textContent = `${lightboxIndex + 1} / ${lightboxImages.length}`;
+  const counterEl = document.getElementById('lightboxCounter');
+  if (images.length > 1) {
+    counterEl.textContent = `${lightboxIndex + 1} / ${lightboxImages.length}`;
+    counterEl.style.display = '';
+  } else {
+    counterEl.style.display = 'none';
+  }
   modal.style.display = 'flex';
 }
 function closeLightbox(e) {
   if (e && e.target && e.target.tagName === 'IMG') return;
   document.getElementById('lightboxModal').style.display = 'none';
 }
-function lightboxNav(dir) {
-  lightboxIndex = (lightboxIndex + dir + lightboxImages.length) % lightboxImages.length;
+function lightboxSetIndex(i) {
+  lightboxIndex = i;
   document.getElementById('lightboxImage').src = lightboxImages[lightboxIndex];
   document.getElementById('lightboxCounter').textContent = `${lightboxIndex + 1} / ${lightboxImages.length}`;
+  const thumbsEl = document.getElementById('lightboxThumbs');
+  if (thumbsEl) {
+    thumbsEl.querySelectorAll('.lightbox-thumb').forEach((t, idx) => t.classList.toggle('active', idx === i));
+    // Scroll active thumb into view within the strip
+    const activeThumb = thumbsEl.querySelector('.lightbox-thumb.active');
+    if (activeThumb) activeThumb.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+  }
+}
+function lightboxNav(dir) {
+  lightboxSetIndex((lightboxIndex + dir + lightboxImages.length) % lightboxImages.length);
 }
 document.addEventListener('keydown', e => {
   if (document.getElementById('lightboxModal').style.display === 'none') return;
