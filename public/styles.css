@@ -3112,7 +3112,7 @@ select {
   .vehicle-card {
     display: flex;
     flex-direction: row;
-    min-height: 120px;
+    min-height: 150px;
   }
 
   .vehicle-card:hover {
@@ -3121,7 +3121,7 @@ select {
   }
 
   .vehicle-image-container {
-    width: 130px !important;
+    width: 165px !important;
     flex-shrink: 0;
     aspect-ratio: unset !important;
     height: auto;
