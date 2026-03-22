@@ -400,6 +400,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Marcar username como editado manualmente para no sobreescribirlo
+  const usernameInput = document.getElementById('registerUsername');
+  if (usernameInput) {
+    usernameInput.addEventListener('input', () => { usernameInput.dataset.edited = 'true'; });
+  }
+
   // Currency selectors
   ['publish', 'edit'].forEach(prefix => {
     const currencyEl = document.getElementById(`${prefix}Currency`);
@@ -593,6 +599,16 @@ function showSection(sectionId) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+
+function suggestUsername() {
+  const first = document.getElementById('registerFirstName')?.value.trim().toLowerCase() || '';
+  const last = document.getElementById('registerLastName')?.value.trim().toLowerCase() || '';
+  const usernameEl = document.getElementById('registerUsername');
+  if (!usernameEl || usernameEl.dataset.edited === 'true') return;
+  const suggestion = (first + last).replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
+  if (suggestion) usernameEl.placeholder = suggestion;
+  usernameEl.value = suggestion;
+}
 
 function updatePasswordStrength(password) {
   const fill = document.getElementById('passwordStrengthFill');
@@ -841,7 +857,7 @@ async function loadVehicles(page = 1) {
           ${v.city ? `<p class="vehicle-location"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> ${escapeHtml(v.city)}${v.province ? ', ' + escapeHtml(v.province.replace(/\s*\(.*?\)/g,'').trim()) : ''}</p>` : ''}
           <div class="vehicle-price-block">
             <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
-            ${formatPesos(v.price) ? `<p class="vehicle-price-ars">${formatPesos(v.price)}</p>` : ''}
+            ${formatPesos(v.price, v) ? `<p class="vehicle-price-ars">${formatPesos(v.price, v)}</p>` : ''}
             ${(() => {
               const ph = v.price_history;
               if (ph && ph.length >= 2) {
@@ -933,7 +949,11 @@ function clearFilters() {
   loadVehicles(1);
 }
 
-function formatPesos(usdPrice) {
+function formatPesos(usdPrice, vehicle) {
+  // Si el vehículo fue publicado en ARS, usar el precio original exacto
+  if (vehicle?.price_currency === 'ARS' && vehicle?.price_original) {
+    return '$' + Number(vehicle.price_original).toLocaleString('es-AR');
+  }
   if (!dolarRate?.venta || !usdPrice) return null;
   const ars = Math.round(Number(usdPrice) * dolarRate.venta);
   return '$' + ars.toLocaleString('es-AR');
@@ -1088,7 +1108,7 @@ async function viewVehicle(id) {
           <p class="detail-subtitle">${escapeHtml(vehicle.brand)} ${escapeHtml(vehicle.model)}</p>
           <div class="detail-price-block">
             <div class="detail-price">USD ${formatNumber(vehicle.price)}${priceChangeHtml}</div>
-            ${formatPesos(vehicle.price) ? `<div class="detail-price-ars">${formatPesos(vehicle.price)}</div>` : ''}
+            ${formatPesos(vehicle.price, vehicle) ? `<div class="detail-price-ars">${formatPesos(vehicle.price, vehicle)}</div>` : ''}
           </div>
           <div class="detail-specs">
             <div class="spec-card"><div class="label">Año</div><div class="value">${escapeHtml(String(vehicle.year))}</div></div>
@@ -1354,6 +1374,8 @@ async function handlePublish(e) {
       version: document.getElementById('publishVersion')?.value || '',
       year: document.getElementById('publishYear').value,
       price: getPriceInUSD('publish'),
+      price_original: parseFloat(document.getElementById('publishPrice').value) || null,
+      price_currency: document.getElementById('publishCurrency')?.value || 'USD',
       transmission: document.getElementById('publishTransmission').value,
       mileage: document.getElementById('publishMileage').value || 0,
       fuel: document.getElementById('publishFuel').value,
@@ -1408,7 +1430,7 @@ async function loadMyVehicles() {
           <p class="vehicle-brand">${escapeHtml(v.brand)} ${escapeHtml(v.model)}</p>
           <div class="vehicle-price-block">
             <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
-            ${formatPesos(v.price) ? `<p class="vehicle-price-ars">${formatPesos(v.price)}</p>` : ''}
+            ${formatPesos(v.price, v) ? `<p class="vehicle-price-ars">${formatPesos(v.price, v)}</p>` : ''}
           </div>
           <div class="vehicle-views"><svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z"/></svg> ${v.view_count || 0} vistas</div>
           <div style="display:flex;gap:0.5rem;margin-top:0.75rem;">
@@ -1494,6 +1516,8 @@ async function handleEditVehicle(e) {
         title: document.getElementById('editTitle').value,
         version: document.getElementById('editVersion').value,
         price: getPriceInUSD('edit'),
+        price_original: parseFloat(document.getElementById('editPrice').value) || null,
+        price_currency: document.getElementById('editCurrency')?.value || 'USD',
         mileage: document.getElementById('editMileage').value,
         fuel: document.getElementById('editFuel').value,
         transmission: document.getElementById('editTransmission').value,
@@ -1532,7 +1556,7 @@ async function loadFavorites() {
           <p class="vehicle-brand">${escapeHtml(v.brand)} ${escapeHtml(v.model)}</p>
           <div class="vehicle-price-block">
             <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
-            ${formatPesos(v.price) ? `<p class="vehicle-price-ars">${formatPesos(v.price)}</p>` : ''}
+            ${formatPesos(v.price, v) ? `<p class="vehicle-price-ars">${formatPesos(v.price, v)}</p>` : ''}
           </div>
           ${v.status === 'sold' ? `<button class="btn btn-ghost btn-sm" style="margin-top:0.5rem;color:var(--text-3);width:100%;" onclick="toggleFavorite(${v.id}, event);this.closest('.vehicle-card').remove()">Eliminar de favoritos</button>` : ''}
         </div>
@@ -2364,7 +2388,7 @@ async function viewProfile(id) {
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
           <div class="vehicle-price-block">
             <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
-            ${formatPesos(v.price) ? `<p class="vehicle-price-ars">${formatPesos(v.price)}</p>` : ''}
+            ${formatPesos(v.price, v) ? `<p class="vehicle-price-ars">${formatPesos(v.price, v)}</p>` : ''}
           </div>
           <span class="vehicle-trade-badge ${v.accepts_trade ? 'trade-yes' : 'trade-no'}" style="position:static;display:inline-block;margin-top:0.3rem;">${v.accepts_trade ? '🔄 Permuta' : 'Sin permuta'}</span>
           ${isViewerAdmin && !isOwn ? `<button class="btn btn-sm btn-danger" style="margin-top:0.5rem;width:100%;" data-vid="${v.id}" data-title="${escapeHtml(v.title)}" onclick="event.stopPropagation(); adminDeleteVehicle(+this.dataset.vid, this.dataset.title)">🗑 Eliminar</button>` : ''}
@@ -3412,7 +3436,7 @@ async function loadFollowingFeed(page = 1, reset = false) {
           ${v.city ? `<p class="vehicle-location">📍 ${escapeHtml(v.city)}${v.province ? ', ' + escapeHtml(v.province.replace(/\s*\(.*?\)/g,'').trim()) : ''}</p>` : ''}
           <div class="vehicle-price-block">
             <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
-            ${formatPesos(v.price) ? `<p class="vehicle-price-ars">${formatPesos(v.price)}</p>` : ''}
+            ${formatPesos(v.price, v) ? `<p class="vehicle-price-ars">${formatPesos(v.price, v)}</p>` : ''}
             ${(() => {
               const ph = v.price_history;
               if (ph && ph.length >= 2) {
@@ -3496,7 +3520,7 @@ async function loadHomeRecent() {
           ${v.city ? `<p class="vehicle-location"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> ${escapeHtml(v.city)}${v.province ? ', ' + escapeHtml(v.province.replace(/\s*\(.*?\)/g,'').trim()) : ''}</p>` : ''}
           <div class="vehicle-price-block">
             <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
-            ${formatPesos(v.price) ? `<p class="vehicle-price-ars">${formatPesos(v.price)}</p>` : ''}
+            ${formatPesos(v.price, v) ? `<p class="vehicle-price-ars">${formatPesos(v.price, v)}</p>` : ''}
           </div>
           <div class="vehicle-meta">
             ${v.mileage === 0 ? '<span class="badge-nuevo">NUEVO</span>' : `<span>${formatNumber(v.mileage)} km</span>`}
@@ -3556,7 +3580,7 @@ async function loadSimilarVehicles(vehicleId) {
         <div class="similar-card-body">
           <p class="similar-card-title">${escapeHtml(v.title)}</p>
           <p class="similar-card-price">USD ${formatNumber(v.price)}</p>
-          ${formatPesos(v.price) ? `<p class="similar-card-ars">${formatPesos(v.price)}</p>` : ''}
+          ${formatPesos(v.price, v) ? `<p class="similar-card-ars">${formatPesos(v.price, v)}</p>` : ''}
           <p class="similar-card-meta">${v.year} · ${formatNumber(v.mileage)} km · ${escapeHtml(v.city || '')}</p>
         </div>
       </div>

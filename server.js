@@ -857,7 +857,7 @@ app.post('/api/vehicles', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'Tu cuenta ha sido restringida. No podés publicar contenido.' });
     }
 
-    let { title, brand, model, year, price, mileage, fuel, transmission, description, city, province, images, accepts_trade, vehicle_type, engine_cc, version } = req.body;
+    let { title, brand, model, year, price, price_original, price_currency, mileage, fuel, transmission, description, city, province, images, accepts_trade, vehicle_type, engine_cc, version } = req.body;
 
     if (!brand || !model || !year || !price) {
       return res.status(400).json({ error: 'Campos requeridos faltantes' });
@@ -892,6 +892,8 @@ app.post('/api/vehicles', authenticateToken, async (req, res) => {
         vehicle_type: vehicleType,
         engine_cc: vehicleType === 'moto' && engine_cc ? parseInt(engine_cc) : null,
         version: version || null,
+        price_original: price_original ? parseFloat(price_original) : null,
+        price_currency: price_currency || 'USD',
       })
       .select()
       .single();
@@ -950,7 +952,7 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'No tienes permiso' });
     }
 
-    const { title, brand, model, year, price, mileage, fuel, transmission, description, city, province, status, vehicle_type, engine_cc, version } = req.body;
+    const { title, brand, model, year, price, price_original, price_currency, mileage, fuel, transmission, description, city, province, status, vehicle_type, engine_cc, version } = req.body;
 
     let updates = { updated_at: new Date().toISOString() };
     if (title !== undefined) updates.title = title;
@@ -959,6 +961,8 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
     if (version !== undefined) updates.version = version;
     if (year !== undefined) updates.year = parseInt(year);
     if (price !== undefined) updates.price = parseFloat(price);
+    if (price_original !== undefined) updates.price_original = price_original ? parseFloat(price_original) : null;
+    if (price_currency !== undefined) updates.price_currency = price_currency || 'USD';
     if (mileage !== undefined) updates.mileage = parseInt(mileage);
     if (fuel !== undefined) updates.fuel = fuel;
     if (transmission !== undefined) updates.transmission = transmission;

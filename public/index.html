@@ -173,48 +173,54 @@
     <!-- REGISTER -->
     <section id="register" class="section" style="display:none;">
       <div class="form-container fade-in">
-        <h2>Crear cuenta</h2>
-        <p class="subtitle">Únete gratis y empezá a publicar hoy</p>
+        <div class="register-header">
+          <div class="register-icon"><i data-lucide="user-plus"></i></div>
+          <h2>Crear cuenta</h2>
+          <p class="subtitle">Únete gratis y empezá a publicar hoy</p>
+        </div>
         <form onsubmit="handleRegister(event)">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
-            <div class="form-group" style="margin:0;">
-              <label for="registerFirstName">Nombre</label>
-              <input type="text" id="registerFirstName" placeholder="Juan" required autocomplete="given-name">
+          <!-- Datos personales -->
+          <p class="form-section-label">Datos personales</p>
+          <div class="form-row-2">
+            <div class="input-icon-wrap">
+              <i data-lucide="user"></i>
+              <input type="text" id="registerFirstName" placeholder="Nombre" required autocomplete="given-name" oninput="suggestUsername()">
             </div>
-            <div class="form-group" style="margin:0;">
-              <label for="registerLastName">Apellido</label>
-              <input type="text" id="registerLastName" placeholder="García" required autocomplete="family-name">
+            <div class="input-icon-wrap">
+              <i data-lucide="user"></i>
+              <input type="text" id="registerLastName" placeholder="Apellido" required autocomplete="family-name" oninput="suggestUsername()">
             </div>
           </div>
-          <div class="form-group">
-            <label for="registerUsername">Nombre de usuario</label>
-            <input type="text" id="registerUsername" placeholder="juangarcia99" required autocomplete="username">
+          <!-- Cuenta -->
+          <p class="form-section-label" style="margin-top:1.25rem;">Datos de acceso</p>
+          <div class="input-icon-wrap">
+            <i data-lucide="at-sign"></i>
+            <input type="text" id="registerUsername" placeholder="Nombre de usuario" required autocomplete="username">
           </div>
-          <div class="form-group">
-            <label for="registerEmail">Correo electrónico</label>
-            <input type="email" id="registerEmail" placeholder="tu@email.com" required autocomplete="email">
+          <div class="input-icon-wrap">
+            <i data-lucide="mail"></i>
+            <input type="email" id="registerEmail" placeholder="Correo electrónico" required autocomplete="email">
           </div>
-          <div class="form-group">
-            <label for="registerPassword">Contraseña</label>
-            <input type="password" id="registerPassword" placeholder="Mínimo 8 caracteres" required
+          <div class="input-icon-wrap">
+            <i data-lucide="lock"></i>
+            <input type="password" id="registerPassword" placeholder="Contraseña (mín. 8 caracteres)" required
               autocomplete="new-password" oninput="updatePasswordStrength(this.value)">
-            <div class="password-strength-bar" id="passwordStrengthBar">
-              <div class="password-strength-fill" id="passwordStrengthFill"></div>
-            </div>
-            <span id="passwordStrengthLabel" class="password-strength-label"></span>
           </div>
-          <div class="h-captcha" data-sitekey="d28a3f78-282e-428e-b27c-e2c66ef65ab8" data-size="normal"
-            style="margin-top:1rem;"></div>
-          <button type="submit" class="btn btn-primary" style="width:100%;margin-top:0.75rem;" id="registerBtn">Crear
-            Cuenta</button>
+          <div class="password-strength-bar" id="passwordStrengthBar">
+            <div class="password-strength-fill" id="passwordStrengthFill"></div>
+          </div>
+          <span id="passwordStrengthLabel" class="password-strength-label"></span>
+          <!-- Captcha -->
+          <div class="h-captcha" data-sitekey="d28a3f78-282e-428e-b27c-e2c66ef65ab8" data-size="normal" style="margin-top:1.25rem;"></div>
+          <button type="submit" class="btn btn-primary" style="width:100%;margin-top:1rem;padding:0.9rem;font-size:1rem;" id="registerBtn">
+            Crear cuenta
+          </button>
         </form>
         <p style="text-align:center;margin-top:1rem;color:var(--text-3);font-size:0.8rem;">
-          Al registrarte aceptás nuestros <a onclick="showSection('terms')"
-            style="color:var(--primary-light);cursor:pointer;">Términos y Condiciones</a>
+          Al registrarte aceptás nuestros <a onclick="showSection('terms')" style="color:var(--primary-light);cursor:pointer;">Términos y Condiciones</a>
         </p>
         <p style="text-align:center;margin-top:0.5rem;color:var(--text-2);font-size:0.88rem;">¿Ya tenés cuenta? <a
-            onclick="showSection('login')" style="color:var(--primary-light);cursor:pointer;font-weight:600;">Iniciar
-            sesión</a></p>
+            onclick="showSection('login')" style="color:var(--primary-light);cursor:pointer;font-weight:600;">Iniciar sesión</a></p>
       </div>
     </section>
 
