@@ -15,6 +15,7 @@ let rateVehicleId = null;
 let lastMessageId = 0;
 let isLoadingMessages = false;
 let pollCount = 0;
+let vehicleSearchAbortController = null;
 
 const API_URL = '/api';
 
@@ -291,7 +292,7 @@ async function request(endpoint, options = {}) {
   const token = localStorage.getItem('token');
   const headers = { 'Content-Type': 'application/json', ...options.headers };
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const response = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
+  const response = await fetch(`${API_URL}${endpoint}`, { ...options, headers, signal: options.signal });
   if (response.status === 204) return {};
   const contentType = response.headers.get('content-type') || '';
   const data = contentType.includes('application/json') ? await response.json() : {};
@@ -344,7 +345,7 @@ async function handleRegister(e) {
     localStorage.setItem('token', data.token);
     currentUser = data.user;
     if (!heartbeatInterval) heartbeatInterval = setInterval(() => { if (currentUser && document.visibilityState === 'visible') request('/ping', { method: 'PUT' }).catch(() => {}); }, 30000);
-    if (!notifInterval) notifInterval = setInterval(() => { if (currentUser) { loadNotificationCount(); loadUnreadMessageCount(); } }, 30000);
+    if (!notifInterval) notifInterval = setInterval(() => { if (currentUser) { loadCounts(); } }, 30000);
     updateNav();
     showToast('Registro exitoso. ¡Bienvenido!', 'success');
     showSection('home');
@@ -372,7 +373,7 @@ async function handleLogin(e) {
     localStorage.setItem('token', data.token);
     currentUser = data.user;
     if (!heartbeatInterval) heartbeatInterval = setInterval(() => { if (currentUser && document.visibilityState === 'visible') request('/ping', { method: 'PUT' }).catch(() => {}); }, 30000);
-    if (!notifInterval) notifInterval = setInterval(() => { if (currentUser) { loadNotificationCount(); loadUnreadMessageCount(); } }, 30000);
+    if (!notifInterval) notifInterval = setInterval(() => { if (currentUser) { loadCounts(); } }, 30000);
     updateNav();
     showToast('¡Bienvenido!', 'success');
     showSection('home');
@@ -399,6 +400,10 @@ function logout() {
 
 // VEHICLES
 async function loadVehicles(page = 1) {
+  if (vehicleSearchAbortController) {
+    vehicleSearchAbortController.abort();
+  }
+  vehicleSearchAbortController = new AbortController();
   const container = document.getElementById('vehiclesList');
   if (page === 1 && container) {
     container.innerHTML = Array(6).fill().map(() => `
@@ -421,7 +426,7 @@ async function loadVehicles(page = 1) {
       if (el?.value) params.append(key, el.value);
     });
     params.append('page', page);
-    const { vehicles = [], total = 0 } = await request(`/vehicles?${params}`) || {};
+    const { vehicles = [], total = 0 } = await request(`/vehicles?${params}`, { signal: vehicleSearchAbortController.signal }) || {};
     document.getElementById('vehiclesCount').textContent = `${total} vehículo${total !== 1 ? 's' : ''} encontrado${total !== 1 ? 's' : ''}`;
     if (!vehicles?.length) {
       container.innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99z"/></svg><h3>No hay vehículos</h3><p>Sé el primero en publicar</p></div>';
@@ -460,7 +465,10 @@ async function loadVehicles(page = 1) {
       </div>
     `).join('');
     renderPagination(total, page);
-  } catch (err) { showToast(err.message, 'error'); }
+  } catch (err) {
+    if (err.name === 'AbortError') return;
+    showToast(err.message, 'error');
+  }
 }
 
 function renderPagination(total, current) {
@@ -484,7 +492,10 @@ function toggleFilters() {
   panel.style.display = isHidden ? 'block' : 'none';
 }
 
-function applyFilters() { loadVehicles(1); }
+function applyFilters() {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => loadVehicles(1), 300);
+}
 
 function clearFilters() {
   ['filterMinPrice', 'filterMaxPrice', 'filterMinYear', 'filterMaxYear', 'filterBrand', 'filterModel', 'filterFuel', 'filterTransmission', 'filterCity', 'filterMaxMileage', 'filterProvince', 'filterSort'].forEach(id => {
@@ -1126,6 +1137,10 @@ async function pollNewMessages(convId) {
         request(`/conversations/${convId}/read`, { method: 'PUT' }).catch(() => {});
         loadUnreadMessageCount();
       }
+
+      chatNoMessageStreak = 0;
+    } else {
+      chatNoMessageStreak++;
     }
 
   } catch {}
@@ -1271,13 +1286,33 @@ function renderEmptyChat() {
 }
 
 function scrollChat() { setTimeout(() => { const c = document.getElementById('chatMessagesContainer'); if (c) c.scrollTop = c.scrollHeight; }, 100); }
+let chatPollTimeout = null;
+let chatNoMessageStreak = 0;
+
+function schedulePoll() {
+  clearTimeout(chatPollTimeout);
+  if (!currentConversationId) return;
+  const delay = chatNoMessageStreak >= 5
+    ? Math.min(6000 * Math.pow(1.3, chatNoMessageStreak - 5), 15000)
+    : 6000;
+  chatPollTimeout = setTimeout(async () => {
+    if (currentConversationId) {
+      await pollNewMessages(currentConversationId);
+    }
+    schedulePoll();
+  }, delay);
+}
+
 function startPolling() {
   stopPolling();
-  pollingInterval = setInterval(() => {
-    if (currentConversationId) pollNewMessages(currentConversationId);
-  }, 3000);
+  chatNoMessageStreak = 0;
+  schedulePoll();
 }
-function stopPolling() { if (pollingInterval) { clearInterval(pollingInterval); pollingInterval = null; } }
+function stopPolling() {
+  if (pollingInterval) { clearInterval(pollingInterval); pollingInterval = null; }
+  clearTimeout(chatPollTimeout);
+  chatPollTimeout = null;
+}
 
 function hasUserScrolledToBottom() {
   const c = document.getElementById('chatMessagesContainer');
@@ -2232,8 +2267,7 @@ async function checkAuth() {
       currentUser = await request('/user');
       if (currentUser.profile?.is_admin) document.getElementById('navAdmin').style.display = 'inline';
       updateNav();
-      loadNotificationCount();
-      loadUnreadMessageCount();
+      loadCounts();
       request('/ping', { method: 'PUT' }).catch(() => {});
     } catch { localStorage.removeItem('token'); currentUser = null; }
   }
@@ -2252,11 +2286,28 @@ checkAuth().then(() => {
   }
 });
 
+async function loadCounts() {
+  if (!currentUser) return;
+  try {
+    const data = await request(`/counts?ignoreChat=${currentConversationId || ''}`);
+    if (!data) return;
+    const notifBadge = document.getElementById('notificationsBadge');
+    if (notifBadge) {
+      notifBadge.textContent = data.notifications > 0 ? data.notifications : '';
+      notifBadge.style.display = data.notifications > 0 ? 'inline' : 'none';
+    }
+    const msgBadge = document.getElementById('messagesBadge');
+    if (msgBadge) {
+      msgBadge.textContent = data.messages > 0 ? data.messages : '';
+      msgBadge.style.display = data.messages > 0 ? 'inline' : 'none';
+    }
+  } catch {}
+}
+
 // Poll notification + unread messages count every 30 seconds
 let notifInterval = setInterval(() => {
   if (currentUser) {
-    loadNotificationCount();
-    loadUnreadMessageCount();
+    loadCounts();
   }
 }, 30000);
 
