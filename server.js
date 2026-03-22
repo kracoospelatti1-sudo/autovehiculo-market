@@ -57,7 +57,11 @@ const upload = multer({
   }
 });
 
-app.use(express.static('public'));
+app.use(express.static('public', {
+  maxAge: '7d',
+  etag: true,
+  lastModified: true,
+}));
 
 // Rate limiting
 const globalLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 500, message: { error: 'Demasiadas solicitudes, intenta en 15 minutos' } });

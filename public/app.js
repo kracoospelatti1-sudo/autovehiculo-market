@@ -1371,7 +1371,7 @@ async function loadFavorites() {
     container.innerHTML = vehicles.map(v => `
       <div class="vehicle-card" onclick="viewVehicle(${v.id})">
         <div class="vehicle-image-container">
-          <img src="${v.images?.[0]?.url || v.image_url || PLACEHOLDER_IMG}" class="vehicle-image" alt="${escapeHtml(v.title)}" onerror="this.src=PLACEHOLDER_IMG">
+          <img src="${v.images?.[0]?.url || v.image_url || PLACEHOLDER_IMG}" class="vehicle-image" alt="${escapeHtml(v.title)}" loading="lazy" onerror="this.src=PLACEHOLDER_IMG">
           ${v.status === 'sold' ? '<div class="sold-overlay"><span>VENDIDO</span></div>' : ''}
           <span class="vehicle-badge">${escapeHtml(String(v.year))}</span>
         </div>
@@ -2207,7 +2207,7 @@ async function viewProfile(id) {
     const vehicles = await request(`/vehicles?user_id=${id}`).catch(() => ({ vehicles: [] }));
     document.getElementById('profileVehiclesList').innerHTML = vehicles.vehicles?.length ? vehicles.vehicles.map(v => `
       <div class="vehicle-card" onclick="viewVehicle(${v.id})">
-        <div class="vehicle-image-container"><img src="${v.images?.[0]?.url || v.image_url || PLACEHOLDER_IMG}" class="vehicle-image" alt="${escapeHtml(v.title)}" onerror="this.src=PLACEHOLDER_IMG"></div>
+        <div class="vehicle-image-container"><img src="${v.images?.[0]?.url || v.image_url || PLACEHOLDER_IMG}" class="vehicle-image" alt="${escapeHtml(v.title)}" loading="lazy" onerror="this.src=PLACEHOLDER_IMG"></div>
         <div class="vehicle-info">
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
           <div class="vehicle-price-block">
