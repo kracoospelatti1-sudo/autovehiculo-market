@@ -26,7 +26,7 @@ const ALLOWED_ORIGINS = [
   _rawOrigin.replace(/^http:\/\//, 'https://'),
 ];
 const APP_URL = process.env.APP_URL || 'http://localhost:3000';
-const FROM_EMAIL = process.env.SMTP_FROM || 'AutoVehículo Market <noreply@autovehiculo.com>';
+const FROM_EMAIL = process.env.SMTP_FROM || 'Autoventa <noreply@autoventa.online>';
 
 const mailer = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.hostinger.com',
@@ -403,7 +403,7 @@ app.post('/api/register', async (req, res) => {
     if (process.env.SMTP_USER) {
       mailer.sendMail({
         from: FROM_EMAIL, to: email,
-        subject: 'Verificá tu cuenta en AutoVehículo Market',
+        subject: 'Verificá tu cuenta en Autoventa',
         html: emailVerificationTemplate(username, verifyUrl),
       }).catch(err => console.error('Email verify error:', err.message));
     } else {
@@ -509,7 +509,7 @@ app.post('/api/auth/resend-verification', async (req, res) => {
     if (process.env.SMTP_USER) {
       mailer.sendMail({
         from: FROM_EMAIL, to: email,
-        subject: 'Verificá tu cuenta en AutoVehículo Market',
+        subject: 'Verificá tu cuenta en Autoventa',
         html: emailVerificationTemplate(user.username, verifyUrl),
       }).catch(err => console.error('Email resend error:', err.message));
     } else {
@@ -545,7 +545,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     if (process.env.SMTP_USER) {
       mailer.sendMail({
         from: FROM_EMAIL, to: email,
-        subject: 'Recuperá tu contraseña — AutoVehículo Market',
+        subject: 'Recuperá tu contraseña — Autoventa',
         html: emailResetTemplate(user.username, resetUrl),
       }).catch(err => console.error('Email reset error:', err.message));
     } else {
@@ -2804,7 +2804,7 @@ function emailVerificationTemplate(username, verifyUrl) {
   return `<!DOCTYPE html><html lang="es"><body style="margin:0;padding:0;background:#0f0e17;font-family:Inter,sans-serif;">
   <div style="max-width:520px;margin:40px auto;background:#1a1929;border-radius:16px;overflow:hidden;">
     <div style="background:linear-gradient(135deg,#6c63ff,#8b5cf6);padding:32px 40px;text-align:center;">
-      <h1 style="margin:0;color:#fff;font-size:1.5rem;">🚗 AutoVehículo Market</h1>
+      <h1 style="margin:0;color:#fff;font-size:1.5rem;">🚗 Autoventa</h1>
     </div>
     <div style="padding:40px;">
       <h2 style="color:#e2e0f0;margin-top:0;">¡Hola, ${username}!</h2>
@@ -2822,7 +2822,7 @@ function emailResetTemplate(username, resetUrl) {
   return `<!DOCTYPE html><html lang="es"><body style="margin:0;padding:0;background:#0f0e17;font-family:Inter,sans-serif;">
   <div style="max-width:520px;margin:40px auto;background:#1a1929;border-radius:16px;overflow:hidden;">
     <div style="background:linear-gradient(135deg,#6c63ff,#8b5cf6);padding:32px 40px;text-align:center;">
-      <h1 style="margin:0;color:#fff;font-size:1.5rem;">🚗 AutoVehículo Market</h1>
+      <h1 style="margin:0;color:#fff;font-size:1.5rem;">🚗 Autoventa</h1>
     </div>
     <div style="padding:40px;">
       <h2 style="color:#e2e0f0;margin-top:0;">Recuperación de contraseña</h2>
