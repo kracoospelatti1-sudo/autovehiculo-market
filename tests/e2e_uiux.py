@@ -155,30 +155,28 @@ def check_messages_empty_state(page):
 
 def check_vehicle_detail_skeleton(page):
     """C4: el detalle de vehículo muestra skeleton inmediatamente"""
-    goto_home(page)
-    page.wait_for_load_state("networkidle")
-    page.wait_for_timeout(1000)
+    # Ir a la sección de vehículos y esperar que carguen las tarjetas
+    page.goto(BASE)
+    page.wait_for_load_state("domcontentloaded")
+    page.wait_for_timeout(500)
+    page.click("a[onclick*=\"vehicles\"]")
+    page.wait_for_timeout(2000)
 
-    # Buscar primer vehículo clickeable
-    cards = page.locator(".vehicle-card").all()
-    if not cards:
-        page.click("a[onclick*=\"vehicles\"]")
-        page.wait_for_load_state("networkidle")
-        page.wait_for_timeout(1500)
-        cards = page.locator(".vehicle-card").all()
+    # Buscar tarjeta con onclick de viewVehicle y extraer el ID
+    card = page.locator(".vehicle-card[onclick*='viewVehicle']").first
+    if card.count() == 0:
+        raise Exception("No hay tarjetas con viewVehicle para hacer click")
 
-    if not cards:
-        raise Exception("No hay tarjetas para hacer click")
+    # Obtener el onclick y extraer el ID del vehículo
+    onclick = card.get_attribute("onclick") or ""
+    # Disparar viewVehicle directamente vía JS para evitar problemas de click
+    page.evaluate(f"() => {{ {onclick} }}")
 
-    # Click en la primera tarjeta
-    cards[0].click()
-
-    # El skeleton debe aparecer ANTES de que carguen los datos
-    # Verificamos que la sección se muestre de inmediato
+    # La sección debe mostrarse inmediatamente (showSection es síncrono)
     detail_section = page.locator("#vehicle-detail")
-    detail_section.wait_for(state="visible", timeout=8000)
+    detail_section.wait_for(state="visible", timeout=5000)
 
-    # Verificar que hay algo renderizado (skeleton o contenido)
+    # Verificar que hay contenido (skeleton o datos)
     content_container = page.locator("#vehicleDetailContent")
     assert content_container.count() > 0, "Contenedor #vehicleDetailContent no encontrado"
 

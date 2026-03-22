@@ -8,6 +8,8 @@ const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
+const http = require('http');
+const { WebSocketServer } = require('ws');
 
 const app = express();
 
@@ -27,6 +29,13 @@ if (!SECRET_KEY) {
 }
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+// WebSocket state
+const wsRooms = new Map()          // Map<conversationId: string, Set<WebSocket>>
+const wsUserSockets = new Map()    // Map<userId: string, Set<WebSocket>>
+const wsOnlineUsers = new Set()    // Set<userId: string>
+const typingTimers = new Map()     // Map<`${convId}:${userId}`, Timeout>
+const lastSeenDebounce = new Map() // Map<userId: string, number (timestamp)>
 
 app.use(compression());
 app.use(cors({ origin: ALLOWED_ORIGIN }));
@@ -99,6 +108,124 @@ function formatNumber(num) {
   return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
+// ─── WebSocket helpers ────────────────────────────────────────────────────────
+function broadcastToRoom(conversationId, event, excludeUserId = null) {
+  const room = wsRooms.get(String(conversationId))
+  if (!room) return
+  const payload = JSON.stringify(event)
+  room.forEach(ws => {
+    if (ws.readyState !== ws.OPEN) return
+    if (excludeUserId && ws.userId === String(excludeUserId)) return
+    ws.send(payload)
+  })
+}
+
+function sendToUser(userId, event) {
+  const sockets = wsUserSockets.get(String(userId))
+  if (!sockets) return
+  const payload = JSON.stringify(event)
+  sockets.forEach(ws => {
+    if (ws.readyState === ws.OPEN) ws.send(payload)
+  })
+}
+
+function handleWsClose(ws) {
+  ws.joinedRooms.forEach(convId => {
+    const room = wsRooms.get(convId)
+    if (room) {
+      room.delete(ws)
+      if (room.size === 0) wsRooms.delete(convId)
+    }
+  })
+  const userSockets = wsUserSockets.get(ws.userId)
+  if (userSockets) {
+    userSockets.delete(ws)
+    if (userSockets.size === 0) {
+      wsUserSockets.delete(ws.userId)
+      wsOnlineUsers.delete(ws.userId)
+    }
+  }
+}
+
+async function handleWsMessage(ws, user, msg) {
+  const { type, payload } = msg
+
+  if (type === 'ping') {
+    ws.isAlive = true
+    if (ws.readyState === ws.OPEN) ws.send(JSON.stringify({ type: 'pong' }))
+    return
+  }
+
+  if (type === 'join_conversation') {
+    const convId = String(payload?.conversationId)
+    if (!convId || convId === 'undefined') return
+    // Validar acceso — una sola query
+    const { data: conv } = await supabase
+      .from('conversations')
+      .select('buyer_id, seller_id')
+      .eq('id', convId)
+      .maybeSingle()
+    if (!conv) return
+    if (String(conv.buyer_id) !== ws.userId && String(conv.seller_id) !== ws.userId) return
+    if (!wsRooms.has(convId)) wsRooms.set(convId, new Set())
+    wsRooms.get(convId).add(ws)
+    ws.joinedRooms.add(convId)
+    // Notificar al otro que estás online
+    const otherId = String(conv.buyer_id) === ws.userId ? String(conv.seller_id) : String(conv.buyer_id)
+    sendToUser(otherId, {
+      type: 'online_status',
+      payload: { userId: ws.userId, isOnline: true, lastSeen: null }
+    })
+    return
+  }
+
+  if (type === 'leave_conversation') {
+    const convId = String(payload?.conversationId)
+    if (!convId) return
+    const room = wsRooms.get(convId)
+    if (room) {
+      room.delete(ws)
+      if (room.size === 0) wsRooms.delete(convId)
+    }
+    ws.joinedRooms.delete(convId)
+    return
+  }
+
+  if (type === 'typing_start' || type === 'typing_stop') {
+    const convId = String(payload?.conversationId)
+    if (!convId || !ws.joinedRooms.has(convId)) return
+    // Throttle: 500ms entre typing events
+    const now = Date.now()
+    if (!ws.typingLastSent) ws.typingLastSent = 0
+    if (now - ws.typingLastSent < 500) return
+    ws.typingLastSent = now
+    const timerKey = `${convId}:${ws.userId}`
+    if (type === 'typing_start') {
+      clearTimeout(typingTimers.get(timerKey))
+      broadcastToRoom(convId, {
+        type: 'user_typing',
+        payload: { conversationId: convId, userId: ws.userId, username: user.username }
+      }, ws.userId)
+      typingTimers.set(timerKey, setTimeout(() => {
+        broadcastToRoom(convId, {
+          type: 'user_stopped_typing',
+          payload: { conversationId: convId, userId: ws.userId }
+        }, ws.userId)
+        typingTimers.delete(timerKey)
+      }, 4000))
+    } else {
+      clearTimeout(typingTimers.get(timerKey))
+      typingTimers.delete(timerKey)
+      broadcastToRoom(convId, {
+        type: 'user_stopped_typing',
+        payload: { conversationId: convId, userId: ws.userId }
+      }, ws.userId)
+    }
+    return
+  }
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 // ===== DÓLAR BLUE =====
 let dolarCache = { rate: null, timestamp: 0 };
 const DOLAR_CACHE_TTL = 10 * 60 * 1000; // 10 minutos
@@ -116,6 +243,44 @@ async function fetchDolarBlue() {
   dolarCache = { rate: data, timestamp: now };
   return data;
 }
+
+// ─── WebSocket Server ────────────────────────────────────────────────────────
+const wss = new WebSocketServer({ noServer: true })
+
+wss.on('connection', (ws, req) => {
+  const user = req.wsUser
+  ws.userId = String(user.id)
+  ws.isAlive = true
+  ws.joinedRooms = new Set()
+
+  if (!wsUserSockets.has(ws.userId)) wsUserSockets.set(ws.userId, new Set())
+  wsUserSockets.get(ws.userId).add(ws)
+  wsOnlineUsers.add(ws.userId)
+
+  ws.on('pong', () => { ws.isAlive = true })
+  ws.on('message', async (raw) => {
+    let msg
+    try { msg = JSON.parse(raw) } catch { return }
+    try { await handleWsMessage(ws, user, msg) } catch (e) { console.error('[WS] handleWsMessage error:', e) }
+  })
+  ws.on('close', () => handleWsClose(ws))
+  ws.on('error', () => handleWsClose(ws))
+})
+
+// Heartbeat — cleanup de sockets muertos cada 30s
+const wsPingInterval = setInterval(() => {
+  wss.clients.forEach(ws => {
+    if (!ws.isAlive) {
+      handleWsClose(ws)
+      ws.terminate()
+      return
+    }
+    ws.isAlive = false
+    ws.ping()
+  })
+}, 30000)
+wss.on('close', () => clearInterval(wsPingInterval))
+// ─────────────────────────────────────────────────────────────────────────────
 
 app.get('/api/dolar', async (_req, res) => {
   try {
@@ -919,7 +1084,13 @@ app.post('/api/users/:id/follow', authenticateToken, async (req, res) => {
 // HEARTBEAT
 app.put('/api/ping', authenticateToken, async (req, res) => {
   try {
-    await supabase.from('profiles').upsert({ user_id: req.user.id, last_seen: new Date().toISOString() }, { onConflict: 'user_id' });
+    // Debounce: escribir last_seen a DB máximo una vez cada 30s por usuario
+    const userId = String(req.user.id)
+    const lastWrite = lastSeenDebounce.get(userId) || 0
+    if (Date.now() - lastWrite > 30000) {
+      lastSeenDebounce.set(userId, Date.now())
+      await supabase.from('profiles').update({ last_seen: new Date().toISOString() }).eq('user_id', userId).catch(() => {})
+    }
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: 'Ping fallido' }); }
 });
@@ -1505,6 +1676,26 @@ app.post('/api/conversations/:id/messages', authenticateToken, messageLimiter, a
     }
 
     res.json({ ...message, username: message.users?.username });
+
+    // Broadcast WS — sin tocar DB
+    try {
+      const convIdStr = String(req.params.id)
+      const insertedMessage = { ...message, username: message.users?.username }
+      broadcastToRoom(convIdStr, {
+        type: 'new_message',
+        payload: {
+          conversationId: convIdStr,
+          message: { ...insertedMessage, username: req.user.username }
+        }
+      }, req.user.id)
+      // Notificar badge de unread al destinatario
+      if (recipientId) {
+        sendToUser(String(recipientId), {
+          type: 'unread_count_update',
+          payload: { delta: 1 }
+        })
+      }
+    } catch (e) { console.error('[WS] broadcast error:', e) }
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Error' });
@@ -1544,6 +1735,18 @@ app.put('/api/conversations/:id/read', authenticateToken, async (req, res) => {
       .eq('read', false);
 
     res.json({ success: true });
+
+    // Broadcast WS — marcar leídos en tiempo real
+    try {
+      broadcastToRoom(String(req.params.id), {
+        type: 'read_receipt',
+        payload: {
+          conversationId: String(req.params.id),
+          readAt: new Date().toISOString(),
+          readByUserId: String(req.user.id)
+        }
+      }, req.user.id)
+    } catch (e) { console.error('[WS] read_receipt broadcast error:', e) }
   } catch (error) {
     res.status(500).json({ error: 'Error' });
   }
@@ -2375,6 +2578,23 @@ app.get('/health', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Servidor corriendo en http://localhost:${PORT}`);
-});
+
+const httpServer = http.createServer(app)
+
+httpServer.on('upgrade', (req, socket, head) => {
+  const url = new URL(req.url, `http://localhost`)
+  if (url.pathname !== '/ws') { socket.destroy(); return }
+  const token = url.searchParams.get('token')
+  if (!token) { socket.destroy(); return }
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) { socket.destroy(); return }
+    req.wsUser = user
+    wss.handleUpgrade(req, socket, head, ws => {
+      wss.emit('connection', ws, req)
+    })
+  })
+})
+
+httpServer.listen(PORT, () => {
+  console.log(`Servidor corriendo en http://localhost:${PORT}`)
+})

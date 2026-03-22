@@ -21,6 +21,17 @@ let dolarRate = null;
 let dolarRateInterval = null;
 let userFavoriteIds = new Set();
 
+// WebSocket
+let wsConnection = null;
+let wsReconnectTimeout = null;
+let wsReconnectDelay = 1000;
+let wsReconnectAttempts = 0;
+let wsConnected = false;
+let wsReadReceiptDebounce = null;
+let wsTypingTimeout = null;
+let isTyping = false;
+let currentChatOtherUserId = null;
+
 const API_URL = '/api';
 
 const carBrands = {
@@ -1645,6 +1656,217 @@ function renderEmptyChat() {
 function scrollChat() { setTimeout(() => { const c = document.getElementById('chatMessagesContainer'); if (c) c.scrollTop = c.scrollHeight; }, 100); }
 let chatPollTimeout = null;
 let chatNoMessageStreak = 0;
+
+// ─── WebSocket ───────────────────────────────────────────────────────────────
+
+function wsSend(msg) {
+  if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
+    wsConnection.send(JSON.stringify(msg));
+    return true;
+  }
+  return false;
+}
+
+function initWebSocket() {
+  if (!currentUser) return;
+  if (wsConnection && wsConnection.readyState === WebSocket.OPEN) return;
+  const token = localStorage.getItem('token');
+  if (!token) return;
+
+  clearTimeout(wsReconnectTimeout);
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  const url = `${proto}://${location.host}/ws?token=${encodeURIComponent(token)}`;
+
+  wsConnection = new WebSocket(url);
+
+  wsConnection.onopen = function () {
+    wsConnected = true;
+    wsReconnectAttempts = 0;
+    wsReconnectDelay = 1000;
+    stopPolling();
+    if (currentConversationId) {
+      wsSend({ type: 'join_conversation', payload: { conversationId: currentConversationId } });
+    }
+  };
+
+  wsConnection.onmessage = function (event) {
+    let msg;
+    try { msg = JSON.parse(event.data); } catch { return; }
+    handleWsEvent(msg);
+  };
+
+  wsConnection.onclose = function () {
+    wsConnected = false;
+    wsConnection = null;
+    if (!currentUser) return;
+    wsReconnectAttempts++;
+    wsReconnectDelay = Math.min(wsReconnectDelay * 2, 30000);
+    const jitter = Math.random() * 1000;
+    wsReconnectTimeout = setTimeout(initWebSocket, wsReconnectDelay + jitter);
+    // Fallback: si llevamos 2+ intentos fallidos y hay chat abierto, activar polling
+    if (wsReconnectAttempts >= 2 && currentConversationId) {
+      startFallbackPolling();
+    }
+  };
+
+  wsConnection.onerror = function () { /* onclose se dispara solo */ };
+
+  // Fallback timeout: si no conecta en 5s, activar polling
+  wsReconnectTimeout = setTimeout(function () {
+    if (!wsConnected && currentConversationId) {
+      startFallbackPolling();
+    }
+  }, 5000);
+}
+
+function destroyWebSocket() {
+  clearTimeout(wsReconnectTimeout);
+  wsReconnectTimeout = null;
+  wsReconnectAttempts = 0;
+  wsReconnectDelay = 1000;
+  if (wsConnection) {
+    wsConnection.onclose = null;
+    wsConnection.close();
+    wsConnection = null;
+  }
+  wsConnected = false;
+}
+
+function handleWsEvent(msg) {
+  const { type, payload } = msg;
+
+  if (type === 'pong') return;
+
+  if (type === 'new_message') {
+    const { conversationId, message } = payload;
+    if (String(conversationId) !== String(currentConversationId)) {
+      // Mensaje en otra conversación — actualizar lista si está visible
+      refreshConversationBadge(conversationId);
+      return;
+    }
+    // Deduplicar
+    if (document.querySelector(`[data-message-id="${message.id}"]`)) return;
+    if (message.id <= lastMessageId) return;
+    const container = document.getElementById('chatMessagesContainer');
+    const isAtBottom = container ? (container.scrollHeight - container.scrollTop - container.clientHeight < 80) : true;
+    appendMessageToDOM(message, message.read_at);
+    lastMessageId = message.id;
+    if (isAtBottom) scrollChat();
+    // Si es mensaje entrante, marcar como leído con debounce
+    if (String(message.sender_id) !== String(currentUser?.id)) {
+      scheduleReadReceipt(conversationId);
+      refreshConversationItem(conversationId, message);
+    }
+    return;
+  }
+
+  if (type === 'read_receipt') {
+    const { conversationId, readAt, readByUserId } = payload;
+    if (String(conversationId) !== String(currentConversationId)) return;
+    if (String(readByUserId) === String(currentUser?.id)) return;
+    // Actualizar todos los bubbles enviados sin receipt
+    const container = document.getElementById('chatMessagesContainer');
+    if (!container) return;
+    container.querySelectorAll('.chat-bubble.sent').forEach(bubble => {
+      const timeEl = bubble.querySelector('.time');
+      if (timeEl && !timeEl.dataset.receipted) {
+        timeEl.dataset.receipted = '1';
+        const span = document.createElement('span');
+        span.className = 'read-receipt';
+        span.textContent = ` · Visto ${formatTime(readAt)}`;
+        span.style.cssText = 'opacity:0.7;font-size:0.75em;';
+        timeEl.appendChild(span);
+      }
+    });
+    return;
+  }
+
+  if (type === 'user_typing') {
+    const { conversationId, username } = payload;
+    if (String(conversationId) !== String(currentConversationId)) return;
+    showTypingIndicator(username);
+    return;
+  }
+
+  if (type === 'user_stopped_typing') {
+    const { conversationId } = payload;
+    if (String(conversationId) !== String(currentConversationId)) return;
+    hideTypingIndicator();
+    return;
+  }
+
+  if (type === 'online_status') {
+    const { userId, isOnline } = payload;
+    if (!currentChatOtherUserId || String(userId) !== String(currentChatOtherUserId)) return;
+    const statusEl = document.getElementById('chatOnlineStatus');
+    if (!statusEl) return;
+    statusEl.textContent = isOnline ? 'En línea' : 'Desconectado';
+    statusEl.style.color = isOnline ? 'var(--success, #22c55e)' : 'var(--text-muted)';
+    return;
+  }
+
+  if (type === 'unread_count_update') {
+    // Re-fetch el count real en lugar de usar delta (más preciso)
+    loadUnreadMessageCount && loadUnreadMessageCount();
+    return;
+  }
+}
+
+function scheduleReadReceipt(conversationId) {
+  clearTimeout(wsReadReceiptDebounce);
+  wsReadReceiptDebounce = setTimeout(() => {
+    request(`/conversations/${conversationId}/read`, { method: 'PUT' }).catch(() => {});
+  }, 2000);
+}
+
+function refreshConversationBadge(_conversationId) {
+  // Actualizar badge de unread en la lista de conversaciones
+  loadUnreadMessageCount && loadUnreadMessageCount();
+}
+
+function refreshConversationItem(conversationId, message) {
+  // Actualizar el preview del último mensaje en la lista de conversaciones
+  const item = document.querySelector(`.conversation-item[data-conv-id="${conversationId}"]`);
+  if (!item) return;
+  const preview = item.querySelector('.conv-preview, .last-message, .message-preview');
+  if (preview) preview.textContent = message.content || '';
+}
+
+function startFallbackPolling() {
+  if (wsConnected) return;
+  stopPolling();
+  if (currentConversationId) schedulePoll();
+}
+
+// Typing indicator UI
+function showTypingIndicator(username) {
+  const el = document.getElementById('typingIndicator');
+  if (!el) return;
+  el.textContent = `${escapeHtml(username)} está escribiendo...`;
+  el.style.display = 'block';
+  clearTimeout(el._hideTimeout);
+  el._hideTimeout = setTimeout(hideTypingIndicator, 5000);
+}
+
+function hideTypingIndicator() {
+  const el = document.getElementById('typingIndicator');
+  if (el) el.style.display = 'none';
+}
+
+function onChatInputTyping() {
+  if (!wsConnected || !currentConversationId) return;
+  if (!isTyping) {
+    isTyping = true;
+    wsSend({ type: 'typing_start', payload: { conversationId: currentConversationId } });
+  }
+  clearTimeout(wsTypingTimeout);
+  wsTypingTimeout = setTimeout(() => {
+    isTyping = false;
+    wsSend({ type: 'typing_stop', payload: { conversationId: currentConversationId } });
+  }, 2000);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 function schedulePoll() {
   clearTimeout(chatPollTimeout);
