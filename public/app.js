@@ -537,6 +537,8 @@ async function request(endpoint, options = {}) {
 
 function showSection(sectionId) {
   if (currentUser && (sectionId === 'login' || sectionId === 'register')) return;
+  // Limpiar el div de reenvío de verificación al salir del login
+  document.getElementById('resendVerificationDiv')?.remove();
   document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
   const section = document.getElementById(sectionId);
   if (section) {
@@ -663,7 +665,13 @@ async function handleLogin(e) {
         const resendDiv = document.createElement('p');
         resendDiv.id = 'resendVerificationDiv';
         resendDiv.style.cssText = 'text-align:center;margin-top:0.75rem;font-size:0.88rem;color:var(--text-2);';
-        resendDiv.innerHTML = `¿No recibiste el email? <a id="resendVerificationBtn" onclick="resendVerification('${email}')" style="color:var(--primary-light);cursor:pointer;font-weight:600;">Reenviar</a>`;
+        const resendLink = document.createElement('a');
+        resendLink.id = 'resendVerificationBtn';
+        resendLink.textContent = 'Reenviar';
+        resendLink.style.cssText = 'color:var(--primary-light);cursor:pointer;font-weight:600;';
+        resendLink.dataset.email = email; // Sin insertar en onclick — evita XSS
+        resendLink.addEventListener('click', () => resendVerification(resendLink.dataset.email));
+        resendDiv.append('¿No recibiste el email? ', resendLink);
         loginForm.appendChild(resendDiv);
       }
     } else {

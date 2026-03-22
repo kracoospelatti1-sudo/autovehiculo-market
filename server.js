@@ -1043,8 +1043,9 @@ app.delete('/api/vehicles/:id', authenticateToken, async (req, res) => {
 
     for (const img of images || []) {
       if (img.url && img.url.includes('supabase.co/storage')) {
-        const fileName = img.url.split('/storage/v1/object/public/')[1];
-        if (fileName) await supabase.storage.from('vehicle-images').remove([fileName]);
+        // El path debe ser relativo al bucket (sin el nombre del bucket)
+        const afterPublic = img.url.split('/storage/v1/object/public/vehicle-images/')[1];
+        if (afterPublic) await supabase.storage.from('vehicle-images').remove([afterPublic]);
       }
     }
     const safeDelete = async (table, filter) => {
@@ -1135,7 +1136,8 @@ app.post('/api/upload', authenticateToken, upload.single('image'), async (req, r
       return res.status(400).json({ error: 'No se proporcionó imagen' });
     }
 
-    const fileExt = req.file.originalname.split('.').pop();
+    // El cliente siempre comprime a JPEG — forzar extensión consistente
+    const fileExt = req.file.mimetype === 'image/png' ? 'png' : 'jpg';
     const fileName = `${req.user.id}_${Date.now()}.${fileExt}`;
 
     const { data, error } = await supabase.storage
