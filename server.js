@@ -18,7 +18,13 @@ const app = express();
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
 const SECRET_KEY = process.env.JWT_SECRET;
-const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'http://localhost:3000';
+// Normalizar origen: quitar barra final y generar variantes http/https
+const _rawOrigin = (process.env.ALLOWED_ORIGIN || 'http://localhost:3000').replace(/\/$/, '');
+const ALLOWED_ORIGINS = [
+  _rawOrigin,
+  _rawOrigin.replace(/^https:\/\//, 'http://'),
+  _rawOrigin.replace(/^http:\/\//, 'https://'),
+];
 const APP_URL = process.env.APP_URL || 'http://localhost:3000';
 const FROM_EMAIL = process.env.SMTP_FROM || 'AutoVehículo Market <noreply@autovehiculo.com>';
 
@@ -52,7 +58,7 @@ const typingTimers = new Map()     // Map<`${convId}:${userId}`, Timeout>
 const lastSeenDebounce = new Map() // Map<userId: string, number (timestamp)>
 
 app.use(compression());
-app.use(cors({ origin: ALLOWED_ORIGIN }));
+app.use(cors({ origin: ALLOWED_ORIGINS, credentials: true }));
 app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ limit: '100kb', extended: true }));
 
