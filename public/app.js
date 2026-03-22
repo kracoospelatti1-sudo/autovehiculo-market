@@ -1813,6 +1813,22 @@ function handleWsEvent(msg) {
     loadUnreadMessageCount && loadUnreadMessageCount();
     return;
   }
+
+  if (type === 'notification') {
+    // Incrementar badge en tiempo real
+    const badge = document.getElementById('notificationsBadge');
+    if (badge) {
+      const current = parseInt(badge.textContent) || 0;
+      badge.textContent = current + 1;
+      badge.style.display = 'inline';
+    }
+    // Si la sección está abierta, recargar la lista
+    const notifSection = document.getElementById('notifications');
+    if (notifSection && notifSection.style.display === 'block') {
+      loadNotifications();
+    }
+    return;
+  }
 }
 
 function scheduleReadReceipt(conversationId) {

@@ -129,6 +129,13 @@ function sendToUser(userId, event) {
   })
 }
 
+// Insert a notification and push it in real-time via WS
+async function pushNotif(userId, data) {
+  const { data: notif } = await supabase.from('notifications').insert({ ...data, user_id: userId }).select().single()
+  sendToUser(String(userId), { type: 'notification', payload: notif || { ...data, user_id: userId } })
+  return notif
+}
+
 function handleWsClose(ws) {
   ws.joinedRooms.forEach(convId => {
     const room = wsRooms.get(convId)
@@ -723,15 +730,13 @@ app.post('/api/vehicles', authenticateToken, async (req, res) => {
     const { data: followers } = await supabase.from('follows').select('follower_id').eq('following_id', req.user.id);
     if (followers?.length) {
       const { data: seller } = await supabase.from('users').select('username').eq('id', req.user.id).single();
-      const notifs = followers.map(f => ({
-        user_id: f.follower_id,
+      await Promise.all(followers.map(f => pushNotif(f.follower_id, {
         type: 'new_vehicle',
         title: 'Nueva publicación',
         message: `${seller?.username || 'Un vendedor que seguís'} publicó: ${title}`,
         link: `vehicle/${data.id}`,
         read: false
-      }));
-      await supabase.from('notifications').insert(notifs);
+      })));
     }
 
     res.json(data);
@@ -824,17 +829,14 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
         .eq('vehicle_id', req.params.id);
       if (favUsers?.length) {
         const vehicleTitle = data.title || title || 'Un vehículo';
-        const notifs = favUsers
-          .filter(f => f.user_id !== req.user.id)
-          .map(f => ({
-            user_id: f.user_id,
-            type: 'favorite_sold',
-            title: 'Vehículo vendido',
-            message: `${vehicleTitle} que tenías en favoritos fue marcado como vendido.`,
-            link: `vehicle/${req.params.id}`,
-            read: false
-          }));
-        if (notifs.length) await supabase.from('notifications').insert(notifs);
+        const filtered = favUsers.filter(f => f.user_id !== req.user.id);
+        if (filtered.length) await Promise.all(filtered.map(f => pushNotif(f.user_id, {
+          type: 'favorite_sold',
+          title: 'Vehículo vendido',
+          message: `${vehicleTitle} que tenías en favoritos fue marcado como vendido.`,
+          link: `vehicle/${req.params.id}`,
+          read: false
+        })));
       }
     }
 
@@ -1064,8 +1066,7 @@ app.post('/api/users/:id/follow', authenticateToken, async (req, res) => {
     await supabase.from('follows').insert({ follower_id: followerId, following_id: followingId });
 
     const { data: followerUser } = await supabase.from('users').select('username').eq('id', followerId).single();
-    await supabase.from('notifications').insert({
-      user_id: followingId,
+    await pushNotif(followingId, {
       type: 'follow',
       title: 'Nuevo seguidor',
       message: `${followerUser?.username || 'Alguien'} comenzó a seguirte`,
@@ -1133,8 +1134,7 @@ app.put('/api/admin/users/:id/verify', authenticateToken, async (req, res) => {
     if (error) throw error;
 
     if (newStatus) {
-      await supabase.from('notifications').insert({
-        user_id: targetUser,
+      await pushNotif(targetUser, {
         type: 'verified',
         title: '¡Felicitaciones! Tu cuenta fue verificada',
         message: 'Ahora podés cargar los datos de tu concesionaria e Instagram desde tu perfil.',
@@ -1271,8 +1271,7 @@ app.post('/api/favorites/:vehicleId', authenticateToken, async (req, res) => {
       .single();
 
     if (vehicle && vehicle.user_id !== req.user.id) {
-      await supabase.from('notifications').insert({
-        user_id: vehicle.user_id,
+      await pushNotif(vehicle.user_id, {
         type: 'favorite',
         title: 'Nuevo favorito',
         message: 'Alguien agregó tu vehículo a favoritos',
@@ -1444,8 +1443,7 @@ app.post('/api/conversations', authenticateToken, async (req, res) => {
         content: initial_message
       });
       await supabase.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', existingConv.id);
-      await supabase.from('notifications').insert({
-        user_id: vehicle.user_id,
+      await pushNotif(vehicle.user_id, {
         type: 'message',
         title: 'Nuevo mensaje',
         message: `Te enviaron un mensaje sobre "${vehicle.title}"`,
@@ -1472,8 +1470,7 @@ app.post('/api/conversations', authenticateToken, async (req, res) => {
       content: initial_message
     });
 
-    await supabase.from('notifications').insert({
-      user_id: vehicle.user_id,
+    await pushNotif(vehicle.user_id, {
       type: 'message',
       title: 'Nuevo mensaje',
       message: `Te enviaron un mensaje sobre "${vehicle.title}"`,
@@ -1658,18 +1655,19 @@ app.post('/api/conversations/:id/messages', authenticateToken, messageLimiter, a
       .eq('read', false)
       .maybeSingle();
 
+    const notifTitle = `Mensaje de ${senderUser?.username || 'alguien'}`;
     if (existingNotif) {
       // Actualizar la notificación existente en vez de crear una nueva
       await supabase.from('notifications').update({
-        title: `Mensaje de ${senderUser?.username || 'alguien'}`,
+        title: notifTitle,
         message: preview,
         created_at: new Date().toISOString()
       }).eq('id', existingNotif.id);
+      sendToUser(String(recipientId), { type: 'notification', payload: { ...existingNotif, title: notifTitle, message: preview } });
     } else {
-      await supabase.from('notifications').insert({
-        user_id: recipientId,
+      await pushNotif(recipientId, {
         type: 'message',
-        title: `Mensaje de ${senderUser?.username || 'alguien'}`,
+        title: notifTitle,
         message: preview,
         link: `messages/${req.params.id}`
       });
@@ -1843,8 +1841,7 @@ app.post('/api/vehicles/:id/trade-offer', authenticateToken, async (req, res) =>
     }
 
     const { data: proposerUser } = await supabase.from('users').select('username').eq('id', req.user.id).single();
-    await supabase.from('notifications').insert({
-      user_id: target.user_id,
+    await pushNotif(target.user_id, {
       type: 'trade_offer',
       title: 'Nueva propuesta de permuta',
       message: `${proposerUser?.username} quiere permutar por tu ${target.title}`,
@@ -1954,8 +1951,7 @@ app.put('/api/trade-offers/:id', authenticateToken, async (req, res) => {
       }
     }
 
-    await supabase.from('notifications').insert({
-      user_id: offer.proposer_id,
+    await pushNotif(offer.proposer_id, {
       type: status === 'accepted' ? 'trade_accepted' : 'trade_rejected',
       title: status === 'accepted' ? '¡Permuta aceptada!' : 'Permuta rechazada',
       message: status === 'accepted'
