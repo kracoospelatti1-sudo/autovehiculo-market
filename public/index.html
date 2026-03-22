@@ -248,7 +248,7 @@
         <div class="form-row" style="margin-bottom:0.75rem;">
           <div class="form-group">
             <label>Tipo</label>
-            <select id="filterVehicleType" onchange="initBrandFilters(); applyFilters()">
+            <select id="filterVehicleType" onchange="initBrandFilters(); updateVehicleTypeOptions('filter'); applyFilters()">
               <option value="">Todos</option>
               <option value="auto">Autos</option>
               <option value="moto">Motos</option>
@@ -276,16 +276,18 @@
               <option value="Automático">Automático</option>
               <option value="Automático CVT">Automático CVT</option>
               <option value="Automático DSG">Automático DSG</option>
+              <option value="Quick Shifter">Quick Shifter</option>
             </select>
           </div>
           <div class="form-group">
             <label>Combustible</label>
             <select id="filterFuel" onchange="applyFilters()">
               <option value="">Todos</option>
-              <option>Gasolina</option>
-              <option>Diesel</option>
-              <option>Eléctrico</option>
-              <option>Híbrido</option>
+              <option value="Nafta">Nafta</option>
+              <option value="Diesel">Diesel</option>
+              <option value="Eléctrico">Eléctrico</option>
+              <option value="Híbrido">Híbrido</option>
+              <option value="GNC">GNC</option>
             </select>
           </div>
         </div>
@@ -362,7 +364,7 @@
           </div>
           <div class="form-group">
             <label for="publishVehicleType">Tipo de vehículo *</label>
-            <select id="publishVehicleType" required onchange="toggleEngineCCField('publish'); initBrandFilters()">
+            <select id="publishVehicleType" required onchange="toggleEngineCCField('publish'); updateVehicleTypeOptions('publish'); initBrandFilters()">
               <option value="auto">Auto / Camioneta / SUV</option>
               <option value="moto">Moto / Scooter</option>
             </select>
@@ -404,10 +406,11 @@
               <label>Combustible</label>
               <select id="publishFuel">
                 <option value="">Seleccionar</option>
-                <option value="Gasolina">Gasolina</option>
+                <option value="Nafta">Nafta</option>
                 <option value="Diesel">Diesel</option>
                 <option value="Eléctrico">Eléctrico</option>
                 <option value="Híbrido">Híbrido</option>
+                <option value="GNC">GNC</option>
               </select>
             </div>
           </div>
@@ -420,6 +423,7 @@
                 <option value="Automático">Automático</option>
                 <option value="Automático CVT">Automático CVT</option>
                 <option value="Automático DSG">Automático DSG</option>
+                <option value="Quick Shifter">Quick Shifter</option>
               </select>
             </div>
             <div class="form-group">

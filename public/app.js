@@ -268,6 +268,55 @@ function toggleEngineCCField(prefix = 'publish') {
   ccGroup.style.display = typeEl.value === 'moto' ? 'block' : 'none';
 }
 
+function updateVehicleTypeOptions(prefix = 'publish') {
+  const typeEl = document.getElementById(`${prefix}VehicleType`);
+  const type = typeEl?.value || '';
+  const isFilter = prefix === 'filter';
+  const isMoto = type === 'moto';
+  const isAuto = type === 'auto';
+  const isAll = !type; // "Todos" — solo aplica en filtros
+
+  const autoFuels = [['Nafta', 'Nafta'], ['Diesel', 'Diesel'], ['Híbrido', 'Híbrido'], ['GNC', 'GNC']];
+  const motoFuels = [['Nafta', 'Nafta']];
+  const commonFuels = [['Eléctrico', 'Eléctrico']];
+
+  const autoTrans = [['Automático', 'Automático'], ['Automático CVT', 'Automático CVT'], ['Automático DSG', 'Automático DSG']];
+  const motoTrans = [['Quick Shifter', 'Quick Shifter']];
+
+  let fuels, transmissions;
+  if (isMoto) {
+    fuels = [...motoFuels, ...commonFuels];
+    transmissions = [['Manual', 'Manual'], ...motoTrans];
+  } else if (isAuto) {
+    fuels = [...autoFuels, ...commonFuels];
+    transmissions = [['Manual', 'Manual'], ...autoTrans];
+  } else {
+    // "Todos" en filtros — mostrar todo
+    fuels = [...autoFuels, ...commonFuels];
+    transmissions = [['Manual', 'Manual'], ...autoTrans, ...motoTrans];
+  }
+
+  const placeholder = isFilter ? '' : '';
+  const fuelPlaceholder = isFilter ? [['', 'Todos']] : [['', 'Seleccionar']];
+  const tranPlaceholder = isFilter ? [['', 'Todas']] : [['', 'Seleccionar']];
+
+  const fuelEl = document.getElementById(`${prefix}Fuel`);
+  const transEl = document.getElementById(`${prefix}Transmission`);
+
+  if (fuelEl) {
+    const prev = fuelEl.value;
+    const opts = [...fuelPlaceholder, ...fuels];
+    fuelEl.innerHTML = opts.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+    if (opts.some(([v]) => v === prev)) fuelEl.value = prev;
+  }
+  if (transEl) {
+    const prev = transEl.value;
+    const opts = [...tranPlaceholder, ...transmissions];
+    transEl.innerHTML = opts.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+    if (opts.some(([v]) => v === prev)) transEl.value = prev;
+  }
+}
+
 
 async function initVehicleMap(city, province) {
   if (!window.L) return;
@@ -2388,6 +2437,8 @@ function tryPublish() {
 }
 
 initBrandFilters();
+updateVehicleTypeOptions('publish');
+updateVehicleTypeOptions('filter');
 
 function autoFillTitle() {
   const brand = document.getElementById('publishBrand')?.value || '';
