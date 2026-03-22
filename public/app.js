@@ -18,6 +18,7 @@ let pollCount = 0;
 let vehicleSearchAbortController = null;
 let dolarRate = null;
 let dolarRateInterval = null;
+let userFavoriteIds = new Set();
 
 const API_URL = '/api';
 
@@ -257,10 +258,69 @@ function setupProvinceCity(provinceId, cityId) {
   });
 }
 
+// CURRENCY HELPERS
+function updatePriceHint(prefix) {
+  const currencyEl = document.getElementById(`${prefix}Currency`);
+  const priceEl = document.getElementById(`${prefix}Price`);
+  const hintEl = document.getElementById(`${prefix}PriceHint`);
+  if (!currencyEl || !priceEl || !hintEl) return;
+  const currency = currencyEl.value;
+  const val = parseFloat(priceEl.value);
+  if (!val || !dolarRate?.venta) { hintEl.textContent = ''; return; }
+  if (currency === 'USD') {
+    const ars = Math.round(val * dolarRate.venta);
+    hintEl.textContent = `≈ ARS $${ars.toLocaleString('es-AR')}`;
+  } else {
+    const usd = Math.round(val / dolarRate.venta);
+    hintEl.textContent = `≈ USD $${usd.toLocaleString('es-AR')}`;
+  }
+}
+
+function onCurrencyChange(prefix) {
+  const currencyEl = document.getElementById(`${prefix}Currency`);
+  const priceEl = document.getElementById(`${prefix}Price`);
+  if (!currencyEl || !priceEl || !dolarRate?.venta) return;
+  const val = parseFloat(priceEl.value);
+  if (!val) { updatePriceHint(prefix); return; }
+  // Convert current value to the newly selected currency
+  const prev = currencyEl.dataset.prev || 'USD';
+  if (prev === 'USD' && currencyEl.value === 'ARS') {
+    priceEl.value = Math.round(val * dolarRate.venta);
+  } else if (prev === 'ARS' && currencyEl.value === 'USD') {
+    priceEl.value = Math.round(val / dolarRate.venta);
+  }
+  currencyEl.dataset.prev = currencyEl.value;
+  updatePriceHint(prefix);
+}
+
+function getPriceInUSD(prefix) {
+  const currencyEl = document.getElementById(`${prefix}Currency`);
+  const priceEl = document.getElementById(`${prefix}Price`);
+  const val = parseFloat(priceEl.value);
+  if (!val) return val;
+  if (currencyEl?.value === 'ARS' && dolarRate?.venta) {
+    return Math.round(val / dolarRate.venta);
+  }
+  return val;
+}
+
 // Init province/city selects when DOM ready
 document.addEventListener('DOMContentLoaded', () => {
   setupProvinceCity('publishProvince', 'publishCity');
   setupProvinceCity('editProvince', 'editCity');
+
+  // Currency selectors
+  ['publish', 'edit'].forEach(prefix => {
+    const currencyEl = document.getElementById(`${prefix}Currency`);
+    const priceEl = document.getElementById(`${prefix}Price`);
+    if (currencyEl) {
+      currencyEl.dataset.prev = 'USD';
+      currencyEl.addEventListener('change', () => onCurrencyChange(prefix));
+    }
+    if (priceEl) {
+      priceEl.addEventListener('input', () => updatePriceHint(prefix));
+    }
+  });
 });
 
 function toggleEngineCCField(prefix = 'publish') {
@@ -394,7 +454,14 @@ function showSection(sectionId) {
   else if (sectionId === 'favorites') loadFavorites();
   else if (sectionId === 'notifications') loadNotifications();
   else if (sectionId === 'admin') loadAdmin();
-  else if (sectionId === 'publish') { uploadedImages = []; renderImagePreviews(); }
+  else if (sectionId === 'publish') {
+    uploadedImages = [];
+    renderImagePreviews();
+    const pubCurrencyEl = document.getElementById('publishCurrency');
+    if (pubCurrencyEl) { pubCurrencyEl.value = 'USD'; pubCurrencyEl.dataset.prev = 'USD'; }
+    const pubHintEl = document.getElementById('publishPriceHint');
+    if (pubHintEl) pubHintEl.textContent = '';
+  }
   else if (sectionId === 'vehicle-map') loadVehicleMap();
   if (sectionId !== 'messages') stopPolling();
   if (sectionId !== 'messages') currentConversationId = null;
@@ -427,6 +494,7 @@ async function handleRegister(e) {
     if (!heartbeatInterval) heartbeatInterval = setInterval(() => { if (currentUser && document.visibilityState === 'visible') request('/ping', { method: 'PUT' }).catch(() => {}); }, 30000);
     if (!notifInterval) notifInterval = setInterval(() => { if (currentUser) { loadCounts(); } }, 30000);
     updateNav();
+    loadUserFavoriteIds();
     showToast('Registro exitoso. ¡Bienvenido!', 'success');
     showSection('home');
   } catch (err) {
@@ -451,10 +519,11 @@ async function handleLogin(e) {
   try {
     const data = await request('/login', { method: 'POST', body: JSON.stringify({ email, password }) });
     localStorage.setItem('token', data.token);
-    currentUser = data.user;
+    currentUser = await request('/user');
     if (!heartbeatInterval) heartbeatInterval = setInterval(() => { if (currentUser && document.visibilityState === 'visible') request('/ping', { method: 'PUT' }).catch(() => {}); }, 30000);
     if (!notifInterval) notifInterval = setInterval(() => { if (currentUser) { loadCounts(); } }, 30000);
     updateNav();
+    loadUserFavoriteIds();
     showToast('¡Bienvenido!', 'success');
     showSection('home');
   } catch (err) { showToast(err.message, 'error'); }
@@ -468,6 +537,7 @@ function logout() {
   localStorage.removeItem('token');
   currentUser = null;
   uploadedImages = [];
+  userFavoriteIds = new Set();
   clearInterval(heartbeatInterval);
   heartbeatInterval = null;
   clearInterval(notifInterval);
@@ -521,7 +591,7 @@ async function loadVehicles(page = 1) {
           <div class="vehicle-img-overlay"></div>
           <span class="vehicle-badge">${escapeHtml(String(v.year))}</span>
           <span class="vehicle-trade-badge ${v.accepts_trade ? 'trade-yes' : 'trade-no'}">${v.accepts_trade ? '🔄 Permuta' : 'Sin permuta'}</span>
-          ${localStorage.getItem('token') ? `<button class="favorite-btn ${v.is_favorite ? 'active' : ''}" onclick="toggleFavorite(${v.id}, event)"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>` : ''}
+          ${localStorage.getItem('token') ? `<button class="favorite-btn ${userFavoriteIds.has(v.id) ? 'active' : ''}" data-vehicle-id="${v.id}" onclick="toggleFavorite(${v.id}, event)"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>` : ''}
         </div>
         <div class="vehicle-info">
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
@@ -949,7 +1019,7 @@ async function handlePublish(e) {
       brand: document.getElementById('publishBrand').value,
       model: document.getElementById('publishModel').value,
       year: document.getElementById('publishYear').value,
-      price: document.getElementById('publishPrice').value,
+      price: getPriceInUSD('publish'),
       transmission: document.getElementById('publishTransmission').value,
       mileage: document.getElementById('publishMileage').value || 0,
       fuel: document.getElementById('publishFuel').value,
@@ -969,6 +1039,10 @@ async function handlePublish(e) {
     document.getElementById('publishProvince').value = '';
     document.getElementById('publishCity').innerHTML = '<option value="">Primero seleccioná una provincia</option>';
     document.getElementById('publishCity').disabled = true;
+    const pubCur = document.getElementById('publishCurrency');
+    if (pubCur) pubCur.dataset.prev = 'USD';
+    const pubHint = document.getElementById('publishPriceHint');
+    if (pubHint) pubHint.textContent = '';
     showSection('my-vehicles');
   } catch (err) { showToast(err.message, 'error'); }
   btn.disabled = false;
@@ -1027,7 +1101,10 @@ async function openEditModal(id, e) {
     const v = await request(`/vehicles/${id}`);
     document.getElementById('editVehicleId').value = v.id;
     document.getElementById('editTitle').value = v.title || '';
+    const editCurrencyEl = document.getElementById('editCurrency');
+    if (editCurrencyEl) { editCurrencyEl.value = 'USD'; editCurrencyEl.dataset.prev = 'USD'; }
     document.getElementById('editPrice').value = v.price || '';
+    updatePriceHint('edit');
     document.getElementById('editMileage').value = v.mileage || '';
     document.getElementById('editFuel').value = v.fuel || '';
     document.getElementById('editTransmission').value = v.transmission || '';
@@ -1054,6 +1131,10 @@ async function openEditModal(id, e) {
 function closeEditModal() {
   document.getElementById('editVehicleModal').style.display = 'none';
   document.getElementById('modalOverlay').style.display = 'none';
+  const editCur = document.getElementById('editCurrency');
+  if (editCur) { editCur.value = 'USD'; editCur.dataset.prev = 'USD'; }
+  const editHint = document.getElementById('editPriceHint');
+  if (editHint) editHint.textContent = '';
 }
 
 async function handleEditVehicle(e) {
@@ -1075,7 +1156,7 @@ async function handleEditVehicle(e) {
       method: 'PUT',
       body: JSON.stringify({
         title: document.getElementById('editTitle').value,
-        price: document.getElementById('editPrice').value,
+        price: getPriceInUSD('edit'),
         mileage: document.getElementById('editMileage').value,
         fuel: document.getElementById('editFuel').value,
         transmission: document.getElementById('editTransmission').value,
@@ -1127,8 +1208,21 @@ async function toggleFavorite(id, e) {
   try {
     const res = await request(`/favorites/${id}`, { method: 'POST' });
     showToast(res.favorited ? 'Agregado a favoritos' : 'Eliminado de favoritos', 'success');
+
+    // Update global favorites set
+    if (res.favorited) {
+      userFavoriteIds.add(id);
+    } else {
+      userFavoriteIds.delete(id);
+    }
+
+    // Update all heart buttons for this vehicle in the listing (without re-rendering)
+    document.querySelectorAll(`.favorite-btn[data-vehicle-id="${id}"]`).forEach(btn => {
+      btn.classList.toggle('active', res.favorited);
+    });
+
+    // Update the favorite button in the detail view if open
     if (document.getElementById('vehicle-detail')?.style.display !== 'none') {
-      // Update only the favorite button in the detail view without reloading the whole page
       const detailFavBtn = document.querySelector('#vehicleDetail .detail-actions .btn');
       if (detailFavBtn && (detailFavBtn.textContent.includes('favoritos') || detailFavBtn.textContent.includes('Guardar'))) {
         detailFavBtn.className = `btn ${res.favorited ? 'btn-primary' : 'btn-secondary'}`;
@@ -1138,8 +1232,6 @@ async function toggleFavorite(id, e) {
         if (svgEl) svgEl.setAttribute('stroke', 'currentColor');
         detailFavBtn.lastChild.textContent = res.favorited ? 'En favoritos' : 'Guardar en favoritos';
       }
-    } else {
-      loadVehicles();
     }
   } catch (err) { showToast(err.message, 'error'); }
 }
@@ -2415,6 +2507,14 @@ function autoGenDescription() {
   }
 }
 
+async function loadUserFavoriteIds() {
+  if (!localStorage.getItem('token')) return;
+  try {
+    const vehicles = await request('/favorites');
+    userFavoriteIds = new Set((vehicles || []).map(v => v.id));
+  } catch { /* silencioso */ }
+}
+
 async function checkAuth() {
   const token = localStorage.getItem('token');
   if (token) {
@@ -2424,6 +2524,7 @@ async function checkAuth() {
       updateNav();
       loadCounts();
       request('/ping', { method: 'PUT' }).catch(() => {});
+      loadUserFavoriteIds();
     } catch { localStorage.removeItem('token'); currentUser = null; }
   }
   updateNav();

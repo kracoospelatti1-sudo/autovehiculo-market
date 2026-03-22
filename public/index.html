@@ -390,8 +390,15 @@
               <input type="number" id="publishYear" placeholder="2023" required min="1900" max="2026">
             </div>
             <div class="form-group">
-              <label>Precio (USD) *</label>
-              <input type="number" id="publishPrice" placeholder="25000" required min="0">
+              <label>Precio *</label>
+              <div class="price-input-row">
+                <select id="publishCurrency" class="currency-select">
+                  <option value="USD">USD</option>
+                  <option value="ARS">ARS</option>
+                </select>
+                <input type="number" id="publishPrice" placeholder="25000" required min="0">
+              </div>
+              <p id="publishPriceHint" class="price-hint"></p>
             </div>
           </div>
           <div class="form-row">
@@ -569,8 +576,15 @@
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label>Precio (USD) *</label>
-              <input type="number" id="editPrice" required min="0">
+              <label>Precio *</label>
+              <div class="price-input-row">
+                <select id="editCurrency" class="currency-select">
+                  <option value="USD">USD</option>
+                  <option value="ARS">ARS</option>
+                </select>
+                <input type="number" id="editPrice" required min="0">
+              </div>
+              <p id="editPriceHint" class="price-hint"></p>
             </div>
             <div class="form-group">
               <label>Kilometraje</label>

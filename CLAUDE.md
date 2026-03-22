@@ -131,13 +131,27 @@ Desde 2026-03-21 la ubicación está separada en dos campos:
 
 El mapa usa ambos: `initVehicleMap(city, province)` → busca `"Ciudad, Provincia, Argentina"` en Nominatim.
 
-## Agentes disponibles
+## Agentes disponibles y cuándo usarlos
 
-- **backend-dev** — server.js, endpoints, Supabase, auth
-- **frontend-dev** — app.js, styles.css, index.html
-- **db-migration** — SQL, schema, índices, RLS
-- **qa-debug** — bugs, errores, auditoría
-- **feature-planner** — planificación de features end-to-end
+IMPORTANTE: Usar siempre el agente correspondiente según la tarea. No hacer cambios directamente sin delegar al agente correcto.
+
+| Agente | Cuándo usarlo |
+|--------|--------------|
+| **backend-dev** | Cualquier cambio en `server.js`: endpoints, auth, middleware, Supabase queries |
+| **frontend-dev** | Cualquier cambio en `app.js`, `styles.css` o `index.html` |
+| **db-migration** | Nuevas columnas, tablas, índices o políticas RLS en Supabase |
+| **qa-debug** | Bugs reportados, errores en consola, auditorías de código |
+| **feature-planner** | Features nuevas que tocan más de un archivo — planificar antes de implementar |
+| **deploy** | Deploy a producción, configuración de entorno, variables de entorno |
+| **performance** | Optimizaciones de velocidad, queries lentas, bundle size |
+| **seo-content** | SEO, meta tags, contenido, accesibilidad |
+
+### Habilidades (skills) disponibles
+
+| Skill | Cuándo usarla |
+|-------|--------------|
+| **webapp-testing** | Tests E2E con Playwright, verificar UI en el browser |
+| **simplify** | Revisar código recién escrito para simplificarlo |
 
 ## Variables de entorno (.env)
 
