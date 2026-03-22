@@ -500,9 +500,26 @@ function showSection(sectionId) {
     uploadedImages = [];
     renderImagePreviews();
     const pubCurrencyEl = document.getElementById('publishCurrency');
-    if (pubCurrencyEl) { pubCurrencyEl.value = 'USD'; pubCurrencyEl.dataset.prev = 'USD'; }
+    if (pubCurrencyEl) { pubCurrencyEl.value = 'ARS'; pubCurrencyEl.dataset.prev = 'ARS'; }
     const pubHintEl = document.getElementById('publishPriceHint');
     if (pubHintEl) pubHintEl.textContent = '';
+    // Auto-fill location from user profile
+    if (currentUser?.profile?.city) {
+      const match = AR_CITIES.find(c => c.city === currentUser.profile.city);
+      if (match) {
+        setTimeout(() => {
+          const provEl = document.getElementById('publishProvince');
+          if (provEl && !provEl.value) {
+            provEl.value = match.prov;
+            provEl.dispatchEvent(new Event('change'));
+            setTimeout(() => {
+              const cityEl = document.getElementById('publishCity');
+              if (cityEl) cityEl.value = match.city;
+            }, 50);
+          }
+        }, 50);
+      }
+    }
   }
   if (sectionId !== 'messages') stopPolling();
   if (sectionId !== 'messages') currentConversationId = null;
@@ -2061,6 +2078,18 @@ async function viewProfile(id) {
             `).join('')}
           </div>
         </div>`;
+      } else {
+        completenessHtml = `
+        <div class="profile-completeness" style="border-color:rgba(34,197,94,0.3);background:rgba(34,197,94,0.06);">
+          <div style="display:flex;align-items:center;gap:0.75rem;">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="#4ade80"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
+            <div>
+              <div style="font-weight:700;color:#4ade80;">¡Perfil completo!</div>
+              <div style="font-size:0.82rem;color:var(--text-2);">Tu perfil tiene toda la información.</div>
+            </div>
+            <span class="pct-badge" style="margin-left:auto;">100%</span>
+          </div>
+        </div>`;
       }
     }
     const canFollow = !isOwn && !!localStorage.getItem('token');
@@ -2175,9 +2204,11 @@ function editProfile() {
         </div>
         <input type="hidden" id="editAvatarBase64" value="${currentUser.profile?.avatar_url || ''}">
       </div>
-      <div class="form-group"><label>Teléfono</label><input type="tel" id="editPhone" value="${escapeHtml(currentUser.profile?.phone || '')}" placeholder="+54..."></div>
-      <div class="form-group"><label>Ciudad</label><input type="text" id="profileEditCity" value="${escapeHtml(currentUser.profile?.city || '')}" placeholder="Buenos Aires"></div>
-      <div class="form-group"><label>Bio</label><textarea id="editBio" rows="3" placeholder="Cuéntanos sobre ti...">${escapeHtml(currentUser.profile?.bio || '')}</textarea></div>
+      <div class="form-group"><label for="editUsername">Nombre de usuario</label><input type="text" id="editUsername" value="${escapeHtml(currentUser.username || '')}" placeholder="tunombre" minlength="3"></div>
+      <div class="form-group"><label for="editPhone">Teléfono</label><input type="tel" id="editPhone" value="${escapeHtml(currentUser.profile?.phone || '')}" placeholder="+54..."></div>
+      <div class="form-group"><label for="editProfileProvince">Provincia</label><select id="editProfileProvince" onchange="onEditProfileProvinceChange()"><option value="">Seleccioná una provincia</option>${AR_PROVINCES.map(p => `<option value="${escapeHtml(p)}" ${currentUser.profile?.city && AR_CITIES.find(c=>c.city===currentUser.profile?.city)?.prov===p ? 'selected' : ''}>${escapeHtml(p)}</option>`).join('')}</select></div>
+      <div class="form-group"><label for="editProfileCity">Ciudad</label><select id="editProfileCity"><option value="">Seleccioná una ciudad</option></select></div>
+      <div class="form-group"><label for="editBio">Bio</label><textarea id="editBio" rows="3" placeholder="Cuéntanos sobre ti...">${escapeHtml(currentUser.profile?.bio || '')}</textarea></div>
       ${currentUser.profile?.is_verified ? `
         <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);">
           <h4 style="font-size:0.95rem;margin-bottom:0.75rem;color:var(--primary);">Datos de concesionaria (verificado)</h4>
@@ -2189,6 +2220,29 @@ function editProfile() {
       <button type="submit" class="btn btn-primary" style="width:100%;">Guardar</button>
     </form>
   `;
+  setTimeout(initEditProfileCity, 0);
+}
+
+function onEditProfileProvinceChange() {
+  const prov = document.getElementById('editProfileProvince')?.value;
+  const cityEl = document.getElementById('editProfileCity');
+  if (!cityEl) return;
+  const cities = AR_CITIES.filter(c => c.prov === prov);
+  cityEl.innerHTML = '<option value="">Seleccioná una ciudad</option>' +
+    cities.map(c => `<option value="${escapeHtml(c.city)}">${escapeHtml(c.city)}</option>`).join('');
+}
+
+function initEditProfileCity() {
+  const savedCity = currentUser.profile?.city || '';
+  if (!savedCity) return;
+  const match = AR_CITIES.find(c => c.city === savedCity);
+  if (!match) return;
+  const provEl = document.getElementById('editProfileProvince');
+  const cityEl = document.getElementById('editProfileCity');
+  if (!provEl || !cityEl) return;
+  provEl.value = match.prov;
+  onEditProfileProvinceChange();
+  cityEl.value = savedCity;
 }
 
 let pendingAvatarFile = null;
@@ -2229,8 +2283,9 @@ async function saveProfile(e) {
     }
 
     await request('/profile', { method: 'PUT', body: JSON.stringify({
+      username: document.getElementById('editUsername')?.value?.trim() || currentUser.username,
       phone: document.getElementById('editPhone').value,
-      city: document.getElementById('profileEditCity').value,
+      city: document.getElementById('editProfileCity')?.value || '',
       bio: document.getElementById('editBio').value,
       avatar_url: avatarUrl,
       dealership_name: document.getElementById('editDealershipName')?.value ?? '',
