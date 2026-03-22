@@ -57,6 +57,7 @@ const wsOnlineUsers = new Set()    // Set<userId: string>
 const typingTimers = new Map()     // Map<`${convId}:${userId}`, Timeout>
 const lastSeenDebounce = new Map() // Map<userId: string, number (timestamp)>
 
+app.set('trust proxy', 1); // Confiar en el proxy reverso de Hostinger (nginx)
 app.use(compression());
 app.use(cors({ origin: ALLOWED_ORIGINS, credentials: true }));
 app.use(express.json({ limit: '100kb' }));
