@@ -2797,17 +2797,19 @@ if (yearInput) yearInput.max = new Date().getFullYear() + 1;
 // MOBILE ACCOUNT MENU
 function toggleMobileMenu() {
   const menu = document.getElementById('mobileAccountMenu');
-  if (menu.style.display === 'none') {
+  if (menu.style.display === 'none' || menu.style.display === '') {
     document.getElementById('mobileMenuUsername').textContent = currentUser?.username || '';
     const adminItem = document.getElementById('mobileMenuAdmin');
-    if (adminItem) adminItem.style.display = currentUser?.profile?.is_admin ? 'block' : 'none';
-    menu.style.display = 'block';
+    if (adminItem) adminItem.style.display = currentUser?.profile?.is_admin ? 'flex' : 'none';
+    menu.style.display = 'flex';
+    if (window.lucide) lucide.createIcons();
   } else {
     menu.style.display = 'none';
   }
 }
 function closeMobileMenu() {
-  document.getElementById('mobileAccountMenu').style.display = 'none';
+  const menu = document.getElementById('mobileAccountMenu');
+  if (menu) menu.style.display = 'none';
 }
 
 let followingFeedPage = 1;
