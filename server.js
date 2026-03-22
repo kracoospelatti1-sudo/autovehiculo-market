@@ -11,7 +11,7 @@ const rateLimit = require('express-rate-limit');
 const http = require('http');
 const { WebSocketServer } = require('ws');
 const crypto = require('crypto');
-const { Resend } = require('resend');
+const nodemailer = require('nodemailer');
 
 const app = express();
 
@@ -20,8 +20,17 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
 const SECRET_KEY = process.env.JWT_SECRET;
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'http://localhost:3000';
 const APP_URL = process.env.APP_URL || 'http://localhost:3000';
-const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM_EMAIL = process.env.FROM_EMAIL || 'AutoVehículo <noreply@autovehiculo.com>';
+const FROM_EMAIL = process.env.SMTP_FROM || 'AutoVehículo Market <noreply@autovehiculo.com>';
+
+const mailer = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || 'smtp.hostinger.com',
+  port: parseInt(process.env.SMTP_PORT || '465'),
+  secure: (process.env.SMTP_PORT || '465') === '465',
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
 
 if (!supabaseUrl || !supabaseServiceKey) {
   console.error('❌ ERROR: SUPABASE_URL y SUPABASE_SERVICE_KEY son requeridos en el archivo .env');
@@ -384,7 +393,7 @@ app.post('/api/register', async (req, res) => {
 
     // Enviar email de verificación
     const verifyUrl = `${APP_URL}/?token=${verifyToken}&type=verify`;
-    await resend.emails.send({
+    await mailer.sendMail({
       from: FROM_EMAIL,
       to: email,
       subject: 'Verificá tu cuenta en AutoVehículo Market',
@@ -487,7 +496,7 @@ app.post('/api/auth/resend-verification', async (req, res) => {
     });
 
     const verifyUrl = `${APP_URL}/?token=${verifyToken}&type=verify`;
-    await resend.emails.send({
+    await mailer.sendMail({
       from: FROM_EMAIL, to: email,
       subject: 'Verificá tu cuenta en AutoVehículo Market',
       html: emailVerificationTemplate(user.username, verifyUrl),
@@ -519,7 +528,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     });
 
     const resetUrl = `${APP_URL}/?token=${resetToken}&type=reset`;
-    await resend.emails.send({
+    await mailer.sendMail({
       from: FROM_EMAIL, to: email,
       subject: 'Recuperá tu contraseña — AutoVehículo Market',
       html: emailResetTemplate(user.username, resetUrl),
