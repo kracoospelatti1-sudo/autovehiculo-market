@@ -52,6 +52,28 @@ const carBrands = {
   'Volvo': ['C40', 'EX30', 'XC40', 'XC60', 'XC90', 'S60', 'S90']
 };
 
+const motoBrands = {
+  'Beta': ['RR 125', 'RR 200', 'RR 250', 'RR 300', 'RR 390', 'RR 430', 'RR 480', 'X-Trainer 250', 'X-Trainer 300'],
+  'BMW Motorrad': ['G 310 R', 'G 310 GS', 'F 750 GS', 'F 850 GS', 'R 1250 GS', 'S 1000 RR'],
+  'Bajaj': ['Boxer 100', 'Discover 125', 'Pulsar NS160', 'Pulsar NS200', 'Pulsar RS200', 'Dominar 400', 'Rouser NS200'],
+  'Corven': ['Energy 110', 'Energy 125', 'Mirage 110', 'Triax 150', 'Triax 250', 'TK 150'],
+  'Ducati': ['Monster', 'Panigale V2', 'Panigale V4', 'Multistrada V4', 'Scrambler'],
+  'Gilera': ['Smash 110', 'Smash 125', 'VC 150', 'Sahara 150', 'Futura 150'],
+  'Harley-Davidson': ['Iron 883', 'Forty-Eight', 'Street Glide', 'Road Glide', 'Fat Boy', 'Sportster S'],
+  'Honda': ['CB190R', 'CB300R', 'CB500F', 'CB650R', 'CBR600RR', 'CBR1000RR', 'CG 150', 'Titan 160', 'Wave 110', 'XRE 300', 'Africa Twin'],
+  'KTM': ['Duke 200', 'Duke 390', 'Duke 790', 'RC 390', 'Adventure 390', 'Adventure 790', 'EXC 300'],
+  'Kawasaki': ['Ninja 300', 'Ninja 400', 'Ninja 650', 'Ninja ZX-6R', 'Z400', 'Z650', 'Z900', 'Versys 650'],
+  'Motomel': ['Blitz 110', 'S2 150', 'CG 150', 'Skua 150', 'Skua 250', 'Sirius 200'],
+  'Royal Enfield': ['Bullet 350', 'Classic 350', 'Meteor 350', 'Himalayan', 'Interceptor 650', 'Continental GT 650'],
+  'Suzuki': ['Gixxer 150', 'Gixxer 250', 'GSX-R600', 'GSX-R750', 'GSX-S750', 'V-Strom 650', 'DR 650'],
+  'Yamaha': ['FZ 150', 'FZ 250', 'MT-03', 'MT-07', 'MT-09', 'R3', 'R7', 'R1', 'XTZ 125', 'XTZ 250', 'XMAX 300', 'Tenere 700'],
+  'Zanella': ['ZB 110', 'ZB 125', 'Styler 150', 'RZ3 150', 'RX 150', 'Patagonia 250'],
+};
+
+function getBrandsForType(type) {
+  return type === 'moto' ? motoBrands : carBrands;
+}
+
 const AR_CITIES = (() => {
   const data = {
     'Buenos Aires (CABA)': [
@@ -239,6 +261,13 @@ document.addEventListener('DOMContentLoaded', () => {
   setupProvinceCity('editProvince', 'editCity');
 });
 
+function toggleEngineCCField(prefix = 'publish') {
+  const typeEl = document.getElementById(`${prefix}VehicleType`);
+  const ccGroup = document.getElementById(`${prefix}EngineCCGroup`);
+  if (!typeEl || !ccGroup) return;
+  ccGroup.style.display = typeEl.value === 'moto' ? 'block' : 'none';
+}
+
 
 async function initVehicleMap(city, province) {
   if (!window.L) return;
@@ -425,6 +454,8 @@ async function loadVehicles(page = 1) {
       const el = document.getElementById('filter' + key.charAt(0).toUpperCase() + key.slice(1));
       if (el?.value) params.append(key, el.value);
     });
+    const vehicleTypeEl = document.getElementById('filterVehicleType');
+    if (vehicleTypeEl?.value) params.append('vehicle_type', vehicleTypeEl.value);
     params.append('page', page);
     const { vehicles = [], total = 0 } = await request(`/vehicles?${params}`, { signal: vehicleSearchAbortController.signal }) || {};
     document.getElementById('vehiclesCount').textContent = `${total} vehículo${total !== 1 ? 's' : ''} encontrado${total !== 1 ? 's' : ''}`;
@@ -448,7 +479,7 @@ async function loadVehicles(page = 1) {
           <div class="vehicle-meta">
             <span><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>${formatNumber(v.mileage || 0)} km</span>
             <span>${escapeHtml(v.fuel || 'N/A')}</span>
-            ${v.transmission ? `<span>${escapeHtml(v.transmission)}</span>` : ''}
+            ${v.vehicle_type === 'moto' && v.engine_cc ? `<span>${v.engine_cc} cc</span>` : v.transmission ? `<span>${escapeHtml(v.transmission)}</span>` : ''}
           </div>
           <div class="vehicle-card-footer">
             <div class="vehicle-seller">
@@ -509,7 +540,6 @@ function clearFilters() {
 
 function initBrandFilters() {
   const select = document.getElementById('filterBrand');
-  if (!select || select.options.length > 1) return;
   const provinceSelect = document.getElementById('filterProvince');
   if (provinceSelect && provinceSelect.options.length <= 1) {
     AR_PROVINCES.forEach(p => {
@@ -519,20 +549,34 @@ function initBrandFilters() {
       provinceSelect.appendChild(opt);
     });
   }
-  Object.keys(carBrands).sort().forEach(brand => {
-    const opt = document.createElement('option');
-    opt.value = brand;
-    opt.textContent = brand;
-    select.appendChild(opt);
-  });
+  if (select) {
+    const filterType = document.getElementById('filterVehicleType')?.value || 'auto';
+    const filterBrandsObj = getBrandsForType(filterType);
+    select.innerHTML = '<option value="">Todas</option>';
+    Object.keys(filterBrandsObj).sort().forEach(brand => {
+      const opt = document.createElement('option');
+      opt.value = brand;
+      opt.textContent = brand;
+      select.appendChild(opt);
+    });
+    // Reset model select when brands change
+    const filterModel = document.getElementById('filterModel');
+    if (filterModel) filterModel.innerHTML = '<option value="">Todos</option>';
+  }
   const publishBrand = document.getElementById('publishBrand');
-  if (publishBrand && publishBrand.options.length <= 1) {
-    Object.keys(carBrands).sort().forEach(brand => {
+  if (publishBrand) {
+    const publishType = document.getElementById('publishVehicleType')?.value || 'auto';
+    const publishBrandsObj = getBrandsForType(publishType);
+    publishBrand.innerHTML = '<option value="">Seleccionar marca</option>';
+    Object.keys(publishBrandsObj).sort().forEach(brand => {
       const opt = document.createElement('option');
       opt.value = brand;
       opt.textContent = brand;
       publishBrand.appendChild(opt);
     });
+    // Reset model select when brands change
+    const publishModel = document.getElementById('publishModel');
+    if (publishModel) publishModel.innerHTML = '<option value="">Seleccionar modelo</option>';
   }
 }
 
@@ -540,14 +584,18 @@ function updateFilterModels() {
   const brand = document.getElementById('filterBrand').value;
   const modelSelect = document.getElementById('filterModel');
   modelSelect.innerHTML = '<option value="">Todos</option>';
-  if (brand && carBrands[brand]) carBrands[brand].forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = m; modelSelect.appendChild(o); });
+  const type = document.getElementById('filterVehicleType')?.value || 'auto';
+  const brands = getBrandsForType(type);
+  if (brand && brands[brand]) brands[brand].forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = m; modelSelect.appendChild(o); });
 }
 
 function updatePublishModels() {
   const brand = document.getElementById('publishBrand').value;
   const modelSelect = document.getElementById('publishModel');
   modelSelect.innerHTML = '<option value="">Seleccionar modelo</option>';
-  if (brand && carBrands[brand]) carBrands[brand].forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = m; modelSelect.appendChild(o); });
+  const type = document.getElementById('publishVehicleType')?.value || 'auto';
+  const brands = getBrandsForType(type);
+  if (brand && brands[brand]) brands[brand].forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = m; modelSelect.appendChild(o); });
 }
 
 // VEHICLE DETAIL
@@ -608,6 +656,7 @@ async function viewVehicle(id) {
             <div class="spec-card"><div class="label">Kilometraje</div><div class="value">${formatNumber(vehicle.mileage || 0)} km</div></div>
             <div class="spec-card"><div class="label">Combustible</div><div class="value">${vehicle.fuel || 'N/A'}</div></div>
             <div class="spec-card"><div class="label">Transmisión</div><div class="value">${vehicle.transmission || 'N/A'}</div></div>
+            ${vehicle.vehicle_type === 'moto' && vehicle.engine_cc ? `<div class="spec-card"><div class="label">Cilindrada</div><div class="value">${vehicle.engine_cc} cc</div></div>` : ''}
             <div class="spec-card"><div class="label">Ciudad</div><div class="value">${vehicle.city || 'No especificada'}</div></div>
             ${vehicle.province ? `<div class="spec-card"><div class="label">Provincia</div><div class="value">${escapeHtml(vehicle.province.replace(/\s*\(.*?\)/g,'').trim())}</div></div>` : ''}
           </div>
@@ -820,6 +869,8 @@ async function handlePublish(e) {
       province: province,
       description: document.getElementById('publishDescription').value,
       accepts_trade: document.getElementById('publishAcceptsTrade').checked,
+      vehicle_type: document.getElementById('publishVehicleType')?.value || 'auto',
+      engine_cc: document.getElementById('publishEngineCC')?.value ? parseInt(document.getElementById('publishEngineCC').value) : null,
       images: urls
     };
     await request('/vehicles', { method: 'POST', body: JSON.stringify(data) });
@@ -899,6 +950,11 @@ async function openEditModal(id, e) {
     document.getElementById('editStatus').value = v.status || 'active';
     document.getElementById('editDescription').value = v.description || '';
     document.getElementById('editAcceptsTrade').checked = !!v.accepts_trade;
+    const editTypeEl = document.getElementById('editVehicleType');
+    if (editTypeEl) editTypeEl.value = v.vehicle_type || 'auto';
+    const editCCEl = document.getElementById('editEngineCC');
+    if (editCCEl) editCCEl.value = v.engine_cc || '';
+    toggleEngineCCField('edit');
     document.getElementById('editVehicleModal').style.display = 'block';
     document.getElementById('modalOverlay').style.display = 'block';
   } catch (err) { showToast(err.message, 'error'); }
@@ -936,7 +992,9 @@ async function handleEditVehicle(e) {
         province: province,
         status: document.getElementById('editStatus').value,
         description: document.getElementById('editDescription').value,
-        accepts_trade: document.getElementById('editAcceptsTrade').checked
+        accepts_trade: document.getElementById('editAcceptsTrade').checked,
+        vehicle_type: document.getElementById('editVehicleType')?.value,
+        engine_cc: document.getElementById('editEngineCC')?.value ? parseInt(document.getElementById('editEngineCC').value) : null
       })
     });
     showToast('¡Publicación actualizada!', 'success');

@@ -247,6 +247,16 @@
       <div class="filters-panel" id="filtersPanel">
         <div class="form-row" style="margin-bottom:0.75rem;">
           <div class="form-group">
+            <label>Tipo</label>
+            <select id="filterVehicleType" onchange="initBrandFilters(); applyFilters()">
+              <option value="">Todos</option>
+              <option value="auto">Autos</option>
+              <option value="moto">Motos</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row" style="margin-bottom:0.75rem;">
+          <div class="form-group">
             <label>Marca</label>
             <select id="filterBrand" onchange="updateFilterModels(); applyFilters()">
               <option value="">Todas</option>
@@ -350,6 +360,13 @@
             <label>Título del anuncio *</label>
             <input type="text" id="publishTitle" placeholder="Ej: Toyota Corolla 2023 impecable" required>
           </div>
+          <div class="form-group">
+            <label for="publishVehicleType">Tipo de vehículo *</label>
+            <select id="publishVehicleType" required onchange="toggleEngineCCField('publish'); initBrandFilters()">
+              <option value="auto">Auto / Camioneta / SUV</option>
+              <option value="moto">Moto / Scooter</option>
+            </select>
+          </div>
           <div class="form-row">
             <div class="form-group">
               <label>Marca *</label>
@@ -378,6 +395,10 @@
             <div class="form-group">
               <label>Kilometraje</label>
               <input type="number" id="publishMileage" placeholder="0 km" min="0">
+            </div>
+            <div class="form-group" id="publishEngineCCGroup" style="display:none;">
+              <label for="publishEngineCC">Cilindrada (cc)</label>
+              <input type="number" id="publishEngineCC" placeholder="Ej: 250" min="50" max="2500">
             </div>
             <div class="form-group">
               <label>Combustible</label>
@@ -598,6 +619,17 @@
           <div class="form-group" style="display:flex;align-items:center;gap:0.75rem;background:var(--dark-3);padding:0.75rem 1rem;border-radius:var(--radius-md);border:1px solid var(--border);">
             <input type="checkbox" id="editAcceptsTrade" style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer;">
             <label for="editAcceptsTrade" style="cursor:pointer;font-size:0.9rem;margin:0;">🔄 Acepto permutas</label>
+          </div>
+          <div class="form-group">
+            <label for="editVehicleType">Tipo de vehículo</label>
+            <select id="editVehicleType" onchange="toggleEngineCCField('edit')">
+              <option value="auto">Auto / Camioneta / SUV</option>
+              <option value="moto">Moto / Scooter</option>
+            </select>
+          </div>
+          <div class="form-group" id="editEngineCCGroup" style="display:none;">
+            <label for="editEngineCC">Cilindrada (cc)</label>
+            <input type="number" id="editEngineCC" placeholder="Ej: 250" min="50" max="2500">
           </div>
           <div style="display:flex;gap:0.75rem;">
             <button type="submit" class="btn btn-primary" style="flex:1" id="editVehicleBtn">Guardar cambios</button>

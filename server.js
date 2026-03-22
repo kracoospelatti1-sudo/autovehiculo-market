@@ -255,7 +255,7 @@ app.get('/api/vehicles', async (req, res) => {
       query = query.not('user_id', 'in', `(${bannedIds.join(',')})`);
     }
 
-    const { brand, model, minPrice, maxPrice, minYear, maxYear, minMileage, maxMileage, fuel, transmission, city, province, search, sort, user_id, page = 1 } = req.query;
+    const { brand, model, minPrice, maxPrice, minYear, maxYear, minMileage, maxMileage, fuel, transmission, city, province, search, sort, user_id, vehicle_type, page = 1 } = req.query;
     const limit = 12;
     const offset = (page - 1) * limit;
 
@@ -276,6 +276,7 @@ app.get('/api/vehicles', async (req, res) => {
     if (transmission) query = query.ilike('transmission', `%${transmission}%`);
     if (city) query = query.ilike('city', `%${city}%`);
     if (province) query = query.ilike('province', `%${province}%`);
+    if (vehicle_type) query = query.eq('vehicle_type', vehicle_type);
 
     if (sort === 'price_asc') query = query.order('price', { ascending: true });
     else if (sort === 'price_desc') query = query.order('price', { ascending: false });
@@ -388,13 +389,16 @@ app.post('/api/vehicles', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'Tu cuenta ha sido restringida. No podés publicar contenido.' });
     }
 
-    const { title, brand, model, year, price, mileage, fuel, transmission, description, city, province, images, accepts_trade } = req.body;
+    const { title, brand, model, year, price, mileage, fuel, transmission, description, city, province, images, accepts_trade, vehicle_type, engine_cc } = req.body;
 
     if (!title || !brand || !model || !year || !price) {
       return res.status(400).json({ error: 'Campos requeridos faltantes' });
     }
     if (!city || !city.trim()) return res.status(400).json({ error: 'La ciudad es obligatoria' });
     if (!province || !province.trim()) return res.status(400).json({ error: 'La provincia es obligatoria' });
+
+    const validTypes = ['auto', 'moto'];
+    const vehicleType = validTypes.includes(vehicle_type) ? vehicle_type : 'auto';
 
     const { data, error } = await supabase
       .from('vehicles')
@@ -413,7 +417,9 @@ app.post('/api/vehicles', authenticateToken, async (req, res) => {
         province: province.trim(),
         status: 'active',
         view_count: 0,
-        accepts_trade: !!accepts_trade
+        accepts_trade: !!accepts_trade,
+        vehicle_type: vehicleType,
+        engine_cc: vehicleType === 'moto' && engine_cc ? parseInt(engine_cc) : null,
       })
       .select()
       .single();
@@ -474,7 +480,7 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'No tienes permiso' });
     }
 
-    const { title, brand, model, year, price, mileage, fuel, transmission, description, city, province, status } = req.body;
+    const { title, brand, model, year, price, mileage, fuel, transmission, description, city, province, status, vehicle_type, engine_cc } = req.body;
 
     let updates = { updated_at: new Date().toISOString() };
     if (title !== undefined) updates.title = title;
@@ -502,6 +508,12 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
       updates.status = status;
     }
     if (req.body.accepts_trade !== undefined) updates.accepts_trade = !!req.body.accepts_trade;
+    if (vehicle_type !== undefined) {
+      const validTypes = ['auto', 'moto'];
+      if (!validTypes.includes(vehicle_type)) return res.status(400).json({ error: 'Tipo inválido' });
+      updates.vehicle_type = vehicle_type;
+    }
+    if (engine_cc !== undefined) updates.engine_cc = engine_cc ? parseInt(engine_cc) : null;
 
     const { data, error } = await supabase
       .from('vehicles')
