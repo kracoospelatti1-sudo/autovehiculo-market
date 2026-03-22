@@ -694,6 +694,10 @@ select {
   background: rgba(239, 68, 68, 0.85);
   color: #fff;
   border-color: rgba(255, 255, 255, 0.2);
+  top: auto;
+  bottom: 0.75rem;
+  left: auto;
+  right: 0.75rem;
 }
 
 .vehicle-trade-badge {
@@ -3994,6 +3998,30 @@ select {
 .badge-sold {
   background: #ef4444 !important;
   color: white !important;
+}
+
+/* Full overlay for vehicle detail page */
+.detail-sold-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.detail-sold-overlay span {
+  background: #ef4444;
+  color: white;
+  font-weight: 900;
+  font-size: 2.5rem;
+  letter-spacing: 0.15em;
+  padding: 0.5rem 2.5rem;
+  border-radius: 8px;
+  text-transform: uppercase;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.4);
 }
 
 /* Cover image button */

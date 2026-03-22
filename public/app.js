@@ -631,7 +631,7 @@ async function loadVehicles(page = 1) {
           <img src="${v.images?.find(i => i.is_primary)?.url || v.images?.[0]?.url || v.image_url || PLACEHOLDER_IMG}" class="vehicle-image" alt="${escapeHtml(v.title)}" loading="lazy" onerror="this.src=PLACEHOLDER_IMG">
           <div class="vehicle-img-overlay"></div>
           <span class="vehicle-badge">${escapeHtml(String(v.year))}</span>
-          ${v.status === 'sold' ? '<span class="vehicle-badge badge-sold" style="left:auto;right:0.75rem;">VENDIDO</span>' : ''}
+          ${v.status === 'sold' ? '<span class="vehicle-badge badge-sold">VENDIDO</span>' : ''}
           <span class="vehicle-trade-badge ${v.accepts_trade ? 'trade-yes' : 'trade-no'}">${v.accepts_trade ? '🔄 Permuta' : 'Sin permuta'}</span>
           <button class="favorite-btn ${userFavoriteIds.has(v.id) ? 'active' : ''}" data-vehicle-id="${v.id}" onclick="toggleFavorite(${v.id}, event)"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>
         </div>
@@ -868,18 +868,20 @@ async function viewVehicle(id) {
     content.innerHTML = `
       <div class="detail-container">
         <div class="detail-gallery desktop-only">
-          <div class="main-image">
+          <div class="main-image" style="position:relative;">
             <img src="${escapeHtml(mainImgUrl)}" id="detailMainImage" alt="Vehículo" style="cursor:pointer;" onclick="openLightbox(window._detailImages, window._detailImages.indexOf(this.src) >= 0 ? window._detailImages.indexOf(this.src) : 0)">
+            ${vehicle.status === 'sold' ? '<div class="detail-sold-overlay"><span>VENDIDO</span></div>' : ''}
           </div>
           <div class="thumbnail-list" id="imageThumbnails">
             ${images.map((img, i) => `<img src="${escapeHtml(img.url || '')}" class="${i === 0 ? 'active' : ''}" data-url="${escapeHtml(img.url || '')}" data-index="${i}" onclick="document.getElementById('detailMainImage').src=this.dataset.url;this.parentElement.querySelectorAll('img').forEach(x=>x.classList.remove('active'));this.classList.add('active')">`).join('')}
           </div>
         </div>
-        <div class="mobile-only" style="overflow-x: auto; scroll-snap-type: x mandatory; gap: 0.5rem; padding-bottom: 0.5rem; margin-bottom: 1.5rem; display:flex;">
+        <div class="mobile-only" style="overflow-x: auto; scroll-snap-type: x mandatory; gap: 0.5rem; padding-bottom: 0.5rem; margin-bottom: 1.5rem; display:flex; position:relative;">
           ${images.map((img, i) => `<img src="${escapeHtml(img.url || '')}" style="flex: 0 0 92%; scroll-snap-align: center; height: 350px; object-fit: cover; border-radius: var(--radius-lg); cursor:pointer;" onclick="openLightbox(window._detailImages, ${i})">`).join('')}
+          ${vehicle.status === 'sold' ? '<div class="detail-sold-overlay" style="border-radius:var(--radius-lg);"><span>VENDIDO</span></div>' : ''}
         </div>
         <div class="detail-info" id="vehicleDetail">
-          ${vehicle.status === 'sold' ? '<div class="sold-banner">VENDIDO</div>' : vehicle.status === 'paused' ? '<div class="sold-banner" style="border-color:rgba(245,158,11,0.3);color:var(--primary);background:rgba(245,158,11,0.08);">PAUSADO</div>' : ''}
+          ${vehicle.status === 'paused' ? '<div class="sold-banner" style="border-color:rgba(245,158,11,0.3);color:var(--primary);background:rgba(245,158,11,0.08);">PAUSADO</div>' : ''}
           <h1>${escapeHtml(vehicle.title)}</h1>
           <p class="detail-subtitle">${escapeHtml(vehicle.brand)} ${escapeHtml(vehicle.model)}</p>
           <div class="detail-price-block">
@@ -933,7 +935,7 @@ async function viewVehicle(id) {
                     ${escapeHtml(instagramLabel(vehicle.seller_profile.instagram))}
                   </a>
                 ` : ''}
-                ${vehicle.seller_profile?.phone ? `
+                ${vehicle.seller_profile?.phone && vehicle.status !== 'sold' ? `
                   <a href="https://wa.me/${escapeHtml(vehicle.seller_profile.phone.replace(/[\s\-\(\)]/g,'').replace(/^\+/,''))}" target="_blank" rel="noopener" class="btn btn-primary" style="background:#25D366;border:none;width:100%;margin-top:0.5rem;">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="margin-right:0.4rem;"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg> 
                     Contactar por WhatsApp
@@ -1314,6 +1316,7 @@ async function loadFavorites() {
             <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
             ${formatPesos(v.price) ? `<p class="vehicle-price-ars">${formatPesos(v.price)}</p>` : ''}
           </div>
+          ${v.status === 'sold' ? `<button class="btn btn-ghost btn-sm" style="margin-top:0.5rem;color:var(--text-3);width:100%;" onclick="toggleFavorite(${v.id}, event);this.closest('.vehicle-card').remove()">Eliminar de favoritos</button>` : ''}
         </div>
       </div>
     `).join('');
@@ -3117,7 +3120,7 @@ async function loadFollowingFeed(page = 1, reset = false) {
         <div class="vehicle-image-container">
           <img src="${v.images?.find(i => i.is_primary)?.url || v.images?.[0]?.url || PLACEHOLDER_IMG}" class="vehicle-image" alt="${escapeHtml(v.title)}" loading="lazy" onerror="this.src=PLACEHOLDER_IMG">
           <span class="vehicle-badge">${escapeHtml(String(v.year))}</span>
-          ${v.status === 'sold' ? '<span class="vehicle-badge badge-sold" style="left:auto;right:0.75rem;">VENDIDO</span>' : ''}
+          ${v.status === 'sold' ? '<span class="vehicle-badge badge-sold">VENDIDO</span>' : ''}
           <button class="favorite-btn ${userFavoriteIds.has(v.id) ? 'active' : ''}" data-vehicle-id="${v.id}" onclick="toggleFavorite(${v.id}, event)"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>
         </div>
         <div class="vehicle-info">
