@@ -245,7 +245,11 @@
           <input type="hidden" id="resetToken">
           <div class="form-group">
             <label for="resetPassword">Nueva contraseña</label>
-            <input type="password" id="resetPassword" placeholder="Mínimo 6 caracteres" required autocomplete="new-password" minlength="6">
+            <input type="password" id="resetPassword" placeholder="Mínimo 8 caracteres" required autocomplete="new-password" minlength="6" oninput="updatePasswordStrength(this.value)">
+            <div class="password-strength-bar" id="passwordStrengthBar">
+              <div class="password-strength-fill" id="passwordStrengthFill"></div>
+            </div>
+            <span id="passwordStrengthLabel" class="password-strength-label"></span>
           </div>
           <div class="form-group">
             <label for="resetPasswordConfirm">Confirmar contraseña</label>

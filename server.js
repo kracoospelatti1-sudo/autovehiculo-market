@@ -398,14 +398,17 @@ app.post('/api/register', async (req, res) => {
       expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
     });
 
-    // Enviar email de verificación
+    // Enviar email de verificación (no-fatal si SMTP no está configurado)
     const verifyUrl = `${APP_URL}/?token=${verifyToken}&type=verify`;
-    await mailer.sendMail({
-      from: FROM_EMAIL,
-      to: email,
-      subject: 'Verificá tu cuenta en AutoVehículo Market',
-      html: emailVerificationTemplate(username, verifyUrl),
-    });
+    if (process.env.SMTP_USER) {
+      mailer.sendMail({
+        from: FROM_EMAIL, to: email,
+        subject: 'Verificá tu cuenta en AutoVehículo Market',
+        html: emailVerificationTemplate(username, verifyUrl),
+      }).catch(err => console.error('Email verify error:', err.message));
+    } else {
+      console.log(`[DEV] Verify URL for ${email}: ${verifyUrl}`);
+    }
 
     res.json({ needsVerification: true, message: 'Te enviamos un email de verificación. Revisá tu bandeja de entrada.' });
   } catch (error) {
@@ -503,11 +506,15 @@ app.post('/api/auth/resend-verification', async (req, res) => {
     });
 
     const verifyUrl = `${APP_URL}/?token=${verifyToken}&type=verify`;
-    await mailer.sendMail({
-      from: FROM_EMAIL, to: email,
-      subject: 'Verificá tu cuenta en AutoVehículo Market',
-      html: emailVerificationTemplate(user.username, verifyUrl),
-    });
+    if (process.env.SMTP_USER) {
+      mailer.sendMail({
+        from: FROM_EMAIL, to: email,
+        subject: 'Verificá tu cuenta en AutoVehículo Market',
+        html: emailVerificationTemplate(user.username, verifyUrl),
+      }).catch(err => console.error('Email resend error:', err.message));
+    } else {
+      console.log(`[DEV] Resend verify URL for ${email}: ${verifyUrl}`);
+    }
 
     res.json({ message: 'Email de verificación reenviado.' });
   } catch (err) {
@@ -535,11 +542,15 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     });
 
     const resetUrl = `${APP_URL}/?token=${resetToken}&type=reset`;
-    await mailer.sendMail({
-      from: FROM_EMAIL, to: email,
-      subject: 'Recuperá tu contraseña — AutoVehículo Market',
-      html: emailResetTemplate(user.username, resetUrl),
-    });
+    if (process.env.SMTP_USER) {
+      mailer.sendMail({
+        from: FROM_EMAIL, to: email,
+        subject: 'Recuperá tu contraseña — AutoVehículo Market',
+        html: emailResetTemplate(user.username, resetUrl),
+      }).catch(err => console.error('Email reset error:', err.message));
+    } else {
+      console.log(`[DEV] Reset URL for ${email}: ${resetUrl}`);
+    }
 
     res.json({ message: 'Si el email existe, te enviamos el link de recuperación.' });
   } catch (err) {
