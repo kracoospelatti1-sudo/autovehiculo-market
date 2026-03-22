@@ -300,6 +300,7 @@ async function request(endpoint, options = {}) {
 }
 
 function showSection(sectionId) {
+  if (currentUser && (sectionId === 'login' || sectionId === 'register')) return;
   document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
   const section = document.getElementById(sectionId);
   if (section) {
