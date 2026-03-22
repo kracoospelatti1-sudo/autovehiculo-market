@@ -654,7 +654,7 @@ async function loadVehicles(page = 1) {
             })()}
           </div>
           <div class="vehicle-meta">
-            ${v.mileage === 0 ? '<span class="badge-nuevo">0 km · NUEVO</span>' : `<span><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>${formatNumber(v.mileage)} km</span>`}
+            ${v.mileage === 0 ? '<span class="badge-nuevo">NUEVO</span>' : `<span><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>${formatNumber(v.mileage)} km</span>`}
             <span>${escapeHtml(v.fuel || 'N/A')}</span>
             ${v.vehicle_type === 'moto' && v.engine_cc ? `<span>${v.engine_cc} cc</span>` : v.transmission ? `<span>${escapeHtml(v.transmission)}</span>` : ''}
           </div>
