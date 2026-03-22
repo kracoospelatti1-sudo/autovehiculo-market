@@ -22,7 +22,12 @@
       "Skill(update-config)",
       "Skill(update-config:*)",
       "Bash(node -e \"const d=JSON.parse\\(require\\(''''fs''''\\).readFileSync\\(''''C:/Users/Lucas Pelatti/Desktop/Pagina/tmp_login.json'''',''''utf8''''\\)\\); console.log\\(''''token ok:'''', !!d.token, ''''| user:'''', d.user?.username\\)\")",
-      "Bash(node -e \"console.log\\(require\\(''crypto''\\).randomBytes\\(48\\).toString\\(''hex''\\)\\)\")"
-    ]
+      "Bash(node -e \"console.log\\(require\\(''crypto''\\).randomBytes\\(48\\).toString\\(''hex''\\)\\)\")",
+      "Bash(py --version)",
+      "Bash(where python3:*)",
+      "Bash(where py:*)",
+      "Bash(npx playwright:*)"
+    ],
+    "defaultMode": "bypassPermissions"
   }
 }

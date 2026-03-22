@@ -279,7 +279,7 @@ app.get('/api/vehicles', async (req, res) => {
     let query = supabase
       .from('vehicles')
       .select('*, users!vehicles_user_id_fkey(id, username)', { count: 'exact' })
-      .eq('status', 'active');
+      .or('status.eq.active,and(status.eq.sold,sold_at.gte.' + new Date(Date.now() - 86400000).toISOString() + ')');
 
     if (bannedIds.length > 0) {
       query = query.not('user_id', 'in', `(${bannedIds.join(',')})`);
@@ -334,8 +334,21 @@ app.get('/api/vehicles', async (req, res) => {
       }, {});
     }
     if (userIds.length > 0) {
-      const { data: profiles } = await supabase.from('profiles').select('user_id, is_verified').in('user_id', userIds);
+      const { data: profiles } = await supabase.from('profiles').select('user_id, is_verified, dealership_name').in('user_id', userIds);
       profilesMap = (profiles || []).reduce((acc, p) => { acc[p.user_id] = p; return acc; }, {});
+    }
+
+    let priceHistoryMap = {};
+    if (vehicleIds.length > 0) {
+      const { data: priceHistory } = await supabase
+        .from('vehicle_price_history')
+        .select('vehicle_id, price, created_at')
+        .in('vehicle_id', vehicleIds)
+        .order('created_at', { ascending: true });
+      (priceHistory || []).forEach(ph => {
+        if (!priceHistoryMap[ph.vehicle_id]) priceHistoryMap[ph.vehicle_id] = [];
+        priceHistoryMap[ph.vehicle_id].push(ph);
+      });
     }
 
     const vehicles = data.map(v => ({
@@ -343,7 +356,9 @@ app.get('/api/vehicles', async (req, res) => {
       seller_name: v.users?.username,
       seller_id: v.users?.id,
       seller_verified: profilesMap[v.user_id]?.is_verified || false,
-      images: imagesMap[v.id] || []
+      seller_dealership: profilesMap[v.user_id]?.dealership_name || '',
+      images: imagesMap[v.id] || [],
+      price_history: priceHistoryMap[v.id] || []
     }));
     
     res.json({ vehicles, total: count || vehicles.length });
@@ -373,7 +388,13 @@ app.get('/api/vehicles/:id', optionalAuth, async (req, res) => {
     }
 
     if (!isOwner && !admin) {
-      await supabase.rpc('increment_view_count', { vehicle_id: vehicle.id });
+      if (requesterId) {
+        // Track unique view per user
+        await supabase.rpc('track_unique_view', { p_vehicle_id: vehicle.id, p_viewer_id: requesterId });
+      } else {
+        // Anonymous: just increment (backwards compat)
+        await supabase.rpc('increment_view_count', { vehicle_id: vehicle.id });
+      }
     }
 
     const [userRes, imagesRes, profileRes, sellerVehiclesRes, sellerRatingsRes, followersRes] = await Promise.all([
@@ -477,13 +498,16 @@ app.post('/api/vehicles', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'Tu cuenta ha sido restringida. No podés publicar contenido.' });
     }
 
-    const { title, brand, model, year, price, mileage, fuel, transmission, description, city, province, images, accepts_trade, vehicle_type, engine_cc } = req.body;
+    let { title, brand, model, year, price, mileage, fuel, transmission, description, city, province, images, accepts_trade, vehicle_type, engine_cc, version } = req.body;
 
-    if (!title || !brand || !model || !year || !price) {
+    if (!brand || !model || !year || !price) {
       return res.status(400).json({ error: 'Campos requeridos faltantes' });
     }
     if (!city || !city.trim()) return res.status(400).json({ error: 'La ciudad es obligatoria' });
     if (!province || !province.trim()) return res.status(400).json({ error: 'La provincia es obligatoria' });
+
+    // Auto-generate title on the server
+    title = `${brand} ${model} ${version || ''} ${year}`.replace(/\s+/g, ' ').trim();
 
     const validTypes = ['auto', 'moto'];
     const vehicleType = validTypes.includes(vehicle_type) ? vehicle_type : 'auto';
@@ -508,6 +532,7 @@ app.post('/api/vehicles', authenticateToken, async (req, res) => {
         accepts_trade: !!accepts_trade,
         vehicle_type: vehicleType,
         engine_cc: vehicleType === 'moto' && engine_cc ? parseInt(engine_cc) : null,
+        version: version || null,
       })
       .select()
       .single();
@@ -568,12 +593,13 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'No tienes permiso' });
     }
 
-    const { title, brand, model, year, price, mileage, fuel, transmission, description, city, province, status, vehicle_type, engine_cc } = req.body;
+    const { title, brand, model, year, price, mileage, fuel, transmission, description, city, province, status, vehicle_type, engine_cc, version } = req.body;
 
     let updates = { updated_at: new Date().toISOString() };
     if (title !== undefined) updates.title = title;
     if (brand !== undefined) updates.brand = brand;
     if (model !== undefined) updates.model = model;
+    if (version !== undefined) updates.version = version;
     if (year !== undefined) updates.year = parseInt(year);
     if (price !== undefined) updates.price = parseFloat(price);
     if (mileage !== undefined) updates.mileage = parseInt(mileage);
@@ -594,6 +620,11 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
         return res.status(400).json({ error: `Status inválido. Valores permitidos: ${validStatuses.join(', ')}` });
       }
       updates.status = status;
+      if (status === 'sold') {
+        updates.sold_at = new Date().toISOString();
+      } else {
+        updates.sold_at = null; // Clear if reactivated
+      }
     }
     if (req.body.accepts_trade !== undefined) updates.accepts_trade = !!req.body.accepts_trade;
     if (vehicle_type !== undefined) {
@@ -618,6 +649,28 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
         vehicle_id: parseInt(req.params.id),
         price: newPrice
       });
+    }
+
+    // Notify users who favorited this vehicle when it's sold
+    if (status === 'sold') {
+      const { data: favUsers } = await supabase
+        .from('favorites')
+        .select('user_id')
+        .eq('vehicle_id', req.params.id);
+      if (favUsers?.length) {
+        const vehicleTitle = data.title || title || 'Un vehículo';
+        const notifs = favUsers
+          .filter(f => f.user_id !== req.user.id)
+          .map(f => ({
+            user_id: f.user_id,
+            type: 'favorite_sold',
+            title: 'Vehículo vendido',
+            message: `${vehicleTitle} que tenías en favoritos fue marcado como vendido.`,
+            link: `vehicle/${req.params.id}`,
+            read: false
+          }));
+        if (notifs.length) await supabase.from('notifications').insert(notifs);
+      }
     }
 
     res.json(data);
@@ -907,6 +960,18 @@ app.put('/api/admin/users/:id/verify', authenticateToken, async (req, res) => {
       verified_at: newStatus ? new Date().toISOString() : null
     }).eq('user_id', targetUser);
     if (error) throw error;
+
+    if (newStatus) {
+      await supabase.from('notifications').insert({
+        user_id: targetUser,
+        type: 'verified',
+        title: '¡Felicitaciones! Tu cuenta fue verificada',
+        message: 'Ahora podés cargar los datos de tu concesionaria e Instagram desde tu perfil.',
+        link: `profile/${targetUser}`,
+        read: false
+      });
+    }
+
     res.json({ is_verified: newStatus });
   } catch (error) {
     res.status(500).json({ error: 'Error cambiando verificación' });
@@ -915,7 +980,7 @@ app.put('/api/admin/users/:id/verify', authenticateToken, async (req, res) => {
 
 app.put('/api/profile', authenticateToken, async (req, res) => {
   try {
-    const { username, phone, city, bio, avatar_url } = req.body;
+    const { username, phone, city, bio, avatar_url, dealership_name, dealership_address, instagram } = req.body;
 
     if (username !== undefined) {
       if (typeof username !== 'string' || username.trim().length < 3) {
@@ -936,20 +1001,37 @@ app.put('/api/profile', authenticateToken, async (req, res) => {
       .eq('user_id', req.user.id)
       .maybeSingle();
 
-    const updates = { user_id: req.user.id, updated_at: new Date().toISOString() };
-    if (req.body.phone !== undefined) updates.phone = req.body.phone?.trim() || existingProfile?.phone || '';
-    if (req.body.city !== undefined) updates.city = req.body.city?.trim() || existingProfile?.city || '';
-    if (req.body.bio !== undefined) updates.bio = req.body.bio?.trim() || existingProfile?.bio || '';
-    if (req.body.avatar_url !== undefined) updates.avatar_url = req.body.avatar_url || existingProfile?.avatar_url || '';
+    const fields = { updated_at: new Date().toISOString() };
+    if (req.body.phone !== undefined) fields.phone = req.body.phone?.trim() || existingProfile?.phone || '';
+    if (req.body.city !== undefined) fields.city = req.body.city?.trim() || existingProfile?.city || '';
+    if (req.body.bio !== undefined) fields.bio = req.body.bio?.trim() || existingProfile?.bio || '';
+    if (req.body.avatar_url !== undefined) fields.avatar_url = req.body.avatar_url || existingProfile?.avatar_url || '';
+    if (req.body.dealership_name !== undefined) fields.dealership_name = req.body.dealership_name?.trim() ?? '';
+    if (req.body.dealership_address !== undefined) fields.dealership_address = req.body.dealership_address?.trim() ?? '';
+    if (req.body.instagram !== undefined) fields.instagram = req.body.instagram?.trim() ?? '';
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .upsert(updates)
-      .select()
-      .single();
 
-    if (error) throw error;
-    res.json(data);
+    let savedProfile;
+    if (existingProfile) {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update(fields)
+        .eq('user_id', req.user.id)
+        .select('*')
+        .maybeSingle();
+      if (error) throw error;
+      savedProfile = data || { ...existingProfile, ...fields };
+    } else {
+      const { data, error } = await supabase
+        .from('profiles')
+        .insert({ user_id: req.user.id, ...fields })
+        .select('*')
+        .single();
+      if (error) throw error;
+      savedProfile = data;
+    }
+
+    res.json(savedProfile);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Error al actualizar perfil' });
@@ -1813,6 +1895,23 @@ app.post('/api/ratings', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Necesitás haber tenido una conversación sobre este vehículo para poder calificar' });
     }
 
+    // Check minimum interaction: at least 3 messages from each party
+    const { count: senderMsgCount } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('conversation_id', conversation.id)
+      .eq('sender_id', req.user.id);
+
+    const { count: recipientMsgCount } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('conversation_id', conversation.id)
+      .eq('sender_id', to_user_id);
+
+    if ((senderMsgCount || 0) < 3 || (recipientMsgCount || 0) < 3) {
+      return res.status(400).json({ error: 'Necesitás tener al menos 3 mensajes con esta persona para poder calificarla. Esto previene calificaciones abusivas.' });
+    }
+
     const { data: existing } = await supabase
       .from('ratings')
       .select('*')
@@ -2196,6 +2295,77 @@ app.get('/api/stats/public', async (_req, res) => {
     });
   } catch (error) {
     res.status(500).json({ error: 'Error' });
+  }
+});
+
+// FOLLOWING FEED
+app.get('/api/following-feed', authenticateToken, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = 12;
+    const offset = (page - 1) * limit;
+
+    const { data: follows } = await supabase
+      .from('follows')
+      .select('following_id')
+      .eq('follower_id', req.user.id);
+
+    if (!follows?.length) return res.json({ vehicles: [], total: 0 });
+
+    const followingIds = follows.map(f => f.following_id);
+
+    let query = supabase
+      .from('vehicles')
+      .select('*, users!vehicles_user_id_fkey(id, username)', { count: 'exact' })
+      .eq('status', 'active')
+      .in('user_id', followingIds)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    const { data, error, count } = await query;
+    if (error) throw error;
+
+    const vehicleIds = data.map(v => v.id);
+    const userIds = [...new Set(data.map(v => v.user_id).filter(Boolean))];
+    let imagesMap = {};
+    let profilesMap = {};
+    let priceHistoryMap = {};
+    if (vehicleIds.length > 0) {
+      const { data: images } = await supabase.from('vehicle_images').select('*').in('vehicle_id', vehicleIds);
+      imagesMap = (images || []).reduce((acc, img) => {
+        if (!acc[img.vehicle_id]) acc[img.vehicle_id] = [];
+        acc[img.vehicle_id].push(img);
+        return acc;
+      }, {});
+      const { data: priceHistory } = await supabase
+        .from('vehicle_price_history')
+        .select('vehicle_id, price, created_at')
+        .in('vehicle_id', vehicleIds)
+        .order('created_at', { ascending: true });
+      (priceHistory || []).forEach(ph => {
+        if (!priceHistoryMap[ph.vehicle_id]) priceHistoryMap[ph.vehicle_id] = [];
+        priceHistoryMap[ph.vehicle_id].push(ph);
+      });
+    }
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabase.from('profiles').select('user_id, is_verified, dealership_name').in('user_id', userIds);
+      profilesMap = (profiles || []).reduce((acc, p) => { acc[p.user_id] = p; return acc; }, {});
+    }
+
+    const vehicles = data.map(v => ({
+      ...v,
+      seller_name: v.users?.username,
+      seller_id: v.users?.id,
+      seller_verified: profilesMap[v.user_id]?.is_verified || false,
+      seller_dealership: profilesMap[v.user_id]?.dealership_name || '',
+      images: imagesMap[v.id] || [],
+      price_history: priceHistoryMap[v.id] || []
+    }));
+
+    res.json({ vehicles, total: count || vehicles.length });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al obtener feed' });
   }
 });
 

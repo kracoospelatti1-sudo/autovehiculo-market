@@ -453,6 +453,7 @@ function showSection(sectionId) {
   else if (sectionId === 'messages') { document.querySelector('.messages-container')?.classList.remove('chat-open'); loadConversations(); }
   else if (sectionId === 'favorites') loadFavorites();
   else if (sectionId === 'notifications') loadNotifications();
+  else if (sectionId === 'following-feed') loadFollowingFeed(1, true);
   else if (sectionId === 'admin') loadAdmin();
   else if (sectionId === 'publish') {
     uploadedImages = [];
@@ -462,7 +463,6 @@ function showSection(sectionId) {
     const pubHintEl = document.getElementById('publishPriceHint');
     if (pubHintEl) pubHintEl.textContent = '';
   }
-  else if (sectionId === 'vehicle-map') loadVehicleMap();
   if (sectionId !== 'messages') stopPolling();
   if (sectionId !== 'messages') currentConversationId = null;
   if (sectionId !== 'vehicle-detail') currentVehicleId = null;
@@ -480,7 +480,16 @@ async function handleRegister(e) {
   const username = document.getElementById('registerUsername').value;
   const email = document.getElementById('registerEmail').value;
   const password = document.getElementById('registerPassword').value;
-  const captchaToken = document.querySelector('[name="h-captcha-response"]')?.value || '';
+  let captchaToken = document.querySelector('[name="h-captcha-response"]')?.value || '';
+  if (!captchaToken && window.hcaptcha) {
+    // Try to get response from any rendered widget
+    try {
+      const container = document.querySelector('.h-captcha');
+      if (container && !container.querySelector('iframe')) {
+        hcaptcha.render(container, { sitekey: container.dataset.sitekey });
+      }
+    } catch(e) {}
+  }
   if (!captchaToken) {
     showToast('Por favor completá el captcha', 'error');
     btn.disabled = false;
@@ -590,29 +599,41 @@ async function loadVehicles(page = 1) {
           <img src="${v.images?.find(i => i.is_primary)?.url || v.images?.[0]?.url || v.image_url || PLACEHOLDER_IMG}" class="vehicle-image" alt="${escapeHtml(v.title)}" loading="lazy" onerror="this.src=PLACEHOLDER_IMG">
           <div class="vehicle-img-overlay"></div>
           <span class="vehicle-badge">${escapeHtml(String(v.year))}</span>
+          ${v.status === 'sold' ? '<span class="vehicle-badge badge-sold" style="left:auto;right:0.75rem;">VENDIDO</span>' : ''}
           <span class="vehicle-trade-badge ${v.accepts_trade ? 'trade-yes' : 'trade-no'}">${v.accepts_trade ? '🔄 Permuta' : 'Sin permuta'}</span>
           ${localStorage.getItem('token') ? `<button class="favorite-btn ${userFavoriteIds.has(v.id) ? 'active' : ''}" data-vehicle-id="${v.id}" onclick="toggleFavorite(${v.id}, event)"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>` : ''}
         </div>
         <div class="vehicle-info">
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
-          ${v.city ? `<p class="vehicle-location">📍 ${escapeHtml(v.city)}${v.province ? ', ' + escapeHtml(v.province.replace(/\s*\(.*?\)/g,'').trim()) : ''}</p>` : ''}
+          ${v.city ? `<p class="vehicle-location"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> ${escapeHtml(v.city)}${v.province ? ', ' + escapeHtml(v.province.replace(/\s*\(.*?\)/g,'').trim()) : ''}</p>` : ''}
           <div class="vehicle-price-block">
             <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
             ${formatPesos(v.price) ? `<p class="vehicle-price-ars">${formatPesos(v.price)}</p>` : ''}
+            ${(() => {
+              const ph = v.price_history;
+              if (ph && ph.length >= 2) {
+                const oldest = ph[0].price;
+                const latest = ph[ph.length - 1].price;
+                const diff = latest - oldest;
+                const pct = Math.round(Math.abs(diff) / oldest * 100);
+                if (diff < 0 && pct > 0) return `<span class="price-drop-badge"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg> ${pct}%</span>`;
+              }
+              return '';
+            })()}
           </div>
           <div class="vehicle-meta">
-            <span><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>${formatNumber(v.mileage || 0)} km</span>
+            <span><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>${formatNumber(v.mileage || 0)} km</span>
             <span>${escapeHtml(v.fuel || 'N/A')}</span>
             ${v.vehicle_type === 'moto' && v.engine_cc ? `<span>${v.engine_cc} cc</span>` : v.transmission ? `<span>${escapeHtml(v.transmission)}</span>` : ''}
           </div>
           <div class="vehicle-card-footer">
             <div class="vehicle-seller">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+              <div class="avatar-tiny">${v.seller_name?.charAt(0)?.toUpperCase()}</div>
               <span>${escapeHtml(v.seller_name || 'Anónimo')}</span>
               ${v.seller_verified ? verifiedBadge() : ''}
             </div>
             <div class="vehicle-views">
-              <svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
               ${v.view_count || 0}
             </div>
           </div>
@@ -772,9 +793,9 @@ async function viewVehicle(id) {
         const diff = latest - oldest;
         const pct = Math.round(Math.abs(diff) / oldest * 100);
         const days = Math.round((new Date() - new Date(history[0].created_at)) / 86400000);
-        if (diff < 0) {
+        if (diff < 0 && pct > 0) {
           priceChangeHtml = `<span class="price-change price-down">&#9660; Bajó ${pct}% (hace ${days} días)</span>`;
-        } else if (diff > 0) {
+        } else if (diff > 0 && pct > 0) {
           priceChangeHtml = `<span class="price-change price-up">&#9650; Subió ${pct}% (hace ${days} días)</span>`;
         }
       }
@@ -815,25 +836,47 @@ async function viewVehicle(id) {
           ${vehicle.city ? `
             <div class="detail-map-section">
               <h4 style="margin-bottom:0.75rem;font-size:0.9rem;color:var(--text-2);display:flex;align-items:center;gap:0.4rem;">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-                Ubicación: ${escapeHtml(vehicle.city)}
-              </h4>
-              <div id="vehicleMap" class="vehicle-map"></div>
-            </div>
-          ` : ''}
-          <div class="seller-card">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                  Ubicación: ${escapeHtml(vehicle.city)}
+                </h4>
+                <div id="vehicleMap" class="vehicle-map"></div>
+              </div>
+            ` : ''}
+
+            <div class="seller-card">
             <div class="seller-avatar">${vehicle.seller_profile?.avatar_url ? `<img src="${escapeHtml(vehicle.seller_profile.avatar_url || '')}" alt="">` : (vehicle.seller_name?.charAt(0)?.toUpperCase() || '?')}</div>
             <div class="seller-info">
-              <div class="seller-name-row">
-                <h4 onclick="viewProfile(${vehicle.seller_id})" style="cursor:pointer;color:var(--primary-light);">${escapeHtml(vehicle.seller_name)}</h4>
-                ${vehicle.seller_verified ? verifiedBadge() : ''}
-              </div>
-              ${vehicle.seller_rating ? `<div class="rating">${'★'.repeat(Math.round(vehicle.seller_rating))}${'☆'.repeat(5-Math.round(vehicle.seller_rating))} <span>(${vehicle.seller_ratings_count} reseñas)</span></div>` : '<div class="rating"><span style="color:var(--text-secondary)">Sin reseñas</span></div>'}
+              <h4 onclick="viewProfile(${vehicle.seller_id})">${vehicle.seller_verified && vehicle.seller_profile?.dealership_name ? escapeHtml(vehicle.seller_profile.dealership_name) : escapeHtml(vehicle.seller_name)}</h4>
+              ${vehicle.seller_verified ? `<div style="margin-bottom:0.5rem;">${verifiedBadge()}</div>` : ''}
+              ${vehicle.seller_rating ? `<div class="rating">${'★'.repeat(Math.round(vehicle.seller_rating))}${'☆'.repeat(5-Math.round(vehicle.seller_rating))} <span>(${vehicle.seller_ratings_count} reseñas)</span></div>` : '<div class="rating"><span style="color:var(--text-secondary)">Sin reseñas aún</span></div>'}
               <div class="seller-stats">
-                <span>${vehicle.seller_vehicles_count} vehículos</span>
-                <span style="margin-left:0.75rem;">${vehicle.seller_followers_count || 0} seguidores</span>
+                <span><strong>${vehicle.seller_vehicles_count}</strong> vehículos</span>
+                <span><strong id="followersCount">${vehicle.seller_followers_count || 0}</strong> seguidores</span>
               </div>
             </div>
+            
+            ${vehicle.seller_verified && (vehicle.seller_profile?.dealership_address || vehicle.seller_profile?.instagram) || vehicle.seller_profile?.phone ? `
+              <div class="seller-contact-actions">
+                ${vehicle.seller_verified && vehicle.seller_profile?.dealership_address ? `
+                  <span class="seller-contact-link">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                    ${escapeHtml(vehicle.seller_profile.dealership_address)}
+                  </span>
+                ` : ''}
+                ${vehicle.seller_profile?.instagram ? `
+                  <a href="${escapeHtml(instagramUrl(vehicle.seller_profile.instagram))}" target="_blank" rel="noopener" class="seller-contact-link instagram">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+                    ${escapeHtml(instagramLabel(vehicle.seller_profile.instagram))}
+                  </a>
+                ` : ''}
+                ${vehicle.seller_profile?.phone ? `
+                  <a href="https://wa.me/${escapeHtml(vehicle.seller_profile.phone.replace(/[\s\-\(\)]/g,'').replace(/^\+/,''))}" target="_blank" rel="noopener" class="btn btn-primary" style="background:#25D366;border:none;width:100%;margin-top:0.5rem;">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="margin-right:0.4rem;"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg> 
+                    Contactar por WhatsApp
+                  </a>
+                ` : ''}
+              </div>
+            ` : ''}
           </div>
           
           ${vehicle.accepts_trade && isLoggedIn && !isOwner && vehicle.status === 'active' ? `
@@ -949,7 +992,7 @@ async function compressImage(file, maxWidth = 1920, maxHeight = 1080, quality = 
 }
 
 async function handleImageSelect(e) {
-  const files = Array.from(e.target.files).slice(0, 5 - uploadedImages.length);
+  const files = Array.from(e.target.files).slice(0, 12 - uploadedImages.length);
   for (const file of files) {
     if (!file.type.startsWith('image/')) continue;
     try {
@@ -984,8 +1027,16 @@ function renderImagePreviews() {
     <div class="preview-item ${i === 0 ? 'primary' : ''}">
       <img src="${escapeHtml(img.preview || img.url || '')}" alt="">
       <button class="preview-remove" onclick="removeImage(${i})">&times;</button>
+      <button class="preview-cover ${i === 0 ? 'active' : ''}" onclick="setCoverImage(${i})">Portada</button>
     </div>
   `).join('');
+}
+
+function setCoverImage(index) {
+  if (index === 0) return; // already cover
+  const item = uploadedImages.splice(index, 1)[0];
+  uploadedImages.unshift(item);
+  renderImagePreviews();
 }
 
 function removeImage(index) {
@@ -1018,6 +1069,7 @@ async function handlePublish(e) {
       title: document.getElementById('publishTitle').value,
       brand: document.getElementById('publishBrand').value,
       model: document.getElementById('publishModel').value,
+      version: document.getElementById('publishVersion')?.value || '',
       year: document.getElementById('publishYear').value,
       price: getPriceInUSD('publish'),
       transmission: document.getElementById('publishTransmission').value,
@@ -1101,6 +1153,7 @@ async function openEditModal(id, e) {
     const v = await request(`/vehicles/${id}`);
     document.getElementById('editVehicleId').value = v.id;
     document.getElementById('editTitle').value = v.title || '';
+    document.getElementById('editVersion').value = v.version || '';
     const editCurrencyEl = document.getElementById('editCurrency');
     if (editCurrencyEl) { editCurrencyEl.value = 'USD'; editCurrencyEl.dataset.prev = 'USD'; }
     document.getElementById('editPrice').value = v.price || '';
@@ -1156,6 +1209,7 @@ async function handleEditVehicle(e) {
       method: 'PUT',
       body: JSON.stringify({
         title: document.getElementById('editTitle').value,
+        version: document.getElementById('editVersion').value,
         price: getPriceInUSD('edit'),
         mileage: document.getElementById('editMileage').value,
         fuel: document.getElementById('editFuel').value,
@@ -1187,6 +1241,7 @@ async function loadFavorites() {
       <div class="vehicle-card" onclick="viewVehicle(${v.id})">
         <div class="vehicle-image-container">
           <img src="${v.images?.[0]?.url || v.image_url || PLACEHOLDER_IMG}" class="vehicle-image" alt="${escapeHtml(v.title)}" onerror="this.src=PLACEHOLDER_IMG">
+          ${v.status === 'sold' ? '<div class="sold-overlay"><span>VENDIDO</span></div>' : ''}
           <span class="vehicle-badge">${escapeHtml(String(v.year))}</span>
         </div>
         <div class="vehicle-info">
@@ -1590,16 +1645,21 @@ const NOTIF_ICONS = {
   follow:        `<svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>`,
   new_vehicle:   `<svg viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99z"/></svg>`,
   rating:        `<svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>`,
+  favorite_sold: `<svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`,
 };
 function notifIcon(type) {
   const svg = NOTIF_ICONS[type] || `<svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>`;
-  const colors = { message:'#60a5fa', trade_offer:'#f59e0b', trade_accepted:'#22c55e', trade_rejected:'#ef4444', follow:'#a78bfa', new_vehicle:'#f59e0b', rating:'#facc15' };
+  const colors = { message:'#60a5fa', trade_offer:'#f59e0b', trade_accepted:'#22c55e', trade_rejected:'#ef4444', follow:'#a78bfa', new_vehicle:'#f59e0b', rating:'#facc15', favorite_sold:'#ef4444' };
   const bg = colors[type] || 'var(--text-3)';
   return `<div class="notification-icon" style="background:${bg}22;color:${bg};">${svg}</div>`;
 }
 
 async function loadNotifications() {
   try {
+    // Auto-mark all as read when viewing notifications
+    request('/notifications/read-all', { method: 'PUT' }).catch(() => {});
+    const badge = document.getElementById('notificationsBadge');
+    if (badge) { badge.textContent = ''; badge.style.display = 'none'; }
     const notifications = await request('/notifications');
     const container = document.getElementById('notificationsList');
     if (!notifications?.length) { container.innerHTML = '<div class="empty-state"><p>Sin notificaciones</p></div>'; return; }
@@ -1671,36 +1731,101 @@ async function viewProfile(id) {
       const completed = fields.filter(f => f.done).length;
       const pct = Math.round((completed / fields.length) * 100);
       if (pct < 100) {
-        completenessHtml = `<div class="profile-completeness">
-          <h4>Completá tu perfil (${pct}%)</h4>
+        completenessHtml = `
+        <div class="profile-completeness">
+          <div class="profile-completeness-header">
+            <h4>Completá tu perfil</h4>
+            <span class="pct-badge">${pct}%</span>
+          </div>
           <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
-          <div class="checklist">${fields.map(f => `<span class="${f.done ? 'done' : 'pending'}">${f.done ? '✓' : '○'} ${f.name}</span>`).join('')}</div>
+          <div class="checklist">
+            ${fields.map(f => `
+              <div class="checklist-item ${f.done ? 'done' : 'pending'}">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                  ${f.done ? '<path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>' : '<circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>'}
+                </svg>
+                ${f.name}
+              </div>
+            `).join('')}
+          </div>
         </div>`;
       }
     }
     const canFollow = !isOwn && !!localStorage.getItem('token');
-    document.getElementById('profileHeader').innerHTML = `
+    
+    // Header content
+    let headerHtml = `
       ${completenessHtml}
-      <div class="profile-avatar">${profile.avatar_url ? `<img src="${escapeHtml(profile.avatar_url || '')}" alt="">` : profile.username?.charAt(0).toUpperCase()}</div>
-      <div class="seller-name-row" style="justify-content:center;margin-top:0.5rem;">
-        <h2 style="margin:0;">${escapeHtml(profile.username)}</h2>
+      <div class="profile-header">
+        <div class="profile-avatar-wrapper">
+          <div class="profile-avatar">
+            ${profile.avatar_url ? `<img src="${escapeHtml(profile.avatar_url || '')}" alt="">` : profile.username?.charAt(0).toUpperCase()}
+          </div>
+        </div>
+        
+        <h2>${escapeHtml(profile.username)}</h2>
         ${profile.is_verified ? verifiedBadge() : ''}
+        
+        ${profile.rating ? `
+          <div class="rating">
+            ${'★'.repeat(Math.round(profile.rating))}${'☆'.repeat(5-Math.round(profile.rating))} 
+            <span>(${profile.ratings_count} reseñas)</span>
+          </div>
+        ` : '<p style="color:var(--text-3); margin-top:0.5rem;">Sin reseñas aún</p>'}
+        
+        ${profile.city ? `
+          <div class="location">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+            ${escapeHtml(profile.city)}
+          </div>
+        ` : ''}
+        
+        ${profile.bio ? `<p class="profile-bio">${escapeHtml(profile.bio)}</p>` : ''}
+        
+        <div class="profile-actions-grid">
+          ${profile.instagram ? `
+            <a href="${escapeHtml(instagramUrl(profile.instagram))}" target="_blank" rel="noopener" class="profile-action-btn instagram">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg> 
+              Instagram
+            </a>
+          ` : ''}
+          ${profile.phone ? `
+            <a href="https://wa.me/${escapeHtml(profile.phone.replace(/[\\s\\-\\(\\)]/g,'').replace(/^\\+/,''))}" target="_blank" rel="noopener" class="profile-action-btn whatsapp">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg> 
+              WhatsApp
+            </a>
+          ` : ''}
+          ${isOwn ? `
+            <button class="profile-action-btn" onclick="showSection('profile'); editProfile()">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+              Editar perfil
+            </button>
+          ` : ''}
+          ${canFollow ? `
+            <button id="followBtn" class="profile-action-btn ${profile.is_following ? 'btn-secondary' : 'btn-primary'}" onclick="toggleFollow(${id})">
+              ${profile.is_following ? 'Dejar de seguir' : '+ Seguir'}
+            </button>
+          ` : ''}
+        </div>
+        
+        <div class="profile-stats-grid">
+          <div class="profile-stat-item">
+            <span class="profile-stat-value">${profile.vehicles_count || 0}</span>
+            <span class="profile-stat-label">Vehículos</span>
+          </div>
+          <div class="profile-stat-item">
+            <span class="profile-stat-value" id="followersCount">${profile.followers_count || 0}</span>
+            <span class="profile-stat-label">Seguidores</span>
+          </div>
+          <div class="profile-stat-item">
+            <span class="profile-stat-value">${profile.following_count || 0}</span>
+            <span class="profile-stat-label">Siguiendo</span>
+          </div>
+        </div>
       </div>
-      ${profile.rating ? `<div class="rating">${'★'.repeat(Math.round(profile.rating))}${'☆'.repeat(5-Math.round(profile.rating))} <span>(${profile.ratings_count} reseñas)</span></div>` : '<p style="color:var(--text-secondary)">Sin reseñas</p>'}
-      ${profile.city ? `<p style="color:var(--text-secondary)">${escapeHtml(profile.city)}</p>` : ''}
-      ${profile.bio ? `<p style="margin-top:0.5rem;font-size:0.9rem">${escapeHtml(profile.bio)}</p>` : ''}
-      <div class="stats" style="display:flex;gap:1.5rem;justify-content:center;margin-top:0.75rem;">
-        <span><strong>${profile.vehicles_count || 0}</strong> vehículos</span>
-        <span><strong id="followersCount">${profile.followers_count || 0}</strong> seguidores</span>
-        <span><strong>${profile.following_count || 0}</strong> siguiendo</span>
-      </div>
-      ${canFollow ? `
-        <button id="followBtn" class="btn ${profile.is_following ? 'btn-secondary' : 'btn-primary'}" style="margin-top:1rem;min-width:140px;" onclick="toggleFollow(${id})">
-          ${profile.is_following ? 'Dejar de seguir' : '+ Seguir'}
-        </button>
-      ` : ''}
-      ${isOwn ? `<button class="btn btn-secondary" style="margin-top:1rem" onclick="showSection('profile'); editProfile()">Editar perfil</button>` : ''}
     `;
+    
+    document.getElementById('profileHeader').innerHTML = headerHtml;
     const isViewerAdmin = !!currentUser?.profile?.is_admin;
     const vehicles = await request(`/vehicles?user_id=${id}`).catch(() => ({ vehicles: [] }));
     document.getElementById('profileVehiclesList').innerHTML = vehicles.vehicles?.length ? vehicles.vehicles.map(v => `
@@ -1741,6 +1866,14 @@ function editProfile() {
       <div class="form-group"><label>Teléfono</label><input type="tel" id="editPhone" value="${escapeHtml(currentUser.profile?.phone || '')}" placeholder="+54..."></div>
       <div class="form-group"><label>Ciudad</label><input type="text" id="profileEditCity" value="${escapeHtml(currentUser.profile?.city || '')}" placeholder="Buenos Aires"></div>
       <div class="form-group"><label>Bio</label><textarea id="editBio" rows="3" placeholder="Cuéntanos sobre ti...">${escapeHtml(currentUser.profile?.bio || '')}</textarea></div>
+      ${currentUser.profile?.is_verified ? `
+        <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);">
+          <h4 style="font-size:0.95rem;margin-bottom:0.75rem;color:var(--primary);">Datos de concesionaria (verificado)</h4>
+          <div class="form-group"><label>Nombre de la concesionaria</label><input type="text" id="editDealershipName" value="${escapeHtml(currentUser.profile?.dealership_name || '')}" placeholder="Ej: Autos Premium SRL"></div>
+          <div class="form-group"><label>Dirección de la concesionaria</label><input type="text" id="editDealershipAddress" value="${escapeHtml(currentUser.profile?.dealership_address || '')}" placeholder="Ej: Av. Libertador 1234, CABA"></div>
+          <div class="form-group"><label>Instagram</label><input type="text" id="editInstagram" value="${escapeHtml(currentUser.profile?.instagram || '')}" placeholder="https://instagram.com/tuconcesionaria"><small style="color:var(--text-secondary);font-size:0.78rem;">Pegá el enlace completo de tu perfil de Instagram</small></div>
+        </div>
+      ` : ''}
       <button type="submit" class="btn btn-primary" style="width:100%;">Guardar</button>
     </form>
   `;
@@ -1787,7 +1920,10 @@ async function saveProfile(e) {
       phone: document.getElementById('editPhone').value,
       city: document.getElementById('profileEditCity').value,
       bio: document.getElementById('editBio').value,
-      avatar_url: avatarUrl
+      avatar_url: avatarUrl,
+      dealership_name: document.getElementById('editDealershipName')?.value ?? '',
+      dealership_address: document.getElementById('editDealershipAddress')?.value ?? '',
+      instagram: document.getElementById('editInstagram')?.value ?? '',
     }) });
     showToast('Perfil actualizado', 'success');
     currentUser = await request('/user');
@@ -2305,6 +2441,24 @@ function formatRelTime(d) {
 }
 function escapeHtml(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
 
+// Builds a proper Instagram URL from a handle (@foo, foo) or a full URL
+function instagramUrl(val) {
+  if (!val) return '';
+  const v = val.trim();
+  if (v.startsWith('http://') || v.startsWith('https://')) return v;
+  return 'https://instagram.com/' + v.replace(/^@/, '');
+}
+
+// Readable Instagram label (last path segment or @handle)
+function instagramLabel(val) {
+  if (!val) return '';
+  const v = val.trim();
+  if (v.startsWith('http://') || v.startsWith('https://')) {
+    try { return '@' + new URL(v).pathname.replace(/\//g, '').replace(/^@/, ''); } catch { return v; }
+  }
+  return '@' + v.replace(/^@/, '');
+}
+
 function shareVehicle(id, title, price) {
   const url = `${window.location.origin}${window.location.pathname}?vehicle=${id}`;
   const text = `🚗 ${title}\n💰 $${Number(price).toLocaleString('es-AR')}\n${url}`;
@@ -2476,12 +2630,12 @@ function updateNav() {
   
   document.getElementById('navHome').style.display = 'flex';
   document.getElementById('navVehicles').style.display = 'flex';
-  document.getElementById('navMap').style.display = 'flex';
   
   if (isLogged) {
     document.getElementById('navMessages').style.display = 'flex';
     document.getElementById('navNotifications').style.display = 'flex';
     document.getElementById('navFavorites').style.display = 'flex';
+    document.getElementById('navFollowing').style.display = 'flex';
     document.getElementById('navMyVehicles').style.display = 'flex';
     document.getElementById('navPublish').style.display = 'flex';
     document.getElementById('navProfile').style.display = 'flex';
@@ -2620,15 +2774,21 @@ updateVehicleTypeOptions('filter');
 function autoFillTitle() {
   const brand = document.getElementById('publishBrand')?.value || '';
   const model = document.getElementById('publishModel')?.value || '';
+  const version = document.getElementById('publishVersion')?.value || '';
   const year = document.getElementById('publishYear')?.value || '';
+  const title = `${brand} ${model} ${version} ${year}`.replace(/\s+/g, ' ').trim();
   const titleInput = document.getElementById('publishTitle');
-  if (titleInput) {
-    titleInput.value = `${brand} ${model} ${year}`.trim();
+  const preview = document.getElementById('publishTitlePreview');
+  if (titleInput) titleInput.value = title;
+  if (preview) {
+    preview.textContent = title || 'Completá marca, modelo y año para ver el título';
+    preview.style.color = title ? 'var(--text)' : 'var(--text-3)';
   }
 }
 
 document.getElementById('publishBrand')?.addEventListener('change', autoFillTitle);
 document.getElementById('publishModel')?.addEventListener('change', autoFillTitle);
+document.getElementById('publishVersion')?.addEventListener('input', autoFillTitle);
 document.getElementById('publishYear')?.addEventListener('input', autoFillTitle);
 
 const yearInput = document.getElementById('publishYear');
@@ -2648,6 +2808,88 @@ function toggleMobileMenu() {
 }
 function closeMobileMenu() {
   document.getElementById('mobileAccountMenu').style.display = 'none';
+}
+
+let followingFeedPage = 1;
+let followingFeedLoading = false;
+
+async function loadFollowingFeed(page = 1, reset = false) {
+  if (followingFeedLoading) return;
+  followingFeedLoading = true;
+  const container = document.getElementById('followingFeedList');
+  const loadingEl = document.getElementById('followingFeedLoading');
+  if (reset) {
+    container.innerHTML = '';
+    followingFeedPage = 1;
+  }
+  if (loadingEl) loadingEl.style.display = 'block';
+  try {
+    const { vehicles = [], total = 0 } = await request(`/following-feed?page=${page}`);
+    if (loadingEl) loadingEl.style.display = 'none';
+    if (!vehicles.length && page === 1) {
+      container.innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg><h3>Tu feed está vacío</h3><p>Todavía no seguís a ningún vendedor. Explorá los perfiles y seguí a quienes te interesen para ver sus publicaciones acá.</p></div>';
+      followingFeedLoading = false;
+      return;
+    }
+    const html = vehicles.map(v => `
+      <div class="vehicle-card" onclick="viewVehicle(${v.id})">
+        <div class="vehicle-image-container">
+          <img src="${v.images?.find(i => i.is_primary)?.url || v.images?.[0]?.url || PLACEHOLDER_IMG}" class="vehicle-image" alt="${escapeHtml(v.title)}" loading="lazy" onerror="this.src=PLACEHOLDER_IMG">
+          <span class="vehicle-badge">${escapeHtml(String(v.year))}</span>
+          ${v.status === 'sold' ? '<span class="vehicle-badge badge-sold" style="left:auto;right:0.75rem;">VENDIDO</span>' : ''}
+          ${localStorage.getItem('token') ? `<button class="favorite-btn ${userFavoriteIds.has(v.id) ? 'active' : ''}" data-vehicle-id="${v.id}" onclick="toggleFavorite(${v.id}, event)"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>` : ''}
+        </div>
+        <div class="vehicle-info">
+          <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
+          ${v.city ? `<p class="vehicle-location">📍 ${escapeHtml(v.city)}${v.province ? ', ' + escapeHtml(v.province.replace(/\s*\(.*?\)/g,'').trim()) : ''}</p>` : ''}
+          <div class="vehicle-price-block">
+            <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
+            ${formatPesos(v.price) ? `<p class="vehicle-price-ars">${formatPesos(v.price)}</p>` : ''}
+            ${(() => {
+              const ph = v.price_history;
+              if (ph && ph.length >= 2) {
+                const oldest = ph[0].price;
+                const latest = ph[ph.length - 1].price;
+                const diff = latest - oldest;
+                const pct = Math.round(Math.abs(diff) / oldest * 100);
+                if (diff < 0 && pct > 0) return `<span class="price-drop-badge">↓ ${pct}%</span>`;
+              }
+              return '';
+            })()}
+          </div>
+          <div class="vehicle-card-footer">
+            <div class="vehicle-seller">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+              <span>${escapeHtml(v.seller_name || 'Anónimo')}</span>
+              ${v.seller_verified ? verifiedBadge() : ''}
+            </div>
+          </div>
+        </div>
+      </div>
+    `).join('');
+    container.insertAdjacentHTML('beforeend', html);
+    followingFeedPage = page;
+    // Infinite scroll: if more pages, set up observer
+    if (vehicles.length === 12 && total > page * 12) {
+      setupFollowingFeedScroll();
+    }
+  } catch (err) {
+    if (loadingEl) loadingEl.style.display = 'none';
+    showToast(err.message, 'error');
+  }
+  followingFeedLoading = false;
+}
+
+function setupFollowingFeedScroll() {
+  const loadingEl = document.getElementById('followingFeedLoading');
+  if (!loadingEl) return;
+  const observer = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting && !followingFeedLoading) {
+      observer.disconnect();
+      loadFollowingFeed(followingFeedPage + 1);
+    }
+  }, { threshold: 0.1 });
+  observer.observe(loadingEl);
 }
 
 async function loadPublicStats() {

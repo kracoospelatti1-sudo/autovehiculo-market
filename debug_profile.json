@@ -1,0 +1,24 @@
+{
+  "ts": "2026-03-22T06:02:56.628Z",
+  "user_id": 29,
+  "body": {
+    "phone": "2352487435",
+    "city": "Chacabuco",
+    "bio": "",
+    "avatar_url": "https://hlhzukssceikjmenpvri.supabase.co/storage/v1/object/public/vehicle-images/29_1774158105262.jpg",
+    "dealership_name": "Fede Olmedo Automotores",
+    "dealership_address": "Rivadavia 411",
+    "instagram": "https://www.instagram.com/fedeolmedo_automotores/"
+  },
+  "existingProfile": true,
+  "fields": {
+    "updated_at": "2026-03-22T06:02:56.628Z",
+    "phone": "2352487435",
+    "city": "Chacabuco",
+    "bio": "",
+    "avatar_url": "https://hlhzukssceikjmenpvri.supabase.co/storage/v1/object/public/vehicle-images/29_1774158105262.jpg",
+    "dealership_name": "Fede Olmedo Automotores",
+    "dealership_address": "Rivadavia 411",
+    "instagram": "https://www.instagram.com/fedeolmedo_automotores/"
+  }
+}
