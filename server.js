@@ -1044,6 +1044,21 @@ app.get('/api/profile/:id', async (req, res) => {
   }
 });
 
+// Marcar banner de perfil 100% como visto
+app.put('/api/profile/complete-seen', authenticateToken, async (req, res) => {
+  try {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ profile_complete_seen: true })
+      .eq('user_id', req.user.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al actualizar' });
+  }
+});
+
 // FOLLOWS
 app.post('/api/users/:id/follow', authenticateToken, async (req, res) => {
   try {

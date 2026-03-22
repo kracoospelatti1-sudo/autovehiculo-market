@@ -25,12 +25,18 @@
       <i data-lucide="car"></i>
       Auto<span>Vehículo</span>
     </div>
-    <span id="dolarWidget" class="dolar-widget" style="display:none;"></span>
-    <div class="nav-links">
+    <!-- Centro: links de navegación -->
+    <div class="nav-links nav-links-center">
       <a onclick="showSection('home')" id="navHome">Inicio</a>
       <a onclick="showSection('vehicles')" id="navVehicles">Vehículos</a>
-      <!-- Map section removed -->
-      <!-- Logged in only -->
+      <a onclick="showSection('favorites')" id="navFavorites" style="display:none;">Favoritos</a>
+      <a onclick="showSection('following-feed')" id="navFollowing" style="display:none;">Siguiendo</a>
+      <a onclick="showSection('my-vehicles')" id="navMyVehicles" style="display:none;">Mis Anuncios</a>
+    </div>
+    <!-- Derecha: acciones y utilidades -->
+    <div class="nav-links nav-links-right">
+      <button id="themeToggle" onclick="toggleTheme()" title="Cambiar tema">☀️</button>
+      <span id="dolarWidget" class="dolar-widget" style="display:none;"></span>
       <a onclick="showSection('messages')" id="navMessages" style="display:none;">
         <i data-lucide="message-square"></i>
         Mensajes
@@ -40,9 +46,6 @@
         <i data-lucide="bell"></i>
         <span id="notificationsBadge" class="nav-badge" style="display:none;">0</span>
       </a>
-      <a onclick="showSection('favorites')" id="navFavorites" style="display:none;">Favoritos</a>
-      <a onclick="showSection('following-feed')" id="navFollowing" style="display:none;">Siguiendo</a>
-      <a onclick="showSection('my-vehicles')" id="navMyVehicles" style="display:none;">Mis Anuncios</a>
       <a onclick="tryPublish()" id="navPublish" style="display:none;">+ Publicar</a>
       <a onclick="viewProfile(currentUser.id)" id="navProfile" style="display:none;cursor:pointer;">
         <i data-lucide="user"></i>

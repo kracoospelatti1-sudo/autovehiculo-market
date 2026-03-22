@@ -316,8 +316,37 @@ function getPriceInUSD(prefix) {
   return val;
 }
 
+// ===== TEMA DÍA / NOCHE =====
+function isDay() {
+  const h = new Date().getHours();
+  return h >= 7 && h < 20;
+}
+
+function applyTheme(day) {
+  document.body.classList.toggle('day-mode', day);
+  const btn = document.getElementById('themeToggle');
+  if (btn) btn.textContent = day ? '🌙' : '☀️';
+}
+
+function initTheme() {
+  // Usar override de sesión si existe, si no auto-detectar por hora
+  const override = sessionStorage.getItem('themeOverride');
+  applyTheme(override !== null ? override === 'day' : isDay());
+  // Re-verificar cada 5 minutos para auto-cambiar cuando cambia la hora
+  setInterval(() => {
+    if (sessionStorage.getItem('themeOverride') === null) applyTheme(isDay());
+  }, 5 * 60 * 1000);
+}
+
+function toggleTheme() {
+  const newDay = !document.body.classList.contains('day-mode');
+  sessionStorage.setItem('themeOverride', newDay ? 'day' : 'night');
+  applyTheme(newDay);
+}
+
 // Init province/city selects when DOM ready
 document.addEventListener('DOMContentLoaded', () => {
+  initTheme();
   setupProvinceCity('publishProvince', 'publishCity');
   setupProvinceCity('editProvince', 'editCity');
 
@@ -2078,7 +2107,8 @@ async function viewProfile(id) {
             `).join('')}
           </div>
         </div>`;
-      } else {
+      } else if (!profile.profile_complete_seen) {
+        request('/profile/complete-seen', { method: 'PUT' }).catch(() => {});
         completenessHtml = `
         <div class="profile-completeness" style="border-color:rgba(34,197,94,0.3);background:rgba(34,197,94,0.06);">
           <div style="display:flex;align-items:center;gap:0.75rem;">

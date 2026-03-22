@@ -55,6 +55,87 @@ img {
   --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* ===== DAY / LIGHT MODE ===== */
+body.day-mode {
+  --bg: #f0effa;
+  --dark: #e7e6f6;
+  --dark-2: #dbdaef;
+  --dark-3: #cfcee7;
+  --dark-4: #c3c2df;
+  --border: rgba(0, 0, 0, 0.1);
+  --border-hover: rgba(245, 158, 11, 0.5);
+  --text: #1a1929;
+  --text-2: #4a496c;
+  --text-3: #8080a2;
+  --text-secondary: #4a496c;
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.09);
+  --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.13);
+  --glow-primary: 0 0 40px rgba(245, 158, 11, 0.12);
+}
+
+/* Inputs, selects, textareas */
+body.day-mode input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+body.day-mode select,
+body.day-mode textarea {
+  background: rgba(0, 0, 0, 0.06) !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  color: var(--text) !important;
+}
+body.day-mode input::placeholder,
+body.day-mode textarea::placeholder {
+  color: var(--text-3) !important;
+}
+body.day-mode select option {
+  background: var(--dark-2);
+  color: var(--text);
+}
+
+/* Key hardcoded-white text on variable backgrounds */
+body.day-mode .profile-stat-value,
+body.day-mode .vehicle-price,
+body.day-mode .vehicle-title,
+body.day-mode .vehicle-card-title,
+body.day-mode .conversation-name,
+body.day-mode .profile-header h2,
+body.day-mode .modal-header h3,
+body.day-mode .section-header h2,
+body.day-mode .message-content {
+  color: var(--text);
+}
+
+/* Filter chips */
+body.day-mode .filters-section select,
+body.day-mode .filters-section input {
+  color: var(--text) !important;
+}
+
+/* Mobile menu stays dark, keep white text */
+body.day-mode .mobile-menu {
+  background: rgba(14, 14, 25, 0.97) !important;
+}
+
+/* Theme toggle button */
+#themeToggle {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  padding: 0.45rem 0.65rem;
+  font-size: 1.05rem;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s;
+  color: var(--text-2);
+}
+#themeToggle:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--border-hover);
+}
+body.day-mode #themeToggle:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
 body {
   font-family: 'Inter', -apple-system, sans-serif;
   background: var(--bg);
@@ -159,6 +240,15 @@ body::before {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.nav-links-center {
+  flex: 1;
+  justify-content: center;
+}
+
+.nav-links-right {
+  gap: 0.35rem;
 }
 
 .nav-links a {
@@ -1597,9 +1687,9 @@ select {
   background: radial-gradient(circle at top right, rgba(245, 158, 11, 0.05), transparent), var(--dark-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
-  padding: 3rem 2rem;
+  padding: 1.75rem 2rem 1.5rem;
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1.25rem;
   overflow: hidden;
   box-shadow: var(--shadow-lg), inset 0 1px 1px rgba(255, 255, 255, 0.02);
 }
@@ -1617,9 +1707,9 @@ select {
 
 .profile-avatar-wrapper {
   position: relative;
-  width: 120px;
-  height: 120px;
-  margin: 0 auto 1.5rem;
+  width: 90px;
+  height: 90px;
+  margin: 0 auto 1rem;
   z-index: 2;
 }
 
@@ -1662,10 +1752,10 @@ select {
 
 .profile-header h2 {
   font-family: 'Space Grotesk', sans-serif;
-  font-size: 2rem;
+  font-size: 1.5rem;
   font-weight: 800;
   letter-spacing: -0.03em;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.35rem;
   color: var(--text);
 }
 
@@ -1711,18 +1801,18 @@ select {
 
 .profile-bio {
   max-width: 500px;
-  margin: 1.25rem auto;
+  margin: 0.6rem auto;
   color: var(--text-2);
-  line-height: 1.6;
-  font-size: 0.95rem;
+  line-height: 1.5;
+  font-size: 0.88rem;
 }
 
 .profile-actions-grid {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 0.75rem;
-  margin-top: 1.5rem;
+  gap: 0.6rem;
+  margin-top: 1rem;
 }
 
 .profile-action-btn {
@@ -1766,10 +1856,10 @@ select {
 .profile-stats-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 2rem;
-  max-width: 600px;
-  margin: 2.5rem auto 0;
-  padding: 2rem 0;
+  gap: 1rem;
+  max-width: 500px;
+  margin: 1rem auto 0;
+  padding: 1rem 0 0;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
