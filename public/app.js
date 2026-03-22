@@ -346,7 +346,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const currencyEl = document.getElementById(`${prefix}Currency`);
     const priceEl = document.getElementById(`${prefix}Price`);
     if (currencyEl) {
-      currencyEl.dataset.prev = 'USD';
+      currencyEl.dataset.prev = currencyEl.value || 'ARS';
       currencyEl.addEventListener('change', () => onCurrencyChange(prefix));
     }
     if (priceEl) {
