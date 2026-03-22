@@ -1261,14 +1261,18 @@ app.post('/api/favorites/:vehicleId', authenticateToken, async (req, res) => {
       return res.json({ favorited: false });
     }
 
-    const { error: insertError } = await supabase.from('favorites').insert({ user_id: req.user.id, vehicle_id: vehicleId });
-    if (insertError && insertError.code !== '23505') throw insertError;
-
     const { data: vehicle } = await supabase
       .from('vehicles')
-      .select('user_id')
+      .select('user_id, status')
       .eq('id', vehicleId)
       .single();
+
+    if (vehicle?.status === 'sold') {
+      return res.status(400).json({ error: 'No podés agregar un vehículo vendido a favoritos' });
+    }
+
+    const { error: insertError } = await supabase.from('favorites').insert({ user_id: req.user.id, vehicle_id: vehicleId });
+    if (insertError && insertError.code !== '23505') throw insertError;
 
     if (vehicle && vehicle.user_id !== req.user.id) {
       await pushNotif(vehicle.user_id, {
