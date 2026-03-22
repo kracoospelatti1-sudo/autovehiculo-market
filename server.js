@@ -426,7 +426,7 @@ app.post('/api/login', async (req, res) => {
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
 
-    if (user.email_verified === false) {
+    if (user.email_verified !== true) {
       return res.status(403).json({ error: 'Verificá tu email antes de iniciar sesión. Revisá tu bandeja de entrada.', needsVerification: true });
     }
 
