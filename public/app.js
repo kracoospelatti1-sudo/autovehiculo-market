@@ -890,7 +890,7 @@ async function viewVehicle(id) {
           </div>
           <div class="detail-specs">
             <div class="spec-card"><div class="label">Año</div><div class="value">${escapeHtml(String(vehicle.year))}</div></div>
-            <div class="spec-card"><div class="label">Kilometraje</div><div class="value">${formatNumber(vehicle.mileage || 0)} km</div></div>
+            <div class="spec-card"><div class="label">Kilometraje</div><div class="value">${vehicle.mileage === 0 ? '<span class="badge-nuevo">NUEVO</span>' : formatNumber(vehicle.mileage) + ' km'}</div></div>
             ${vehicle.version ? `<div class="spec-card"><div class="label">Versión</div><div class="value">${escapeHtml(vehicle.version)}</div></div>` : ''}
             <div class="spec-card"><div class="label">Combustible</div><div class="value">${vehicle.fuel || 'N/A'}</div></div>
             <div class="spec-card"><div class="label">Transmisión</div><div class="value">${vehicle.transmission || 'N/A'}</div></div>
