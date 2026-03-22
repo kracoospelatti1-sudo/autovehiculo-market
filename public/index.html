@@ -75,18 +75,18 @@
         </div>
         <div class="hero-stats">
           <div class="stat">
-            <div class="stat-value" id="statVehicles">—</div>
+            <div class="stat-value" id="statVehicles"><span class="skeleton" style="display:inline-block;width:3rem;height:1.5rem;border-radius:4px;vertical-align:middle;"></span></div>
             <div class="stat-label">Vehículos</div>
           </div>
           <div class="hero-divider"></div>
           <div class="stat">
-            <div class="stat-value" id="statUsers">—</div>
+            <div class="stat-value" id="statUsers"><span class="skeleton" style="display:inline-block;width:3rem;height:1.5rem;border-radius:4px;vertical-align:middle;"></span></div>
             <div class="stat-label">Usuarios</div>
           </div>
           <div class="hero-divider"></div>
           <div class="stat">
-            <div class="stat-value">98%</div>
-            <div class="stat-label">Satisfacción</div>
+            <div class="stat-value" style="font-size: 1.4rem;">Gratis</div>
+            <div class="stat-label">Sin comisión</div>
           </div>
         </div>
         <div class="features-strip">
@@ -129,11 +129,11 @@
         <p class="subtitle">Ingresá tus credenciales para continuar</p>
         <form onsubmit="handleLogin(event)">
           <div class="form-group">
-            <label>Correo electrónico</label>
+            <label for="loginEmail">Correo electrónico</label>
             <input type="email" id="loginEmail" placeholder="tu@email.com" required autocomplete="email">
           </div>
           <div class="form-group">
-            <label>Contraseña</label>
+            <label for="loginPassword">Contraseña</label>
             <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
           </div>
           <button type="submit" class="btn btn-primary" style="width:100%;margin-top:0.5rem;" id="loginBtn">Iniciar
@@ -152,15 +152,15 @@
         <p class="subtitle">Únete gratis y empezá a publicar hoy</p>
         <form onsubmit="handleRegister(event)">
           <div class="form-group">
-            <label>Nombre de usuario</label>
+            <label for="registerUsername">Nombre de usuario</label>
             <input type="text" id="registerUsername" placeholder="Tu nombre" required autocomplete="username">
           </div>
           <div class="form-group">
-            <label>Correo electrónico</label>
+            <label for="registerEmail">Correo electrónico</label>
             <input type="email" id="registerEmail" placeholder="tu@email.com" required autocomplete="email">
           </div>
           <div class="form-group">
-            <label>Contraseña</label>
+            <label for="registerPassword">Contraseña</label>
             <input type="password" id="registerPassword" placeholder="Mínimo 6 caracteres" required
               autocomplete="new-password">
           </div>
@@ -319,7 +319,6 @@
               <option value="Automático">Automático</option>
               <option value="Automático CVT">Automático CVT</option>
               <option value="Automático DSG">Automático DSG</option>
-              <option value="Quick Shifter">Quick Shifter</option>
             </select>
           </div>
           <div class="form-group">
@@ -538,7 +537,7 @@
     <!-- MY VEHICLES -->
     <section id="my-vehicles" class="section" style="display:none;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;">
-        <h2 style="font-family:'Space Grotesk',sans-serif;font-size:1.4rem;font-weight:700;">Mis Publicaciones</h2>
+        <h2 class="section-title">Mis Publicaciones</h2>
         <button class="btn btn-primary" onclick="tryPublish()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
             <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
@@ -564,15 +563,13 @@
 
     <!-- FAVORITES -->
     <section id="favorites" class="section" style="display:none;">
-      <h2 style="font-family:'Space Grotesk',sans-serif;font-size:1.4rem;font-weight:700;margin-bottom:1.5rem;">Mis
-        Favoritos</h2>
+      <h2 class="section-title">Mis Favoritos</h2>
       <div id="favoritesList" class="vehicles-grid"></div>
     </section>
 
     <!-- FOLLOWING FEED -->
     <section id="following-feed" class="section" style="display:none;">
-      <h2 style="font-family:'Space Grotesk',sans-serif;font-size:1.4rem;font-weight:700;margin-bottom:1.5rem;">
-        Publicaciones de quienes seguís</h2>
+      <h2 class="section-title">Publicaciones de quienes seguís</h2>
       <div id="followingFeedList" class="vehicles-grid"></div>
       <div id="followingFeedLoading" style="text-align:center;padding:2rem;display:none;">
         <div class="skeleton skeleton-text" style="width:200px;margin:0 auto;"></div>
@@ -601,7 +598,7 @@
     <!-- NOTIFICATIONS -->
     <section id="notifications" class="section" style="display:none;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;">
-        <h2 style="font-family:'Space Grotesk',sans-serif;font-size:1.4rem;font-weight:700;">Notificaciones</h2>
+        <h2 class="section-title">Notificaciones</h2>
         <button class="btn btn-ghost btn-sm" onclick="markAllRead()">Marcar todas como leídas</button>
       </div>
       <div id="notificationsList"
@@ -633,8 +630,7 @@
 
     <!-- ADMIN -->
     <section id="admin" class="section" style="display:none;">
-      <h2 style="font-family:'Space Grotesk',sans-serif;font-size:1.4rem;font-weight:700;margin-bottom:1.5rem;">Panel de
-        Administración</h2>
+      <h2 class="section-title">Panel de Administración</h2>
       <div id="adminStats" class="admin-stats"></div>
       <div class="admin-tabs">
         <button class="admin-tab active" onclick="showAdminTab('reports', this)">Reportes</button>
@@ -685,11 +681,12 @@
             <div class="form-group">
               <label>Combustible</label>
               <select id="editFuel">
-                <option value="">Seleccionar</option>
-                <option>Gasolina</option>
-                <option>Diesel</option>
-                <option>Eléctrico</option>
-                <option>Híbrido</option>
+                <option value="">Combustible</option>
+                <option value="Nafta">Nafta</option>
+                <option value="Diesel">Diesel</option>
+                <option value="Eléctrico">Eléctrico</option>
+                <option value="Híbrido">Híbrido</option>
+                <option value="GNC">GNC</option>
               </select>
             </div>
             <div class="form-group">

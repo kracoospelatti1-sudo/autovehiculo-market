@@ -7,6 +7,7 @@ let currentConversationId = null;
 let currentProfileId = null;
 let pollingInterval = null;
 let searchTimeout = null;
+let adminSearchTimeout = null;
 let uploadedImages = [];
 let reportVehicleId = null;
 let rateConversationId = null;
@@ -309,6 +310,26 @@ document.addEventListener('DOMContentLoaded', () => {
   setupProvinceCity('publishProvince', 'publishCity');
   setupProvinceCity('editProvince', 'editCity');
 
+  const pwdInput = document.getElementById('registerPassword');
+  if (pwdInput) {
+    pwdInput.addEventListener('input', function () {
+      let errSpan = document.getElementById('passwordError');
+      if (!errSpan) {
+        errSpan = document.createElement('span');
+        errSpan.id = 'passwordError';
+        errSpan.style.cssText = 'color:#ef4444;font-size:0.8rem;display:block;margin-top:0.25rem;';
+        this.parentNode.insertBefore(errSpan, this.nextSibling);
+      }
+      if (this.value.length > 0 && this.value.length < 6) {
+        errSpan.textContent = 'Mínimo 6 caracteres';
+        this.style.borderColor = '#ef4444';
+      } else {
+        errSpan.textContent = '';
+        this.style.borderColor = '';
+      }
+    });
+  }
+
   // Currency selectors
   ['publish', 'edit'].forEach(prefix => {
     const currencyEl = document.getElementById(`${prefix}Currency`);
@@ -353,9 +374,9 @@ function updateVehicleTypeOptions(prefix = 'publish') {
     fuels = [...autoFuels, ...commonFuels];
     transmissions = [['Manual', 'Manual'], ...autoTrans];
   } else {
-    // "Todos" en filtros — mostrar todo
+    // "Todos" en filtros — mostrar todo excepto opciones exclusivas de moto
     fuels = [...autoFuels, ...commonFuels];
-    transmissions = [['Manual', 'Manual'], ...autoTrans, ...motoTrans];
+    transmissions = [['Manual', 'Manual'], ...autoTrans];
   }
 
   const placeholder = isFilter ? '' : '';
@@ -455,6 +476,15 @@ function showSection(sectionId) {
   else if (sectionId === 'notifications') loadNotifications();
   else if (sectionId === 'following-feed') loadFollowingFeed(1, true);
   else if (sectionId === 'admin') loadAdmin();
+  else if (sectionId === 'register') {
+    // Render hCaptcha when section becomes visible (needed with render=explicit)
+    setTimeout(() => {
+      const container = document.querySelector('.h-captcha');
+      if (container && window.hcaptcha && !container.querySelector('iframe')) {
+        try { hcaptcha.render(container, { sitekey: container.dataset.sitekey }); } catch(e) {}
+      }
+    }, 50);
+  }
   else if (sectionId === 'publish') {
     uploadedImages = [];
     renderImagePreviews();
@@ -481,15 +511,6 @@ async function handleRegister(e) {
   const email = document.getElementById('registerEmail').value;
   const password = document.getElementById('registerPassword').value;
   let captchaToken = document.querySelector('[name="h-captcha-response"]')?.value || '';
-  if (!captchaToken && window.hcaptcha) {
-    // Try to get response from any rendered widget
-    try {
-      const container = document.querySelector('.h-captcha');
-      if (container && !container.querySelector('iframe')) {
-        hcaptcha.render(container, { sitekey: container.dataset.sitekey });
-      }
-    } catch(e) {}
-  }
   if (!captchaToken) {
     showToast('Por favor completá el captcha', 'error');
     btn.disabled = false;
@@ -601,7 +622,7 @@ async function loadVehicles(page = 1) {
           <span class="vehicle-badge">${escapeHtml(String(v.year))}</span>
           ${v.status === 'sold' ? '<span class="vehicle-badge badge-sold" style="left:auto;right:0.75rem;">VENDIDO</span>' : ''}
           <span class="vehicle-trade-badge ${v.accepts_trade ? 'trade-yes' : 'trade-no'}">${v.accepts_trade ? '🔄 Permuta' : 'Sin permuta'}</span>
-          ${localStorage.getItem('token') ? `<button class="favorite-btn ${userFavoriteIds.has(v.id) ? 'active' : ''}" data-vehicle-id="${v.id}" onclick="toggleFavorite(${v.id}, event)"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>` : ''}
+          <button class="favorite-btn ${userFavoriteIds.has(v.id) ? 'active' : ''}" data-vehicle-id="${v.id}" onclick="toggleFavorite(${v.id}, event)"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>
         </div>
         <div class="vehicle-info">
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
@@ -652,14 +673,30 @@ function renderPagination(total, current) {
   const pages = Math.ceil(total / perPage);
   const container = document.getElementById('vehiclesPagination');
   if (pages <= 1) { container.innerHTML = ''; return; }
+  const pagesToShow = new Set(
+    [1, pages, current - 1, current, current + 1].filter(p => p >= 1 && p <= pages)
+  );
+  const sortedPages = [...pagesToShow].sort((a, b) => a - b);
   let html = '';
-  for (let i = 1; i <= pages; i++) html += `<button class="${i === current ? 'active' : ''}" onclick="loadVehicles(${i})">${i}</button>`;
+  let prevPage = 0;
+  for (const p of sortedPages) {
+    if (p - prevPage > 1) {
+      html += `<button class="" disabled style="cursor:default;opacity:0.5;">…</button>`;
+    }
+    html += `<button class="${p === current ? 'active' : ''}" onclick="loadVehicles(${p})">${p}</button>`;
+    prevPage = p;
+  }
   container.innerHTML = html;
 }
 
 function debounceSearch() {
   clearTimeout(searchTimeout);
   searchTimeout = setTimeout(() => loadVehicles(1), 500);
+}
+
+function debounceAdmin(fn) {
+  clearTimeout(adminSearchTimeout);
+  adminSearchTimeout = setTimeout(fn, 400);
 }
 
 function toggleFilters() {
@@ -770,6 +807,21 @@ function updatePublishModels() {
 // VEHICLE DETAIL
 async function viewVehicle(id) {
   currentVehicleId = id;
+  showSection('vehicle-detail');
+  const detailContainer = document.getElementById('vehicleDetailContent');
+  if (detailContainer) {
+    detailContainer.innerHTML = `
+      <div style="padding: 2rem;">
+        <div class="skeleton" style="height: 400px; border-radius: var(--radius); margin-bottom: 1.5rem;"></div>
+        <div class="skeleton" style="height: 2rem; width: 60%; margin-bottom: 0.75rem;"></div>
+        <div class="skeleton" style="height: 1.5rem; width: 40%; margin-bottom: 1.5rem;"></div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+          ${Array(6).fill('<div class="skeleton" style="height: 80px; border-radius: var(--radius);"></div>').join('')}
+        </div>
+        <div class="skeleton" style="height: 120px; border-radius: var(--radius);"></div>
+      </div>
+    `;
+  }
   try {
     const vehicle = await request(`/vehicles/${id}`);
     const isOwner = currentUser?.id === vehicle.seller_id || currentUser?.profile?.is_admin;
@@ -826,6 +878,7 @@ async function viewVehicle(id) {
           <div class="detail-specs">
             <div class="spec-card"><div class="label">Año</div><div class="value">${escapeHtml(String(vehicle.year))}</div></div>
             <div class="spec-card"><div class="label">Kilometraje</div><div class="value">${formatNumber(vehicle.mileage || 0)} km</div></div>
+            ${vehicle.version ? `<div class="spec-card"><div class="label">Versión</div><div class="value">${escapeHtml(vehicle.version)}</div></div>` : ''}
             <div class="spec-card"><div class="label">Combustible</div><div class="value">${vehicle.fuel || 'N/A'}</div></div>
             <div class="spec-card"><div class="label">Transmisión</div><div class="value">${vehicle.transmission || 'N/A'}</div></div>
             ${vehicle.vehicle_type === 'moto' && vehicle.engine_cc ? `<div class="spec-card"><div class="label">Cilindrada</div><div class="value">${vehicle.engine_cc} cc</div></div>` : ''}
@@ -927,7 +980,6 @@ async function viewVehicle(id) {
     `;
     window._detailImages = images.map(img => img.url);
     if (currentVehicleId !== id) return;
-    showSection('vehicle-detail');
     if (vehicle.city) initVehicleMap(vehicle.city, vehicle.province);
     loadSimilarVehicles(vehicle.id);
 
@@ -1309,7 +1361,15 @@ async function loadConversations(page = 1) {
     const conversations = res.conversations || res;
     const total = res.total || conversations.length;
     const container = document.getElementById('conversationsListContent');
-    if (page === 1 && !conversations?.length) { container.innerHTML = '<div class="empty-state" style="padding:2rem;"><p>Sin conversaciones</p></div>'; renderEmptyChat(); return; }
+    if (page === 1 && !conversations?.length) {
+      container.innerHTML = `<div class="empty-state" style="padding: 2rem; text-align: center;">
+  <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.3; margin-bottom: 1rem;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+  <h3 style="margin-bottom: 0.5rem; font-size: 1rem;">Sin conversaciones aún</h3>
+  <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">Cuando contactes a un vendedor, el chat aparecerá aquí.</p>
+  <button class="btn btn-primary" style="font-size: 0.85rem; padding: 0.5rem 1.25rem;" onclick="showSection('vehicles')">Explorar vehículos</button>
+</div>`;
+      renderEmptyChat(); return;
+    }
     const html = conversations.map(c => `
       <div class="conversation-item ${String(currentConversationId) === String(c.id) ? 'active' : ''}" onclick="openConversation(${c.id}, this)">
         <div class="conversation-avatar">${c.other_user?.avatar_url ? `<img src="${escapeHtml(c.other_user.avatar_url || '')}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (c.other_user?.username ? c.other_user.username.charAt(0).toUpperCase() : '?')}</div>
@@ -1689,14 +1749,10 @@ async function handleNotificationClick(link, id) {
     currentConversationId = convId;
     lastMessageId = 0;
     pollCount = 0;
+    // currentConversationId set BEFORE showSection so that loadConversations
+    // (triggered by showSection) picks it up and opens the correct chat
     showSection('messages');
-    try {
-      await loadChatFull(convId);
-      startPolling();
-    } catch (err) {
-      showToast('No se pudo cargar la conversación', 'error');
-      currentConversationId = null;
-    }
+    startPolling();
   } else if (link.includes('vehicle/')) {
     viewVehicle(link.split('/').pop());
   } else if (link.includes('profile/')) {
@@ -2022,6 +2078,7 @@ async function loadAdminVehicles(page = 1) {
         <input type="text" id="adminVehicleSearch" placeholder="Buscar por título o marca..."
           value="${escapeHtml(searchVal)}"
           style="flex:1;min-width:200px;padding:0.45rem 0.8rem;background:var(--dark-3);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--text);font-size:0.85rem;"
+          oninput="debounceAdmin(() => loadAdminVehicles(1))"
           onkeydown="if(event.key==='Enter') loadAdminVehicles(1)">
         <button class="btn btn-sm btn-secondary" onclick="loadAdminVehicles(1)">🔍 Buscar</button>
         <span style="color:var(--text-3);font-size:0.8rem;">${total} publicaciones totales</span>
@@ -2839,7 +2896,7 @@ async function loadFollowingFeed(page = 1, reset = false) {
           <img src="${v.images?.find(i => i.is_primary)?.url || v.images?.[0]?.url || PLACEHOLDER_IMG}" class="vehicle-image" alt="${escapeHtml(v.title)}" loading="lazy" onerror="this.src=PLACEHOLDER_IMG">
           <span class="vehicle-badge">${escapeHtml(String(v.year))}</span>
           ${v.status === 'sold' ? '<span class="vehicle-badge badge-sold" style="left:auto;right:0.75rem;">VENDIDO</span>' : ''}
-          ${localStorage.getItem('token') ? `<button class="favorite-btn ${userFavoriteIds.has(v.id) ? 'active' : ''}" data-vehicle-id="${v.id}" onclick="toggleFavorite(${v.id}, event)"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>` : ''}
+          <button class="favorite-btn ${userFavoriteIds.has(v.id) ? 'active' : ''}" data-vehicle-id="${v.id}" onclick="toggleFavorite(${v.id}, event)"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>
         </div>
         <div class="vehicle-info">
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>

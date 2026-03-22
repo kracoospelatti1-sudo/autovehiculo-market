@@ -139,6 +139,7 @@ IMPORTANTE: Usar siempre el agente correspondiente según la tarea. No hacer cam
 |--------|--------------|
 | **backend-dev** | Cualquier cambio en `server.js`: endpoints, auth, middleware, Supabase queries |
 | **frontend-dev** | Cualquier cambio en `app.js`, `styles.css` o `index.html` |
+| **ui-ux-expert** | Mejoras de experiencia de usuario, consistencia visual, accesibilidad, flujos de navegación, empty states, microinteracciones |
 | **db-migration** | Nuevas columnas, tablas, índices o políticas RLS en Supabase |
 | **qa-debug** | Bugs reportados, errores en consola, auditorías de código |
 | **feature-planner** | Features nuevas que tocan más de un archivo — planificar antes de implementar |
