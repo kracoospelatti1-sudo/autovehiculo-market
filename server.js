@@ -462,8 +462,16 @@ app.get('/api/vehicles', async (req, res) => {
     const offset = (page - 1) * limit;
 
     if (search) {
-      const s = search.replace(/[%_\\]/g, '');
-      query = query.or(`title.ilike.%${s}%,brand.ilike.%${s}%,model.ilike.%${s}%`);
+      const raw = search.replace(/[%_\\]/g, '').trim();
+      const tokens = raw.split(/\s+/).filter(t => t.length > 1);
+      if (tokens.length === 0) {
+        query = query.or(`title.ilike.%${raw}%,brand.ilike.%${raw}%,model.ilike.%${raw}%`);
+      } else {
+        // AND lógico entre tokens: cada término debe aparecer en al menos un campo
+        for (const token of tokens) {
+          query = query.or(`title.ilike.%${token}%,brand.ilike.%${token}%,model.ilike.%${token}%,city.ilike.%${token}%`);
+        }
+      }
     }
     if (user_id) query = query.eq('user_id', user_id);
     if (brand) query = query.eq('brand', brand);
