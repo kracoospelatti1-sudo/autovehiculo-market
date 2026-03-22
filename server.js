@@ -10,6 +10,8 @@ const path = require('path');
 const rateLimit = require('express-rate-limit');
 const http = require('http');
 const { WebSocketServer } = require('ws');
+const crypto = require('crypto');
+const { Resend } = require('resend');
 
 const app = express();
 
@@ -17,6 +19,9 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
 const SECRET_KEY = process.env.JWT_SECRET;
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'http://localhost:3000';
+const APP_URL = process.env.APP_URL || 'http://localhost:3000';
+const resend = new Resend(process.env.RESEND_API_KEY);
+const FROM_EMAIL = process.env.FROM_EMAIL || 'AutoVehículo <noreply@autovehiculo.com>';
 
 if (!supabaseUrl || !supabaseServiceKey) {
   console.error('❌ ERROR: SUPABASE_URL y SUPABASE_SERVICE_KEY son requeridos en el archivo .env');
@@ -354,7 +359,7 @@ app.post('/api/register', async (req, res) => {
 
     const { data, error } = await supabase
       .from('users')
-      .insert({ username, email, password: hashedPassword })
+      .insert({ username, email, password: hashedPassword, email_verified: false })
       .select()
       .single();
 
@@ -369,8 +374,24 @@ app.post('/api/register', async (req, res) => {
       throw profileError;
     }
 
-    const token = jwt.sign({ id: data.id, username: data.username, is_admin: false, is_banned: false }, SECRET_KEY, { expiresIn: '30d' });
-    res.json({ token, user: { id: data.id, username: data.username, email: data.email } });
+    // Generar token de verificación (expira en 24h)
+    const verifyToken = crypto.randomBytes(32).toString('hex');
+    await supabase.from('email_verification_tokens').insert({
+      user_id: data.id,
+      token: verifyToken,
+      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    });
+
+    // Enviar email de verificación
+    const verifyUrl = `${APP_URL}/?token=${verifyToken}&type=verify`;
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to: email,
+      subject: 'Verificá tu cuenta en AutoVehículo Market',
+      html: emailVerificationTemplate(username, verifyUrl),
+    });
+
+    res.json({ needsVerification: true, message: 'Te enviamos un email de verificación. Revisá tu bandeja de entrada.' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Error en el servidor' });
@@ -396,6 +417,10 @@ app.post('/api/login', async (req, res) => {
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
 
+    if (user.email_verified === false) {
+      return res.status(403).json({ error: 'Verificá tu email antes de iniciar sesión. Revisá tu bandeja de entrada.', needsVerification: true });
+    }
+
     const { data: profile } = await supabase
       .from('profiles')
       .select('is_admin, is_banned')
@@ -411,6 +436,129 @@ app.post('/api/login', async (req, res) => {
     res.json({ token, user: { id: user.id, username: user.username, email: user.email } });
   } catch (error) {
     console.error(error);
+    res.status(500).json({ error: 'Error en el servidor' });
+  }
+});
+
+// Verificar email con token
+app.get('/api/auth/verify-email', async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) return res.status(400).json({ error: 'Token requerido' });
+
+    const { data: record, error } = await supabase
+      .from('email_verification_tokens')
+      .select('user_id, expires_at')
+      .eq('token', token)
+      .maybeSingle();
+
+    if (error || !record) return res.status(400).json({ error: 'Token inválido o expirado' });
+    if (new Date(record.expires_at) < new Date()) {
+      await supabase.from('email_verification_tokens').delete().eq('token', token);
+      return res.status(400).json({ error: 'El link de verificación expiró. Pedí uno nuevo.' });
+    }
+
+    await supabase.from('users').update({ email_verified: true }).eq('id', record.user_id);
+    await supabase.from('email_verification_tokens').delete().eq('token', token);
+
+    res.json({ success: true, message: '¡Email verificado! Ya podés iniciar sesión.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error en el servidor' });
+  }
+});
+
+// Reenviar email de verificación
+app.post('/api/auth/resend-verification', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email requerido' });
+
+    const { data: user } = await supabase.from('users').select('id, username, email_verified').eq('email', email).maybeSingle();
+    if (!user) return res.json({ message: 'Si el email existe, te reenviaremos el link.' }); // No revelar existencia
+    if (user.email_verified) return res.status(400).json({ error: 'Este email ya está verificado' });
+
+    // Eliminar tokens anteriores y crear uno nuevo
+    await supabase.from('email_verification_tokens').delete().eq('user_id', user.id);
+    const verifyToken = crypto.randomBytes(32).toString('hex');
+    await supabase.from('email_verification_tokens').insert({
+      user_id: user.id, token: verifyToken,
+      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    });
+
+    const verifyUrl = `${APP_URL}/?token=${verifyToken}&type=verify`;
+    await resend.emails.send({
+      from: FROM_EMAIL, to: email,
+      subject: 'Verificá tu cuenta en AutoVehículo Market',
+      html: emailVerificationTemplate(user.username, verifyUrl),
+    });
+
+    res.json({ message: 'Email de verificación reenviado.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error en el servidor' });
+  }
+});
+
+// Solicitar recuperación de contraseña
+app.post('/api/auth/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email requerido' });
+
+    const { data: user } = await supabase.from('users').select('id, username').eq('email', email).maybeSingle();
+    // Responder igual exista o no el usuario (seguridad)
+    if (!user) return res.json({ message: 'Si el email existe, te enviamos el link de recuperación.' });
+
+    // Eliminar tokens anteriores y crear uno nuevo (expira en 1h)
+    await supabase.from('password_reset_tokens').delete().eq('user_id', user.id);
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    await supabase.from('password_reset_tokens').insert({
+      user_id: user.id, token: resetToken,
+      expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    });
+
+    const resetUrl = `${APP_URL}/?token=${resetToken}&type=reset`;
+    await resend.emails.send({
+      from: FROM_EMAIL, to: email,
+      subject: 'Recuperá tu contraseña — AutoVehículo Market',
+      html: emailResetTemplate(user.username, resetUrl),
+    });
+
+    res.json({ message: 'Si el email existe, te enviamos el link de recuperación.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error en el servidor' });
+  }
+});
+
+// Resetear contraseña con token
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) return res.status(400).json({ error: 'Token y contraseña requeridos' });
+    if (password.length < 6) return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+
+    const { data: record } = await supabase
+      .from('password_reset_tokens')
+      .select('user_id, expires_at, used')
+      .eq('token', token)
+      .maybeSingle();
+
+    if (!record) return res.status(400).json({ error: 'Token inválido o expirado' });
+    if (record.used) return res.status(400).json({ error: 'Este link ya fue utilizado' });
+    if (new Date(record.expires_at) < new Date()) {
+      await supabase.from('password_reset_tokens').delete().eq('token', token);
+      return res.status(400).json({ error: 'El link expiró. Pedí uno nuevo.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await supabase.from('users').update({ password: hashedPassword }).eq('id', record.user_id);
+    await supabase.from('password_reset_tokens').update({ used: true }).eq('token', token);
+
+    res.json({ success: true, message: 'Contraseña actualizada correctamente. Ya podés iniciar sesión.' });
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error en el servidor' });
   }
 });
@@ -2621,6 +2769,43 @@ httpServer.on('upgrade', (req, socket, head) => {
     })
   })
 })
+
+// ─── EMAIL TEMPLATES ────────────────────────────────────────────────────────
+function emailVerificationTemplate(username, verifyUrl) {
+  return `<!DOCTYPE html><html lang="es"><body style="margin:0;padding:0;background:#0f0e17;font-family:Inter,sans-serif;">
+  <div style="max-width:520px;margin:40px auto;background:#1a1929;border-radius:16px;overflow:hidden;">
+    <div style="background:linear-gradient(135deg,#6c63ff,#8b5cf6);padding:32px 40px;text-align:center;">
+      <h1 style="margin:0;color:#fff;font-size:1.5rem;">🚗 AutoVehículo Market</h1>
+    </div>
+    <div style="padding:40px;">
+      <h2 style="color:#e2e0f0;margin-top:0;">¡Hola, ${username}!</h2>
+      <p style="color:#a0a0c0;line-height:1.6;">Gracias por registrarte. Para activar tu cuenta, hacé clic en el botón de abajo.</p>
+      <div style="text-align:center;margin:32px 0;">
+        <a href="${verifyUrl}" style="background:linear-gradient(135deg,#6c63ff,#8b5cf6);color:#fff;text-decoration:none;padding:14px 32px;border-radius:10px;font-weight:600;display:inline-block;">Verificar mi cuenta</a>
+      </div>
+      <p style="color:#666688;font-size:0.85rem;">Este link expira en 24 horas. Si no creaste una cuenta, podés ignorar este email.</p>
+      <p style="color:#666688;font-size:0.8rem;word-break:break-all;">O copiá este link: <a href="${verifyUrl}" style="color:#6c63ff;">${verifyUrl}</a></p>
+    </div>
+  </div></body></html>`;
+}
+
+function emailResetTemplate(username, resetUrl) {
+  return `<!DOCTYPE html><html lang="es"><body style="margin:0;padding:0;background:#0f0e17;font-family:Inter,sans-serif;">
+  <div style="max-width:520px;margin:40px auto;background:#1a1929;border-radius:16px;overflow:hidden;">
+    <div style="background:linear-gradient(135deg,#6c63ff,#8b5cf6);padding:32px 40px;text-align:center;">
+      <h1 style="margin:0;color:#fff;font-size:1.5rem;">🚗 AutoVehículo Market</h1>
+    </div>
+    <div style="padding:40px;">
+      <h2 style="color:#e2e0f0;margin-top:0;">Recuperación de contraseña</h2>
+      <p style="color:#a0a0c0;line-height:1.6;">Hola <strong style="color:#e2e0f0;">${username}</strong>, recibimos una solicitud para restablecer tu contraseña.</p>
+      <div style="text-align:center;margin:32px 0;">
+        <a href="${resetUrl}" style="background:linear-gradient(135deg,#6c63ff,#8b5cf6);color:#fff;text-decoration:none;padding:14px 32px;border-radius:10px;font-weight:600;display:inline-block;">Restablecer contraseña</a>
+      </div>
+      <p style="color:#666688;font-size:0.85rem;">Este link expira en 1 hora. Si no solicitaste esto, podés ignorar este email.</p>
+      <p style="color:#666688;font-size:0.8rem;word-break:break-all;">O copiá este link: <a href="${resetUrl}" style="color:#6c63ff;">${resetUrl}</a></p>
+    </div>
+  </div></body></html>`;
+}
 
 httpServer.listen(PORT, () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`)

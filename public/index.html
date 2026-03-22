@@ -161,7 +161,10 @@
           <button type="submit" class="btn btn-primary" style="width:100%;margin-top:0.5rem;" id="loginBtn">Iniciar
             Sesión</button>
         </form>
-        <p class="form-footer" style="text-align:center;margin-top:1.25rem;color:var(--text-2);font-size:0.88rem;">¿No
+        <p style="text-align:center;margin-top:0.75rem;">
+          <a onclick="showSection('forgot-password')" style="color:var(--primary-light);cursor:pointer;font-size:0.88rem;">¿Olvidaste tu contraseña?</a>
+        </p>
+        <p class="form-footer" style="text-align:center;margin-top:0.75rem;color:var(--text-2);font-size:0.88rem;">¿No
           tenés cuenta? <a onclick="showSection('register')"
             style="color:var(--primary-light);cursor:pointer;font-weight:600;">Registrarse</a></p>
       </div>
@@ -198,6 +201,44 @@
         <p style="text-align:center;margin-top:0.5rem;color:var(--text-2);font-size:0.88rem;">¿Ya tenés cuenta? <a
             onclick="showSection('login')" style="color:var(--primary-light);cursor:pointer;font-weight:600;">Iniciar
             sesión</a></p>
+      </div>
+    </section>
+
+    <!-- FORGOT PASSWORD -->
+    <section id="forgot-password" class="section" style="display:none;">
+      <div class="form-container fade-in">
+        <h2>Recuperar contraseña</h2>
+        <p class="subtitle">Ingresá tu email y te enviamos un link para restablecer tu contraseña</p>
+        <form onsubmit="handleForgotPassword(event)">
+          <div class="form-group">
+            <label for="forgotEmail">Correo electrónico</label>
+            <input type="email" id="forgotEmail" placeholder="tu@email.com" required autocomplete="email">
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%;margin-top:0.5rem;" id="forgotBtn">Enviar link</button>
+        </form>
+        <p style="text-align:center;margin-top:1.25rem;color:var(--text-2);font-size:0.88rem;">
+          <a onclick="showSection('login')" style="color:var(--primary-light);cursor:pointer;font-weight:600;">← Volver al login</a>
+        </p>
+      </div>
+    </section>
+
+    <!-- RESET PASSWORD -->
+    <section id="reset-password" class="section" style="display:none;">
+      <div class="form-container fade-in">
+        <h2>Nueva contraseña</h2>
+        <p class="subtitle">Elegí una contraseña segura para tu cuenta</p>
+        <form onsubmit="handleResetPassword(event)">
+          <input type="hidden" id="resetToken">
+          <div class="form-group">
+            <label for="resetPassword">Nueva contraseña</label>
+            <input type="password" id="resetPassword" placeholder="Mínimo 6 caracteres" required autocomplete="new-password" minlength="6">
+          </div>
+          <div class="form-group">
+            <label for="resetPasswordConfirm">Confirmar contraseña</label>
+            <input type="password" id="resetPasswordConfirm" placeholder="Repetí la contraseña" required autocomplete="new-password" minlength="6">
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%;margin-top:0.5rem;" id="resetBtn">Guardar contraseña</button>
+        </form>
       </div>
     </section>
 

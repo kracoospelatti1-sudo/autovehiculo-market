@@ -347,10 +347,38 @@ function toggleTheme() {
 }
 
 // Init province/city selects when DOM ready
+async function handleEmailLinks() {
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('token');
+  const type = params.get('type');
+  if (!token || !type) return;
+
+  // Limpiar URL para que no quede el token visible
+  window.history.replaceState({}, '', window.location.pathname);
+
+  if (type === 'verify') {
+    try {
+      const data = await request(`/auth/verify-email?token=${token}`);
+      showToast(data.message || '¡Email verificado!', 'success');
+      showSection('login');
+    } catch (err) {
+      showToast(err.message || 'El link de verificación es inválido o expiró', 'error');
+      showSection('login');
+    }
+  } else if (type === 'reset') {
+    document.getElementById('resetToken').value = token;
+    showSection('reset-password');
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   setupProvinceCity('publishProvince', 'publishCity');
   setupProvinceCity('editProvince', 'editCity');
+
+  // Manejar links de verificación y reseteo desde emails
+  handleEmailLinks();
+
 
   const pwdInput = document.getElementById('registerPassword');
   if (pwdInput) {
@@ -499,7 +527,11 @@ async function request(endpoint, options = {}) {
   if (response.status === 204) return {};
   const contentType = response.headers.get('content-type') || '';
   const data = contentType.includes('application/json') ? await response.json() : {};
-  if (!response.ok) throw new Error(data.error || 'Error');
+  if (!response.ok) {
+    const err = new Error(data.error || 'Error');
+    if (data.needsVerification) err.needsVerification = true;
+    throw err;
+  }
   return data;
 }
 
@@ -579,14 +611,20 @@ async function handleRegister(e) {
   }
   try {
     const data = await request('/register', { method: 'POST', body: JSON.stringify({ username, email, password, captchaToken }) });
-    localStorage.setItem('token', data.token);
-    currentUser = data.user;
-    if (!heartbeatInterval) heartbeatInterval = setInterval(() => { if (currentUser && document.visibilityState === 'visible') request('/ping', { method: 'PUT' }).catch(() => {}); }, 30000);
-    if (!notifInterval) notifInterval = setInterval(() => { if (currentUser) { loadCounts(); } }, 30000);
-    updateNav();
-    loadUserFavoriteIds();
-    showToast('Registro exitoso. ¡Bienvenido!', 'success');
-    showSection('home');
+    if (data.needsVerification) {
+      showSection('login');
+      showToast('¡Cuenta creada! Te enviamos un email de verificación. Revisá tu bandeja de entrada.', 'success');
+    } else {
+      // fallback por si el email no está configurado
+      localStorage.setItem('token', data.token);
+      currentUser = data.user;
+      if (!heartbeatInterval) heartbeatInterval = setInterval(() => { if (currentUser && document.visibilityState === 'visible') request('/ping', { method: 'PUT' }).catch(() => {}); }, 30000);
+      if (!notifInterval) notifInterval = setInterval(() => { if (currentUser) { loadCounts(); } }, 30000);
+      updateNav();
+      loadUserFavoriteIds();
+      showToast('Registro exitoso. ¡Bienvenido!', 'success');
+      showSection('home');
+    }
   } catch (err) {
     showToast(err.message, 'error');
     if (window.hcaptcha) window.hcaptcha.reset();
@@ -616,10 +654,79 @@ async function handleLogin(e) {
     loadUserFavoriteIds();
     showToast('¡Bienvenido!', 'success');
     showSection('home');
-  } catch (err) { showToast(err.message, 'error'); }
+  } catch (err) {
+    if (err.needsVerification) {
+      showToast(err.message, 'error');
+      // Mostrar opción de reenviar verificación
+      const loginForm = document.querySelector('#login .form-container');
+      if (loginForm && !document.getElementById('resendVerificationBtn')) {
+        const resendDiv = document.createElement('p');
+        resendDiv.id = 'resendVerificationDiv';
+        resendDiv.style.cssText = 'text-align:center;margin-top:0.75rem;font-size:0.88rem;color:var(--text-2);';
+        resendDiv.innerHTML = `¿No recibiste el email? <a id="resendVerificationBtn" onclick="resendVerification('${email}')" style="color:var(--primary-light);cursor:pointer;font-weight:600;">Reenviar</a>`;
+        loginForm.appendChild(resendDiv);
+      }
+    } else {
+      showToast(err.message, 'error');
+    }
+  }
   finally {
     btn.disabled = false;
     btn.textContent = originalText;
+  }
+}
+
+async function handleForgotPassword(e) {
+  e.preventDefault();
+  const btn = e.target.querySelector('button[type="submit"]');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Enviando...';
+  const email = document.getElementById('forgotEmail').value;
+  try {
+    await request('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) });
+    showToast('Si el email existe, te enviamos el link de recuperación. Revisá tu bandeja.', 'success');
+    showSection('login');
+  } catch (err) {
+    showToast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
+
+async function handleResetPassword(e) {
+  e.preventDefault();
+  const btn = e.target.querySelector('button[type="submit"]');
+  const originalText = btn.textContent;
+  const password = document.getElementById('resetPassword').value;
+  const confirm = document.getElementById('resetPasswordConfirm').value;
+  const token = document.getElementById('resetToken').value;
+  if (password !== confirm) { showToast('Las contraseñas no coinciden', 'error'); return; }
+  btn.disabled = true;
+  btn.textContent = 'Guardando...';
+  try {
+    await request('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, password }) });
+    showToast('¡Contraseña actualizada! Ya podés iniciar sesión.', 'success');
+    showSection('login');
+  } catch (err) {
+    showToast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
+
+async function resendVerification(email) {
+  const btn = document.getElementById('resendVerificationBtn');
+  if (btn) { btn.textContent = 'Enviando...'; btn.style.pointerEvents = 'none'; }
+  try {
+    await request('/auth/resend-verification', { method: 'POST', body: JSON.stringify({ email }) });
+    showToast('Email de verificación reenviado. Revisá tu bandeja.', 'success');
+    if (btn) btn.textContent = 'Enviado ✓';
+  } catch (err) {
+    showToast(err.message, 'error');
+    if (btn) { btn.textContent = 'Reenviar'; btn.style.pointerEvents = ''; }
   }
 }
 
