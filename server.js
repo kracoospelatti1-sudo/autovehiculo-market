@@ -99,6 +99,36 @@ function formatNumber(num) {
   return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
+// ===== DÓLAR BLUE =====
+let dolarCache = { rate: null, timestamp: 0 };
+const DOLAR_CACHE_TTL = 10 * 60 * 1000; // 10 minutos
+
+async function fetchDolarBlue() {
+  const now = Date.now();
+  if (dolarCache.rate && (now - dolarCache.timestamp) < DOLAR_CACHE_TTL) {
+    return dolarCache.rate;
+  }
+  const res = await fetch('https://dolarapi.com/v1/dolares/blue', {
+    signal: AbortSignal.timeout(5000)
+  });
+  if (!res.ok) throw new Error(`dolarapi HTTP ${res.status}`);
+  const data = await res.json();
+  dolarCache = { rate: data, timestamp: now };
+  return data;
+}
+
+app.get('/api/dolar', async (_req, res) => {
+  try {
+    const rate = await fetchDolarBlue();
+    res.set('Cache-Control', 'public, max-age=60');
+    res.json(rate);
+  } catch (err) {
+    console.error('Error fetching dolar blue:', err.message);
+    if (dolarCache.rate) return res.json({ ...dolarCache.rate, stale: true });
+    res.status(503).json({ error: 'No se pudo obtener la cotización' });
+  }
+});
+
 // AUTH
 app.post('/api/register', async (req, res) => {
   try {
@@ -380,6 +410,64 @@ app.get('/api/vehicles/:id', optionalAuth, async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Error en el servidor' });
+  }
+});
+
+app.get('/api/vehicles/:id/similar', optionalAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Obtener datos del vehículo actual para buscar similares
+    const { data: vehicle, error } = await supabase
+      .from('vehicles')
+      .select('brand, price, vehicle_type, province')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error || !vehicle) return res.json({ vehicles: [] });
+
+    // Buscar similares: mismo tipo, precio ±40%, misma provincia si es posible
+    const minPrice = Math.floor(vehicle.price * 0.6);
+    const maxPrice = Math.ceil(vehicle.price * 1.4);
+
+    let query = supabase
+      .from('vehicles')
+      .select('id, title, brand, model, year, price, mileage, fuel, city, province, vehicle_type, engine_cc')
+      .eq('status', 'active')
+      .eq('vehicle_type', vehicle.vehicle_type || 'auto')
+      .neq('id', id)
+      .gte('price', minPrice)
+      .lte('price', maxPrice)
+      .order('created_at', { ascending: false })
+      .limit(8);
+
+    const { data: similar } = await query;
+
+    // Obtener imagen principal de cada vehículo similar
+    let results = similar || [];
+    if (results.length > 0) {
+      const vehicleIds = results.map(v => v.id);
+      const { data: images } = await supabase
+        .from('vehicle_images')
+        .select('vehicle_id, url')
+        .in('vehicle_id', vehicleIds)
+        .eq('is_primary', true);
+
+      const imageMap = {};
+      (images || []).forEach(img => { imageMap[img.vehicle_id] = img.url; });
+
+      results = results.map(v => ({ ...v, image: imageMap[v.id] || null }));
+
+      // Priorizar misma provincia
+      const sameProvince = results.filter(v => v.province === vehicle.province);
+      const otherProvince = results.filter(v => v.province !== vehicle.province);
+      results = [...sameProvince, ...otherProvince].slice(0, 4);
+    }
+
+    res.json({ vehicles: results });
+  } catch (err) {
+    console.error('Error fetching similar vehicles:', err);
+    res.json({ vehicles: [] });
   }
 });
 

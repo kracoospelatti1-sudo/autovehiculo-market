@@ -16,6 +16,8 @@ let lastMessageId = 0;
 let isLoadingMessages = false;
 let pollCount = 0;
 let vehicleSearchAbortController = null;
+let dolarRate = null;
+let dolarRateInterval = null;
 
 const API_URL = '/api';
 
@@ -524,7 +526,10 @@ async function loadVehicles(page = 1) {
         <div class="vehicle-info">
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
           ${v.city ? `<p class="vehicle-location">📍 ${escapeHtml(v.city)}${v.province ? ', ' + escapeHtml(v.province.replace(/\s*\(.*?\)/g,'').trim()) : ''}</p>` : ''}
-          <p class="vehicle-price">$${formatNumber(v.price)}</p>
+          <div class="vehicle-price-block">
+            <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
+            ${formatPesos(v.price) ? `<p class="vehicle-price-ars">${formatPesos(v.price)}</p>` : ''}
+          </div>
           <div class="vehicle-meta">
             <span><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>${formatNumber(v.mileage || 0)} km</span>
             <span>${escapeHtml(v.fuel || 'N/A')}</span>
@@ -585,6 +590,30 @@ function clearFilters() {
   const filterModelEl = document.getElementById('filterModel');
   if (filterModelEl) filterModelEl.innerHTML = '<option value="">Todos</option>';
   loadVehicles(1);
+}
+
+function formatPesos(usdPrice) {
+  if (!dolarRate?.venta || !usdPrice) return null;
+  const ars = Math.round(Number(usdPrice) * dolarRate.venta);
+  return '$' + ars.toLocaleString('es-AR');
+}
+
+function updateDolarWidget() {
+  const el = document.getElementById('dolarWidget');
+  if (!el) return;
+  if (!dolarRate?.venta) { el.style.display = 'none'; return; }
+  el.style.display = 'inline-flex';
+  el.textContent = `💵 Blue $${Number(dolarRate.venta).toLocaleString('es-AR')}`;
+}
+
+async function loadDolarRate() {
+  try {
+    const data = await request('/dolar');
+    if (data?.venta) {
+      dolarRate = data;
+      updateDolarWidget();
+    }
+  } catch { /* silencioso */ }
 }
 
 function initBrandFilters() {
@@ -699,7 +728,10 @@ async function viewVehicle(id) {
           ${vehicle.status === 'sold' ? '<div class="sold-banner">VENDIDO</div>' : vehicle.status === 'paused' ? '<div class="sold-banner" style="border-color:rgba(245,158,11,0.3);color:var(--primary);background:rgba(245,158,11,0.08);">PAUSADO</div>' : ''}
           <h1>${escapeHtml(vehicle.title)}</h1>
           <p class="detail-subtitle">${escapeHtml(vehicle.brand)} ${escapeHtml(vehicle.model)}</p>
-          <p class="detail-price">$${formatNumber(vehicle.price)}${priceChangeHtml}</p>
+          <div class="detail-price-block">
+            <div class="detail-price">USD ${formatNumber(vehicle.price)}${priceChangeHtml}</div>
+            ${formatPesos(vehicle.price) ? `<div class="detail-price-ars">${formatPesos(vehicle.price)}</div>` : ''}
+          </div>
           <div class="detail-specs">
             <div class="spec-card"><div class="label">Año</div><div class="value">${escapeHtml(String(vehicle.year))}</div></div>
             <div class="spec-card"><div class="label">Kilometraje</div><div class="value">${formatNumber(vehicle.mileage || 0)} km</div></div>
@@ -773,11 +805,18 @@ async function viewVehicle(id) {
           </div>
         </div>
       </div>
+      <div class="similar-vehicles-section" id="similarVehiclesSection">
+        <h3 class="similar-title">Vehículos similares</h3>
+        <div class="similar-vehicles-grid" id="similarVehiclesGrid">
+          <div class="similar-loading">Cargando...</div>
+        </div>
+      </div>
     `;
     window._detailImages = images.map(img => img.url);
     if (currentVehicleId !== id) return;
     showSection('vehicle-detail');
     if (vehicle.city) initVehicleMap(vehicle.city, vehicle.province);
+    loadSimilarVehicles(vehicle.id);
 
     // Check if user already has a conversation for this vehicle
     if (isLoggedIn && !isOwner) {
@@ -959,7 +998,10 @@ async function loadMyVehicles() {
         <div class="vehicle-info">
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
           <p class="vehicle-brand">${escapeHtml(v.brand)} ${escapeHtml(v.model)}</p>
-          <p class="vehicle-price">$${formatNumber(v.price)}</p>
+          <div class="vehicle-price-block">
+            <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
+            ${formatPesos(v.price) ? `<p class="vehicle-price-ars">${formatPesos(v.price)}</p>` : ''}
+          </div>
           <div class="vehicle-views"><svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z"/></svg> ${v.view_count || 0} vistas</div>
           <div style="display:flex;gap:0.5rem;margin-top:0.75rem;">
             <button class="btn btn-secondary" style="flex:1;" onclick="openEditModal(${v.id}, event)">✏️ Editar</button>
@@ -1069,7 +1111,10 @@ async function loadFavorites() {
         <div class="vehicle-info">
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
           <p class="vehicle-brand">${escapeHtml(v.brand)} ${escapeHtml(v.model)}</p>
-          <p class="vehicle-price">$${formatNumber(v.price)}</p>
+          <div class="vehicle-price-block">
+            <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
+            ${formatPesos(v.price) ? `<p class="vehicle-price-ars">${formatPesos(v.price)}</p>` : ''}
+          </div>
         </div>
       </div>
     `).join('');
@@ -1573,7 +1618,10 @@ async function viewProfile(id) {
         <div class="vehicle-image-container"><img src="${v.images?.[0]?.url || v.image_url || PLACEHOLDER_IMG}" class="vehicle-image" alt="${escapeHtml(v.title)}" onerror="this.src=PLACEHOLDER_IMG"></div>
         <div class="vehicle-info">
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
-          <p class="vehicle-price">$${formatNumber(v.price)}</p>
+          <div class="vehicle-price-block">
+            <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
+            ${formatPesos(v.price) ? `<p class="vehicle-price-ars">${formatPesos(v.price)}</p>` : ''}
+          </div>
           <span class="vehicle-trade-badge ${v.accepts_trade ? 'trade-yes' : 'trade-no'}" style="position:static;display:inline-block;margin-top:0.3rem;">${v.accepts_trade ? '🔄 Permuta' : 'Sin permuta'}</span>
           ${isViewerAdmin && !isOwn ? `<button class="btn btn-sm btn-danger" style="margin-top:0.5rem;width:100%;" data-vid="${v.id}" data-title="${escapeHtml(v.title)}" onclick="event.stopPropagation(); adminDeleteVehicle(+this.dataset.vid, this.dataset.title)">🗑 Eliminar</button>` : ''}
         </div>
@@ -2483,3 +2531,36 @@ async function loadPublicStats() {
   } catch { /* silencioso */ }
 }
 loadPublicStats();
+loadDolarRate();
+dolarRateInterval = setInterval(loadDolarRate, 10 * 60 * 1000);
+
+async function loadSimilarVehicles(vehicleId) {
+  const grid = document.getElementById('similarVehiclesGrid');
+  if (!grid) return;
+  try {
+    const data = await request(`/vehicles/${vehicleId}/similar`);
+    const vehicles = data?.vehicles || [];
+    if (!vehicles.length) {
+      document.getElementById('similarVehiclesSection')?.remove();
+      return;
+    }
+    grid.innerHTML = vehicles.map(v => `
+      <div class="similar-card" onclick="viewVehicle(${v.id})">
+        <div class="similar-card-img">
+          ${v.image
+            ? `<img src="${escapeHtml(v.image)}" alt="${escapeHtml(v.title)}" loading="lazy">`
+            : `<div class="similar-no-img"><svg width="32" height="32" viewBox="0 0 24 24" fill="var(--text-3)"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg></div>`
+          }
+        </div>
+        <div class="similar-card-body">
+          <p class="similar-card-title">${escapeHtml(v.title)}</p>
+          <p class="similar-card-price">USD ${formatNumber(v.price)}</p>
+          ${formatPesos(v.price) ? `<p class="similar-card-ars">${formatPesos(v.price)}</p>` : ''}
+          <p class="similar-card-meta">${v.year} · ${formatNumber(v.mileage)} km · ${escapeHtml(v.city || '')}</p>
+        </div>
+      </div>
+    `).join('');
+  } catch {
+    document.getElementById('similarVehiclesSection')?.remove();
+  }
+}
