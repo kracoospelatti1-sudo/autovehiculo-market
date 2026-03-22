@@ -375,7 +375,7 @@ function updateVehicleTypeOptions(prefix = 'publish') {
   const commonFuels = [['Eléctrico', 'Eléctrico']];
 
   const autoTrans = [['Automático', 'Automático'], ['Automático CVT', 'Automático CVT'], ['Automático DSG', 'Automático DSG']];
-  const motoTrans = [['Quick Shifter', 'Quick Shifter']];
+  const motoTrans = [['Automático', 'Automático'], ['Quick Shifter', 'Quick Shifter']];
 
   let fuels, transmissions;
   if (isMoto) {
