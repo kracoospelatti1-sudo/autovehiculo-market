@@ -1802,10 +1802,15 @@ select {
 }
 
 .profile-content {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 1.5rem;
-  align-items: start;
+}
+
+.profile-vehicles-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
 }
 
 .profile-vehicles,
@@ -2761,7 +2766,11 @@ select {
   }
 
   .profile-content {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+
+  .profile-vehicles-list {
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .detail-specs {
@@ -3108,6 +3117,10 @@ select {
   .vehicles-grid {
     grid-template-columns: 1fr;
     gap: 0.75rem;
+  }
+
+  .profile-vehicles-list {
+    grid-template-columns: 1fr;
   }
 
   .vehicle-card {

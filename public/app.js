@@ -2117,7 +2117,7 @@ async function viewProfile(id) {
         ${profile.city ? `
           <div class="location">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-            ${escapeHtml(profile.city)}
+            ${escapeHtml(profile.city)}${(() => { const m = AR_CITIES.find(c => c.city === profile.city); return m ? ', ' + escapeHtml(m.prov.replace(/\s*\(.*?\)/g,'').trim()) : ''; })()}
           </div>
         ` : ''}
         
@@ -2193,9 +2193,8 @@ async function viewProfile(id) {
 function editProfile() {
   if (!currentUser) return;
   pendingAvatarFile = null;
-  document.getElementById('profileForm').innerHTML = `
-    <h3 style="font-size:1.1rem;margin-bottom:1rem;">Editar perfil</h3>
-    <form onsubmit="saveProfile(event)" style="background:var(--dark-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem;">
+  document.getElementById('editProfileModalBody').innerHTML = `
+    <form onsubmit="saveProfile(event)" style="padding:0.25rem 0;">
       <div class="form-group" style="margin-bottom:1rem;">
         <label>Foto de perfil</label>
         <div style="display:flex;align-items:center;gap:1rem;">
@@ -2206,7 +2205,7 @@ function editProfile() {
       </div>
       <div class="form-group"><label for="editUsername">Nombre de usuario</label><input type="text" id="editUsername" value="${escapeHtml(currentUser.username || '')}" placeholder="tunombre" minlength="3"></div>
       <div class="form-group"><label for="editPhone">Teléfono</label><input type="tel" id="editPhone" value="${escapeHtml(currentUser.profile?.phone || '')}" placeholder="+54..."></div>
-      <div class="form-group"><label for="editProfileProvince">Provincia</label><select id="editProfileProvince" onchange="onEditProfileProvinceChange()"><option value="">Seleccioná una provincia</option>${AR_PROVINCES.map(p => `<option value="${escapeHtml(p)}" ${currentUser.profile?.city && AR_CITIES.find(c=>c.city===currentUser.profile?.city)?.prov===p ? 'selected' : ''}>${escapeHtml(p)}</option>`).join('')}</select></div>
+      <div class="form-group"><label for="editProfileProvince">Provincia</label><select id="editProfileProvince" onchange="onEditProfileProvinceChange()"><option value="">Seleccioná una provincia</option>${AR_PROVINCES.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('')}</select></div>
       <div class="form-group"><label for="editProfileCity">Ciudad</label><select id="editProfileCity"><option value="">Seleccioná una ciudad</option></select></div>
       <div class="form-group"><label for="editBio">Bio</label><textarea id="editBio" rows="3" placeholder="Cuéntanos sobre ti...">${escapeHtml(currentUser.profile?.bio || '')}</textarea></div>
       ${currentUser.profile?.is_verified ? `
@@ -2217,10 +2216,20 @@ function editProfile() {
           <div class="form-group"><label>Instagram</label><input type="text" id="editInstagram" value="${escapeHtml(currentUser.profile?.instagram || '')}" placeholder="https://instagram.com/tuconcesionaria"><small style="color:var(--text-secondary);font-size:0.78rem;">Pegá el enlace completo de tu perfil de Instagram</small></div>
         </div>
       ` : ''}
-      <button type="submit" class="btn btn-primary" style="width:100%;">Guardar</button>
+      <div style="display:flex;gap:0.75rem;margin-top:1.25rem;">
+        <button type="button" class="btn btn-ghost" style="flex:1;" onclick="closeEditProfileModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary" style="flex:2;">Guardar</button>
+      </div>
     </form>
   `;
+  document.getElementById('editProfileModal').style.display = 'flex';
+  document.getElementById('modalOverlay').style.display = 'block';
   setTimeout(initEditProfileCity, 0);
+}
+
+function closeEditProfileModal() {
+  document.getElementById('editProfileModal').style.display = 'none';
+  document.getElementById('modalOverlay').style.display = 'none';
 }
 
 function onEditProfileProvinceChange() {
@@ -2293,6 +2302,7 @@ async function saveProfile(e) {
       instagram: document.getElementById('editInstagram')?.value ?? '',
     }) });
     showToast('Perfil actualizado', 'success');
+    closeEditProfileModal();
     currentUser = await request('/user');
     updateNav();
     if (currentProfileId) viewProfile(currentProfileId);
