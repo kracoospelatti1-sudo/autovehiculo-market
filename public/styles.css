@@ -809,6 +809,18 @@ select {
   font-weight: 500;
 }
 
+.badge-nuevo {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #4ade80;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(74, 222, 128, 0.35);
+  border-radius: 6px;
+  padding: 0.2rem 0.55rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .vehicle-card-footer {
   display: flex;
   align-items: center;
