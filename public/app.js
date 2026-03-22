@@ -594,6 +594,41 @@ function showSection(sectionId) {
 }
 
 
+function updatePasswordStrength(password) {
+  const fill = document.getElementById('passwordStrengthFill');
+  const label = document.getElementById('passwordStrengthLabel');
+  if (!fill || !label) return;
+
+  const len = password.length;
+  const hasUpper = /[A-Z]/.test(password);
+  const hasLower = /[a-z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  const hasSpecial = /[^A-Za-z0-9]/.test(password);
+  const variety = [hasUpper, hasLower, hasNumber, hasSpecial].filter(Boolean).length;
+
+  let score = 0;
+  if (len >= 6) score++;
+  if (len >= 8) score++;
+  if (len >= 12) score++;
+  if (variety >= 3) score++;
+  if (variety === 4) score++;
+
+  const levels = [
+    { pct: 0,   color: 'transparent', text: '' },
+    { pct: 20,  color: '#ef4444', text: '🔴 Muy débil' },
+    { pct: 45,  color: '#f97316', text: '🟠 Débil' },
+    { pct: 65,  color: '#eab308', text: '🟡 Moderada' },
+    { pct: 85,  color: '#22c55e', text: '🟢 Fuerte' },
+    { pct: 100, color: '#6c63ff', text: '💜 Muy fuerte' },
+  ];
+
+  const level = levels[Math.min(score, 5)];
+  fill.style.width = len === 0 ? '0%' : `${level.pct}%`;
+  fill.style.background = level.color;
+  label.textContent = level.text;
+  label.style.color = level.color;
+}
+
 async function handleRegister(e) {
   e.preventDefault();
   const btn = e.target.querySelector('button[type="submit"]');
@@ -601,6 +636,8 @@ async function handleRegister(e) {
   btn.disabled = true;
   btn.textContent = 'Registrando...';
   
+  const firstName = document.getElementById('registerFirstName').value.trim();
+  const lastName = document.getElementById('registerLastName').value.trim();
   const username = document.getElementById('registerUsername').value;
   const email = document.getElementById('registerEmail').value;
   const password = document.getElementById('registerPassword').value;
@@ -612,7 +649,7 @@ async function handleRegister(e) {
     return;
   }
   try {
-    const data = await request('/register', { method: 'POST', body: JSON.stringify({ username, email, password, captchaToken }) });
+    const data = await request('/register', { method: 'POST', body: JSON.stringify({ username, email, password, captchaToken, firstName, lastName }) });
     if (data.needsVerification) {
       showSection('login');
       showToast('¡Cuenta creada! Te enviamos un email de verificación. Revisá tu bandeja de entrada.', 'success');

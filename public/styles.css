@@ -736,6 +736,30 @@ body::before {
   margin-bottom: 1.5rem;
 }
 
+/* Barra de seguridad de contraseña */
+.password-strength-bar {
+  height: 4px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 4px;
+  margin-top: 0.5rem;
+  overflow: hidden;
+}
+.password-strength-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 4px;
+  transition: width 0.3s ease, background 0.3s ease;
+}
+.password-strength-label {
+  font-size: 0.78rem;
+  margin-top: 0.3rem;
+  display: block;
+  font-weight: 500;
+}
+body.day-mode .password-strength-bar {
+  background: rgba(0,0,0,0.1);
+}
+
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;

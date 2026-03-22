@@ -329,8 +329,8 @@ app.get('/api/dolar', async (_req, res) => {
 // AUTH
 app.post('/api/register', async (req, res) => {
   try {
-    const { username, email, password, captchaToken } = req.body;
-    if (!username || !email || !password) {
+    const { username, email, password, captchaToken, firstName, lastName } = req.body;
+    if (!username || !email || !password || !firstName || !lastName) {
       return res.status(400).json({ error: 'Todos los campos son requeridos' });
     }
 
@@ -383,7 +383,7 @@ app.post('/api/register', async (req, res) => {
 
     const { error: profileError } = await supabase
       .from('profiles')
-      .insert({ user_id: data.id, city: '', bio: '', phone: '' });
+      .insert({ user_id: data.id, city: '', bio: '', phone: '', first_name: firstName.trim(), last_name: lastName.trim() });
     if (profileError) {
       // Rollback user creation if profile fails
       await supabase.from('users').delete().eq('id', data.id);
