@@ -1117,14 +1117,29 @@ async function handlePublish(e) {
   try {
     const province = document.getElementById('publishProvince').value;
     const city = document.getElementById('publishCity').value;
-    if (!province || !city) {
-      showToast('Seleccioná la provincia y la ciudad', 'error');
-      btn.disabled = false;
-      btn.textContent = 'Publicar Vehículo';
-      return;
-    }
-    if (!uploadedImages.length) {
-      showToast('Agregá al menos una imagen del vehículo', 'error');
+    const title = document.getElementById('publishTitle').value.trim();
+    const brand = document.getElementById('publishBrand').value;
+    const model = document.getElementById('publishModel').value;
+    const year = document.getElementById('publishYear').value;
+    const price = getPriceInUSD('publish');
+    const fuel = document.getElementById('publishFuel').value;
+    const transmission = document.getElementById('publishTransmission').value;
+    const description = document.getElementById('publishDescription').value.trim();
+
+    const missing = [];
+    if (!title) missing.push('título');
+    if (!brand) missing.push('marca');
+    if (!model) missing.push('modelo');
+    if (!year) missing.push('año');
+    if (!price || isNaN(price) || price <= 0) missing.push('precio');
+    if (!fuel) missing.push('combustible');
+    if (!transmission) missing.push('transmisión');
+    if (!province || !city) missing.push('ubicación');
+    if (!description) missing.push('descripción');
+    if (!uploadedImages.length) missing.push('al menos una foto');
+
+    if (missing.length) {
+      showToast(`Completá: ${missing.join(', ')}`, 'error');
       btn.disabled = false;
       btn.textContent = 'Publicar Vehículo';
       return;
