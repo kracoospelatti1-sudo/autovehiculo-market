@@ -809,12 +809,13 @@ select {
   font-weight: 500;
 }
 
-.badge-nuevo {
+.badge-nuevo,
+.vehicle-meta .badge-nuevo {
   font-size: 0.72rem;
   font-weight: 800;
-  color: #ef4444;
-  background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #ef4444 !important;
+  background: rgba(239, 68, 68, 0.12) !important;
+  border: 1px solid rgba(239, 68, 68, 0.35) !important;
   border-radius: 6px;
   padding: 0.2rem 0.55rem;
   letter-spacing: 0.04em;
