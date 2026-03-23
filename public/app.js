@@ -1242,7 +1242,7 @@ async function viewVehicle(id) {
             <div class="seller-card">
             <div class="seller-avatar">${vehicle.seller_profile?.avatar_url ? `<img src="${escapeHtml(vehicle.seller_profile.avatar_url || '')}" alt="" loading="lazy">` : (vehicle.seller_name?.charAt(0)?.toUpperCase() || '?')}</div>
             <div class="seller-info">
-              <h4 onclick="viewProfile(${vehicle.seller_id})">${vehicle.seller_verified && vehicle.seller_profile?.dealership_name ? escapeHtml(vehicle.seller_profile.dealership_name) : escapeHtml(vehicle.seller_name)}</h4>
+              <h4 onclick="viewProfile(${vehicle.seller_id})">${vehicle.seller_verified && vehicle.seller_profile?.dealership_name ? escapeHtml(vehicle.seller_profile.dealership_name) : (vehicle.seller_profile?.first_name && vehicle.seller_profile?.last_name ? escapeHtml(`${vehicle.seller_profile.first_name} ${vehicle.seller_profile.last_name}`) : escapeHtml(vehicle.seller_name))}</h4>
               ${vehicle.seller_verified ? `<div style="margin-bottom:0.5rem;">${verifiedBadge()}</div>` : ''}
               ${vehicle.seller_rating ? `<div class="rating">${'★'.repeat(Math.round(vehicle.seller_rating))}${'☆'.repeat(5-Math.round(vehicle.seller_rating))} <span>(${vehicle.seller_ratings_count} reseñas)</span></div>` : '<div class="rating"><span style="color:var(--text-secondary)">Sin reseñas aún</span></div>'}
               <div class="seller-stats">
