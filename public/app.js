@@ -523,7 +523,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function toggleEngineCCField(prefix = 'publish') {
-  const typeEl = document.getElementById(`${prefix}VehicleType`);
+  const typeEl = document.getElementById(`${prefix}VehicleTypeTop`) || document.getElementById(`${prefix}VehicleType`);
   const ccGroup = document.getElementById(`${prefix}EngineCCGroup`);
   if (!typeEl || !ccGroup) return;
   ccGroup.style.display = typeEl.value === 'moto' ? 'block' : 'none';
@@ -1721,6 +1721,31 @@ async function openEditModal(id, e) {
     const v = await request(`/vehicles/${id}`);
     document.getElementById('editVehicleId').value = v.id;
     document.getElementById('editTitle').value = v.title || '';
+    // Vehicle type (top)
+    const editTypeTopEl = document.getElementById('editVehicleTypeTop');
+    if (editTypeTopEl) editTypeTopEl.value = v.vehicle_type || 'auto';
+    // Populate brand select, set value, then rebuild picker options with correct selection
+    updateEditBrands();
+    const editBrandEl = document.getElementById('editBrand');
+    if (editBrandEl) {
+      editBrandEl.value = v.brand || '';
+      // Rebuild picker options now that value is set so the selected state is correct
+      buildBrandPickerOptions('editBrand');
+      // Update trigger display
+      const logo = v.brand ? brandLogoUrl(v.brand) : null;
+      const trigger = editBrandEl.parentElement?.querySelector('.brand-picker-trigger');
+      if (trigger) {
+        const logoEl = trigger.querySelector('.brand-picker-logo');
+        const labelEl = trigger.querySelector('.brand-picker-label');
+        if (logoEl) { if (logo) { logoEl.src = logo; logoEl.style.display = 'block'; } else logoEl.style.display = 'none'; }
+        if (labelEl) labelEl.textContent = v.brand || (editBrandEl.options[0]?.text || 'Seleccionar marca');
+      }
+    }
+    // Populate models for this brand then set value
+    updateEditModels();
+    const editModelEl = document.getElementById('editModel');
+    if (editModelEl) editModelEl.value = v.model || '';
+    document.getElementById('editYear').value = v.year || '';
     document.getElementById('editVersion').value = v.version || '';
     const editCurrencyEl = document.getElementById('editCurrency');
     if (editCurrencyEl) { editCurrencyEl.value = 'USD'; editCurrencyEl.dataset.prev = 'USD'; }
@@ -1737,10 +1762,13 @@ async function openEditModal(id, e) {
       if (editCitySelect) editCitySelect.value = v.city || '';
     });
     document.getElementById('editStatus').value = v.status || 'active';
-    document.getElementById('editDescription').value = v.description || '';
+    // Description: pre-fill but don't mark as user-edited so auto-gen can run
+    const editDescEl = document.getElementById('editDescription');
+    editDescEl.value = v.description || '';
+    editDescEl.dataset.userEdited = 'true'; // existing desc = user content, don't overwrite
+    editDescEl.removeEventListener('input', markEditDescriptionEdited);
+    editDescEl.addEventListener('input', markEditDescriptionEdited);
     document.getElementById('editAcceptsTrade').checked = !!v.accepts_trade;
-    const editTypeEl = document.getElementById('editVehicleType');
-    if (editTypeEl) editTypeEl.value = v.vehicle_type || 'auto';
     const editCCEl = document.getElementById('editEngineCC');
     if (editCCEl) editCCEl.value = v.engine_cc || '';
     toggleEngineCCField('edit');
@@ -1777,11 +1805,20 @@ async function handleEditVehicle(e) {
       btn.textContent = 'Guardar cambios';
       return;
     }
+    const editBrand = document.getElementById('editBrand')?.value || '';
+    const editModel = document.getElementById('editModel')?.value || '';
+    const editYear  = document.getElementById('editYear')?.value || '';
+    const editVersion = document.getElementById('editVersion').value;
+    const editVehicleType = document.getElementById('editVehicleTypeTop')?.value || 'auto';
+    const autoTitle = `${editBrand} ${editModel} ${editVersion} ${editYear}`.replace(/\s+/g, ' ').trim();
     await request(`/vehicles/${id}`, {
       method: 'PUT',
       body: JSON.stringify({
-        title: document.getElementById('editTitle').value,
-        version: document.getElementById('editVersion').value,
+        title: autoTitle,
+        brand: editBrand,
+        model: editModel,
+        year: editYear,
+        version: editVersion,
         price: getPriceInUSD('edit'),
         price_original: parseFloat(document.getElementById('editPrice').value) || null,
         price_currency: document.getElementById('editCurrency')?.value || 'USD',
@@ -1793,7 +1830,7 @@ async function handleEditVehicle(e) {
         status: document.getElementById('editStatus').value,
         description: document.getElementById('editDescription').value,
         accepts_trade: document.getElementById('editAcceptsTrade').checked,
-        vehicle_type: document.getElementById('editVehicleType')?.value,
+        vehicle_type: editVehicleType,
         engine_cc: document.getElementById('editEngineCC')?.value ? parseInt(document.getElementById('editEngineCC').value) : null,
         contact_phone: document.getElementById('editContactPhone')?.value?.trim() || null
       })
@@ -3696,6 +3733,81 @@ function updateNav() {
 function markDescriptionEdited() {
   const descField = document.getElementById('publishDescription');
   if (descField) descField.dataset.userEdited = 'true';
+}
+
+function markEditDescriptionEdited() {
+  const f = document.getElementById('editDescription');
+  if (f) f.dataset.userEdited = 'true';
+}
+
+function updateEditBrands() {
+  const type = document.getElementById('editVehicleTypeTop')?.value || 'auto';
+  const brandsObj = getBrandsForType(type);
+  const select = document.getElementById('editBrand');
+  if (!select) return;
+  const prev = select.value;
+  select.innerHTML = '<option value="">Seleccionar marca</option>';
+  Object.keys(brandsObj).sort().forEach(brand => {
+    const opt = document.createElement('option');
+    opt.value = brand;
+    opt.textContent = brand;
+    select.appendChild(opt);
+  });
+  select.value = prev || '';
+  initBrandPicker('editBrand');
+  updateEditModels();
+  toggleEngineCCField('edit');
+}
+
+function updateEditModels() {
+  const brand = document.getElementById('editBrand')?.value || '';
+  const type = document.getElementById('editVehicleTypeTop')?.value || 'auto';
+  const brandsObj = getBrandsForType(type);
+  const modelSelect = document.getElementById('editModel');
+  if (!modelSelect) return;
+  const prev = modelSelect.value;
+  modelSelect.innerHTML = '<option value="">Seleccionar modelo</option>';
+  if (brand && brandsObj[brand]) {
+    brandsObj[brand].forEach(m => {
+      const o = document.createElement('option');
+      o.value = m; o.textContent = m;
+      modelSelect.appendChild(o);
+    });
+  }
+  modelSelect.value = prev || '';
+}
+
+function autoGenEditDescription() {
+  const descField = document.getElementById('editDescription');
+  if (!descField || descField.dataset.userEdited === 'true') return;
+  const brand = document.getElementById('editBrand')?.value || '';
+  const model = document.getElementById('editModel')?.value || '';
+  const year  = document.getElementById('editYear')?.value || '';
+  const mileage = document.getElementById('editMileage')?.value || '';
+  const fuel  = document.getElementById('editFuel')?.value || '';
+  const trans = document.getElementById('editTransmission')?.value || '';
+  if (!brand && !model) return;
+  let desc = `Excelente ${brand} ${model}${year ? ' del año ' + year : ''}.`;
+  if (mileage) desc += ` Cuenta con ${mileage} km.`;
+  if (fuel || trans) desc += ` Motor ${fuel} y transmisión ${trans}.`;
+  desc += `\n\nEl vehículo se encuentra en óptimas condiciones, listo para transferir. Respondo consultas por el chat.`;
+  descField.value = desc.trim().replace(/\s+/g, ' ').replace(/\. \n/g, '.\n');
+}
+
+// Programmatically set a brand picker value without firing change event
+function setBrandPickerValue(selectId, value) {
+  const select = document.getElementById(selectId);
+  const picker = select?.parentElement?.querySelector('.brand-picker');
+  if (!select || !picker) return;
+  select.value = value;
+  const trigger = picker.querySelector('.brand-picker-trigger');
+  const logoEl = trigger?.querySelector('.brand-picker-logo');
+  const labelEl = trigger?.querySelector('.brand-picker-label');
+  const label = select.options[select.selectedIndex]?.text || value || select.options[0]?.text;
+  const logo = value ? brandLogoUrl(value) : null;
+  if (logoEl) { if (logo) { logoEl.src = logo; logoEl.style.display = 'block'; } else logoEl.style.display = 'none'; }
+  if (labelEl) labelEl.textContent = label;
+  picker.querySelectorAll('.brand-picker-option').forEach(b => b.classList.toggle('selected', b.dataset.value === value));
 }
 
 function autoGenDescription() {

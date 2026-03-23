@@ -3105,6 +3105,10 @@ select {
     grid-template-columns: 1fr;
   }
 
+  .stats-dashboard {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
   .messages-container {
     grid-template-columns: 1fr;
     height: calc(100dvh - 62px - 65px - 1rem);

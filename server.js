@@ -1109,11 +1109,21 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
     const { title, brand, model, year, price, price_original, price_currency, mileage, fuel, transmission, description, city, province, status, vehicle_type, engine_cc, version, contact_phone } = req.body;
 
     let updates = { updated_at: new Date().toISOString() };
-    if (title !== undefined) updates.title = title;
     if (brand !== undefined) updates.brand = brand;
     if (model !== undefined) updates.model = model;
     if (version !== undefined) updates.version = version;
     if (year !== undefined) updates.year = parseInt(year);
+    // Auto-generate title if any of brand/model/version/year changed
+    if (brand !== undefined || model !== undefined || version !== undefined || year !== undefined) {
+      const { data: cur } = await supabase.from('vehicles').select('brand,model,version,year').eq('id', vid).maybeSingle();
+      const b = brand ?? cur?.brand ?? '';
+      const m = model ?? cur?.model ?? '';
+      const ver = version ?? cur?.version ?? '';
+      const y = year ?? cur?.year ?? '';
+      updates.title = `${b} ${m} ${ver} ${y}`.replace(/\s+/g, ' ').trim();
+    } else if (title !== undefined) {
+      updates.title = title;
+    }
     if (price !== undefined) updates.price = parseFloat(price);
     if (price_original !== undefined) updates.price_original = price_original ? parseFloat(price_original) : null;
     if (price_currency !== undefined) updates.price_currency = price_currency || 'USD';

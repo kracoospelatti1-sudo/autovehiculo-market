@@ -800,13 +800,37 @@
       <div class="modal-body" style="max-height:80vh;overflow-y:auto;">
         <form onsubmit="handleEditVehicle(event)">
           <input type="hidden" id="editVehicleId">
+          <input type="hidden" id="editTitle">
           <div class="form-group">
-            <label>Título *</label>
-            <input type="text" id="editTitle" required>
+            <label>Tipo de vehículo</label>
+            <select id="editVehicleTypeTop" onchange="toggleEngineCCField('edit'); updateEditBrands()">
+              <option value="auto">Auto / Camioneta / SUV</option>
+              <option value="moto">Moto / Scooter</option>
+            </select>
           </div>
-          <div class="form-group">
-            <label>Versión</label>
-            <input type="text" id="editVersion" placeholder="Ej: SE, LX, Titanium, GT...">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Marca *</label>
+              <select id="editBrand" required onchange="updateEditModels(); autoGenEditDescription()">
+                <option value="">Seleccionar marca</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Modelo *</label>
+              <select id="editModel" required onchange="autoGenEditDescription()">
+                <option value="">Seleccionar modelo</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Año *</label>
+              <input type="number" id="editYear" required min="1950" max="2030" placeholder="Ej: 2022" onchange="autoGenEditDescription()">
+            </div>
+            <div class="form-group">
+              <label>Versión</label>
+              <input type="text" id="editVersion" placeholder="Ej: SE, LX, Titanium, GT..." onchange="autoGenEditDescription()">
+            </div>
           </div>
           <div class="form-row">
             <div class="form-group">
@@ -881,13 +905,6 @@
             <input type="checkbox" id="editAcceptsTrade"
               style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer;">
             <label for="editAcceptsTrade" style="cursor:pointer;font-size:0.9rem;margin:0;">🔄 Acepto permutas</label>
-          </div>
-          <div class="form-group">
-            <label for="editVehicleType">Tipo de vehículo</label>
-            <select id="editVehicleType" onchange="toggleEngineCCField('edit')">
-              <option value="auto">Auto / Camioneta / SUV</option>
-              <option value="moto">Moto / Scooter</option>
-            </select>
           </div>
           <div class="form-group" id="editEngineCCGroup" style="display:none;">
             <label for="editEngineCC">Cilindrada (cc)</label>
