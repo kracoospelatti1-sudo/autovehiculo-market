@@ -413,6 +413,51 @@ const wsPingInterval = setInterval(() => {
   })
 }, 30000)
 wss.on('close', () => clearInterval(wsPingInterval))
+
+// ── Auto-delete sold vehicles after 24hs ─────────────────────────────────────
+async function deleteSoldVehicle(vid) {
+  const safeDelete = async (table, filter) => {
+    try { const r = await filter(supabase.from(table)); if (r?.error) console.error(`cron ${table}:`, r.error.message); }
+    catch (e) { console.error(`cron ${table} threw:`, e.message); }
+  };
+  const { data: images } = await supabase.from('vehicle_images').select('url').eq('vehicle_id', vid);
+  for (const img of images || []) {
+    if (img.url?.includes('supabase.co/storage')) {
+      const afterPublic = img.url.split('/storage/v1/object/public/vehicle-images/')[1];
+      if (afterPublic) await supabase.storage.from('vehicle-images').remove([afterPublic]);
+    }
+  }
+  const { data: convs } = await supabase.from('conversations').select('id').eq('vehicle_id', vid);
+  if (convs?.length) {
+    await safeDelete('messages', t => t.delete().in('conversation_id', convs.map(c => c.id)));
+    const convLinks = convs.map(c => `messages/${c.id}`);
+    await safeDelete('notifications', t => t.delete().in('link', convLinks));
+  }
+  await safeDelete('conversations',         t => t.delete().eq('vehicle_id', vid));
+  await safeDelete('vehicle_images',        t => t.delete().eq('vehicle_id', vid));
+  await safeDelete('favorites',             t => t.delete().eq('vehicle_id', vid));
+  await safeDelete('reports',               t => t.delete().eq('vehicle_id', vid));
+  await safeDelete('trade_offers',          t => t.delete().or(`vehicle_id.eq.${vid},offered_vehicle_id.eq.${vid}`));
+  await safeDelete('vehicle_price_history', t => t.delete().eq('vehicle_id', vid));
+  await safeDelete('notifications',         t => t.delete().eq('link', `vehicle/${vid}`));
+  const { error } = await supabase.from('vehicles').delete().eq('id', vid);
+  if (error) console.error(`cron delete vehicle ${vid}:`, error.message);
+  else console.log(`[cron] Vehículo ${vid} eliminado (vendido hace +24hs)`);
+}
+
+setInterval(async () => {
+  try {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data: expired } = await supabase
+      .from('vehicles')
+      .select('id')
+      .eq('status', 'sold')
+      .lt('sold_at', cutoff);
+    if (!expired?.length) return;
+    console.log(`[cron] Eliminando ${expired.length} vehículo(s) vendido(s) hace +24hs`);
+    for (const v of expired) await deleteSoldVehicle(v.id);
+  } catch (e) { console.error('[cron] Error en limpieza de vendidos:', e.message); }
+}, 60 * 60 * 1000); // Corre cada 1 hora
 // ─────────────────────────────────────────────────────────────────────────────
 
 app.get('/api/dolar', async (_req, res) => {
