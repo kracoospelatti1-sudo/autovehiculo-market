@@ -137,10 +137,23 @@ let motoBrands = {};
 fetch('/brands-data.json').then(r => r.json()).then(d => {
   carBrands = d.carBrands || {};
   motoBrands = d.motoBrands || {};
+  // Re-populate brand selects now that data is loaded
+  if (typeof initBrandFilters === 'function') initBrandFilters();
 }).catch(() => {});
 
 function getBrandsForType(type) {
   return type === 'moto' ? motoBrands : carBrands;
+}
+
+const TOP_CAR_BRANDS = ['Volkswagen','Toyota','Chevrolet','Ford','Renault','Fiat','Peugeot','Citroen','Honda','Hyundai','Jeep','Nissan','Kia','Mercedes-Benz','BMW','Audi','Mitsubishi','Mazda','Subaru','Suzuki'];
+const TOP_MOTO_BRANDS = ['Honda','Yamaha','Bajaj','Motomel','Corven','Kawasaki','KTM','Gilera','Beta','Ducati','Harley-Davidson','BMW'];
+
+function sortedBrandKeys(brandsObj, type) {
+  const top = type === 'moto' ? TOP_MOTO_BRANDS : TOP_CAR_BRANDS;
+  const all = Object.keys(brandsObj);
+  const featured = top.filter(b => all.includes(b));
+  const rest = all.filter(b => !featured.includes(b)).sort();
+  return [...featured, ...rest];
 }
 
 const AR_CITIES = (() => {
@@ -1201,7 +1214,7 @@ function initBrandFilters() {
     const filterType = document.getElementById('filterVehicleType')?.value || 'auto';
     const filterBrandsObj = getBrandsForType(filterType);
     select.innerHTML = '<option value="">Todas</option>';
-    Object.keys(filterBrandsObj).sort().forEach(brand => {
+    sortedBrandKeys(filterBrandsObj, filterType).forEach(brand => {
       const opt = document.createElement('option');
       opt.value = brand;
       opt.textContent = brand;
@@ -1217,7 +1230,7 @@ function initBrandFilters() {
     const publishType = document.getElementById('publishVehicleType')?.value || 'auto';
     const publishBrandsObj = getBrandsForType(publishType);
     publishBrand.innerHTML = '<option value="">Seleccionar marca</option>';
-    Object.keys(publishBrandsObj).sort().forEach(brand => {
+    sortedBrandKeys(publishBrandsObj, publishType).forEach(brand => {
       const opt = document.createElement('option');
       opt.value = brand;
       opt.textContent = brand;
@@ -3709,7 +3722,7 @@ function updateEditBrands() {
   if (!select) return;
   const prev = select.value;
   select.innerHTML = '<option value="">Seleccionar marca</option>';
-  Object.keys(brandsObj).sort().forEach(brand => {
+  sortedBrandKeys(brandsObj, type).forEach(brand => {
     const opt = document.createElement('option');
     opt.value = brand;
     opt.textContent = brand;
