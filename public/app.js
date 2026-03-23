@@ -2566,14 +2566,26 @@ async function viewProfile(id) {
     const vehicles = await request(`/vehicles?user_id=${id}`).catch(() => ({ vehicles: [] }));
     document.getElementById('profileVehiclesList').innerHTML = vehicles.vehicles?.length ? vehicles.vehicles.map(v => `
       <div class="vehicle-card" onclick="viewVehicle(${v.id})">
-        <div class="vehicle-image-container"><img src="${thumbUrl(v.images?.[0]?.url || v.image_url)}" class="vehicle-image" alt="${escapeHtml(v.title)}" loading="lazy" onerror="this.src=PLACEHOLDER_IMG"></div>
+        <div class="vehicle-image-container">
+          <img src="${thumbUrl(v.images?.find(i => i.is_primary)?.url || v.images?.[0]?.url || v.image_url)}" class="vehicle-image" alt="${escapeHtml(v.title)}" loading="lazy" onerror="this.src=PLACEHOLDER_IMG">
+          <div class="vehicle-img-overlay"></div>
+          <span class="vehicle-badge">${escapeHtml(String(v.year))}</span>
+          ${v.status === 'sold' ? '<span class="vehicle-badge badge-sold">VENDIDO</span>' : ''}
+          ${v.status !== 'sold' ? `<span class="vehicle-trade-badge ${v.accepts_trade ? 'trade-yes' : 'trade-no'}">${v.accepts_trade ? '🔄 Permuta' : 'Sin permuta'}</span>` : ''}
+          ${v.status !== 'sold' ? `<button class="favorite-btn ${userFavoriteIds.has(v.id) ? 'active' : ''}" data-vehicle-id="${v.id}" onclick="toggleFavorite(${v.id}, event)" aria-label="Agregar a favoritos"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>` : ''}
+        </div>
         <div class="vehicle-info">
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
+          ${v.city ? `<p class="vehicle-location"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> ${escapeHtml(v.city)}${v.province ? ', ' + escapeHtml(v.province.replace(/\s*\(.*?\)/g,'').trim()) : ''}</p>` : ''}
           <div class="vehicle-price-block">
             <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
             ${formatPesos(v.price, v) ? `<p class="vehicle-price-ars">${formatPesos(v.price, v)}</p>` : ''}
           </div>
-          <span class="vehicle-trade-badge ${v.accepts_trade ? 'trade-yes' : 'trade-no'}" style="position:static;display:inline-block;margin-top:0.3rem;">${v.accepts_trade ? '🔄 Permuta' : 'Sin permuta'}</span>
+          <div class="vehicle-meta">
+            ${v.mileage === 0 ? '<span class="badge-nuevo">NUEVO</span>' : `<span><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>${formatNumber(v.mileage)} km</span>`}
+            <span>${escapeHtml(v.fuel || 'N/A')}</span>
+            ${v.transmission ? `<span>${escapeHtml(v.transmission)}</span>` : ''}
+          </div>
           ${isViewerAdmin && !isOwn ? `<button class="btn btn-sm btn-danger" style="margin-top:0.5rem;width:100%;" data-vid="${v.id}" data-title="${escapeHtml(v.title)}" onclick="event.stopPropagation(); adminDeleteVehicle(+this.dataset.vid, this.dataset.title)">🗑 Eliminar</button>` : ''}
         </div>
       </div>
