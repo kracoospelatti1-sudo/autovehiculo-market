@@ -840,7 +840,7 @@ app.get('/api/vehicles', async (req, res) => {
       }, {});
     }
     if (userIds.length > 0) {
-      const { data: profiles } = await supabase.from('profiles').select('user_id, is_verified, dealership_name').in('user_id', userIds);
+      const { data: profiles } = await supabase.from('profiles').select('user_id, is_verified, dealership_name, first_name, last_name').in('user_id', userIds);
       profilesMap = (profiles || []).reduce((acc, p) => { acc[p.user_id] = p; return acc; }, {});
     }
 
@@ -2965,7 +2965,7 @@ app.get('/api/following-feed', authenticateToken, async (req, res) => {
       });
     }
     if (userIds.length > 0) {
-      const { data: profiles } = await supabase.from('profiles').select('user_id, is_verified, dealership_name').in('user_id', userIds);
+      const { data: profiles } = await supabase.from('profiles').select('user_id, is_verified, dealership_name, first_name, last_name').in('user_id', userIds);
       profilesMap = (profiles || []).reduce((acc, p) => { acc[p.user_id] = p; return acc; }, {});
     }
 
