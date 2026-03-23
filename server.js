@@ -114,13 +114,14 @@ app.get('/', async (req, res, next) => {
       .eq('status', 'active')
       .maybeSingle();
     if (!vehicle) return next();
-    const { data: img } = await supabase
+    const { data: imgs } = await supabase
       .from('vehicle_images')
-      .select('url')
+      .select('url, is_primary, order_index')
       .eq('vehicle_id', vehicleId)
-      .eq('is_primary', true)
-      .maybeSingle();
-    const imageUrl = img?.url || 'https://autoventa.online/og-default.png';
+      .order('is_primary', { ascending: false })
+      .order('order_index', { ascending: true })
+      .limit(1);
+    const imageUrl = imgs?.[0]?.url || 'https://autoventa.online/og-default.png';
     const title = `${vehicle.title} — $${Number(vehicle.price).toLocaleString('es-AR')} | Autoventa`;
     const desc = `${vehicle.brand} ${vehicle.model} ${vehicle.year}, ${Number(vehicle.mileage).toLocaleString('es-AR')}km, ${vehicle.fuel}. En ${vehicle.city}${vehicle.province ? ', ' + vehicle.province : ''}.`;
     const url = `https://autoventa.online/?vehicle=${vehicle.id}`;
