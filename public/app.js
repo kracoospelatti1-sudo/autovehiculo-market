@@ -618,10 +618,8 @@ async function initVehicleMap(city, province) {
   } catch { el?.parentElement && (el.parentElement.style.display = 'none'); }
 }
 
-function verifiedBadge(large = false) {
-  const cls = large ? 'verified-badge verified-badge--large' : 'verified-badge';
-  return `<span class="${cls}" title="Vendedor verificado por AutoVehículo">
-    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>Verificado</span>`;
+function verifiedBadge() {
+  return `<span class="verified-badge"><svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>Verificado</span>`;
 }
 
 async function request(endpoint, options = {}) {
@@ -1245,7 +1243,7 @@ async function viewVehicle(id) {
             <div class="seller-avatar">${vehicle.seller_profile?.avatar_url ? `<img src="${escapeHtml(vehicle.seller_profile.avatar_url || '')}" alt="" loading="lazy">` : (vehicle.seller_name?.charAt(0)?.toUpperCase() || '?')}</div>
             <div class="seller-info">
               <h4 onclick="viewProfile(${vehicle.seller_id})">${vehicle.seller_verified && vehicle.seller_profile?.dealership_name ? escapeHtml(vehicle.seller_profile.dealership_name) : escapeHtml(vehicle.seller_name)}</h4>
-              ${vehicle.seller_verified ? `<div style="margin-bottom:0.5rem;">${verifiedBadge(true)}</div>` : ''}
+              ${vehicle.seller_verified ? `<div style="margin-bottom:0.5rem;">${verifiedBadge()}</div>` : ''}
               ${vehicle.seller_rating ? `<div class="rating">${'★'.repeat(Math.round(vehicle.seller_rating))}${'☆'.repeat(5-Math.round(vehicle.seller_rating))} <span>(${vehicle.seller_ratings_count} reseñas)</span></div>` : '<div class="rating"><span style="color:var(--text-secondary)">Sin reseñas aún</span></div>'}
               <div class="seller-stats">
                 <span><strong>${vehicle.seller_vehicles_count}</strong> vehículos</span>

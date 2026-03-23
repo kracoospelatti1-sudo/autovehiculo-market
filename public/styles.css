@@ -3769,22 +3769,6 @@ select {
   flex-shrink: 0;
 }
 
-.verified-badge--large {
-  font-size: 0.82rem;
-  padding: 0.3rem 0.85rem;
-  gap: 5px;
-}
-
-.verified-badge--large svg {
-  width: 14px;
-  height: 14px;
-}
-
-.verified-badge {
-  position: relative;
-  cursor: default;
-}
-
 .verified-badge:hover::after {
   content: attr(title);
   position: absolute;
