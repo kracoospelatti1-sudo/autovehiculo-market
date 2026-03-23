@@ -3256,9 +3256,9 @@ function closeConfirmModal() {
 }
 
 // UTILS
-function thumbUrl(url, width) {
-  if (!url || url === PLACEHOLDER_IMG || !url.includes('/storage/v1/object/public/')) return url;
-  return url.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/') + '?width=' + (width || 400) + '&quality=70&format=webp';
+function thumbUrl(url) {
+  // Supabase image transforms requieren plan Pro — usar URL original por ahora
+  return url || PLACEHOLDER_IMG;
 }
 function formatNumber(n) { return (n || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
 function formatTime(d) { return new Date(d).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); }
