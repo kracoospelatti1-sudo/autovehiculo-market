@@ -60,6 +60,7 @@ const lastSeenDebounce = new Map() // Map<userId: string, number (timestamp)>
 app.set('trust proxy', 1); // Confiar en el proxy reverso de Hostinger (nginx)
 app.use(compression());
 app.use(cors({ origin: ALLOWED_ORIGINS, credentials: true }));
+app.use((req, res, next) => { res.setHeader('X-LiteSpeed-Cache-Control', 'no-cache'); next(); });
 app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ limit: '100kb', extended: true }));
 
