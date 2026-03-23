@@ -60,12 +60,34 @@ const lastSeenDebounce = new Map() // Map<userId: string, number (timestamp)>
 app.set('trust proxy', 1); // Confiar en el proxy reverso de Hostinger (nginx)
 app.use(compression());
 app.use(cors({ origin: ALLOWED_ORIGINS, credentials: true }));
-app.use((req, res, next) => { res.setHeader('X-LiteSpeed-Cache-Control', 'no-cache'); next(); });
+// Security headers + cache strategy
+app.use((req, res, next) => {
+  // LiteSpeed CDN: no cache
+  res.setHeader('X-LiteSpeed-Cache-Control', 'no-cache');
+  // Security headers
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(self)');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  res.setHeader('Content-Security-Policy',
+    "default-src 'self'; " +
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://js.hcaptcha.com https://pagead2.googlesyndication.com https://googleads.g.doubleclick.net https://www.googletagmanager.com https://partner.googleadservices.com; " +
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; " +
+    "font-src 'self' https://fonts.gstatic.com; " +
+    "img-src 'self' data: blob: https:; " +
+    "connect-src 'self' https://*.supabase.co wss: https://nominatim.openstreetmap.org; " +
+    "frame-src https://newassets.hcaptcha.com https://tpc.googlesyndication.com https://googleads.g.doubleclick.net; " +
+    "object-src 'none';"
+  );
+  next();
+});
 app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ limit: '100kb', extended: true }));
 
 const storage = multer.memoryStorage();
-const upload = multer({ 
+const upload = multer({
   storage,
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
@@ -77,14 +99,6 @@ const upload = multer({
     }
     cb(new Error('Solo se permiten imágenes (jpeg, jpg, png, webp)'));
   }
-});
-
-// Versioned assets (?v=N) get long-lived cache; everything else stays no-cache
-app.use((req, res, next) => {
-  if (req.query.v) {
-    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-  }
-  next();
 });
 // SEO: Prerender dinámico para bots
 const BOT_UA = /googlebot|bingbot|slurp|duckduckbot|baiduspider|yandexbot|sogou|facebookexternalhit|twitterbot|linkedinbot|whatsapp/i;
@@ -157,9 +171,16 @@ app.get('/sitemap.xml', async (req, res) => {
 });
 
 app.use(express.static('public', {
-  maxAge: 0,
   etag: false,
   lastModified: false,
+  setHeaders: (res, filePath) => {
+    const reqUrl = res.req?.originalUrl || '';
+    if (/[?&]v=\d+/.test(reqUrl)) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    } else {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    }
+  }
 }));
 
 // Rate limiting
