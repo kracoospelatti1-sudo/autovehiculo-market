@@ -2954,24 +2954,20 @@ async function loadTradeOffers() {
     const statusColor = s => ({ pending: 'var(--primary)', accepted: '#22c55e', rejected: '#ef4444' }[s]);
 
     const renderOffer = (o, isReceived) => `
-      <div style="background:var(--dark-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:1rem 1.25rem;margin-bottom:0.75rem;">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;">
-          <div style="flex:1;">
-            <div style="font-size:0.78rem;color:var(--text-2);margin-bottom:0.25rem;">${isReceived ? 'De: <strong>' + escapeHtml(o.proposer?.username) + '</strong>' : 'Para: <strong>' + escapeHtml(o.owner?.username) + '</strong>'}</div>
-            <div style="font-weight:600;">${escapeHtml(o.offered_vehicle?.brand || '')} ${escapeHtml(o.offered_vehicle?.model || '')} ${o.offered_vehicle?.year || ''}</div>
-            <div style="font-size:0.82rem;color:var(--text-2);">por tu: ${escapeHtml(o.target_vehicle?.brand || '')} ${escapeHtml(o.target_vehicle?.model || '')} ${o.target_vehicle?.year || ''}</div>
-            ${o.message ? `<div style="font-size:0.82rem;color:var(--text-2);margin-top:0.4rem;font-style:italic;">"${escapeHtml(o.message)}"</div>` : ''}
+      <div style="background:var(--dark-2);border:1px solid var(--border);border-radius:var(--radius);padding:0.55rem 0.85rem;margin-bottom:0.4rem;display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:0.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+            ${escapeHtml(o.offered_vehicle?.brand || '')} ${escapeHtml(o.offered_vehicle?.model || '')} ${o.offered_vehicle?.year || ''}
+            <span style="color:var(--text-2);font-weight:400;"> → ${escapeHtml(o.target_vehicle?.brand || '')} ${escapeHtml(o.target_vehicle?.model || '')} ${o.target_vehicle?.year || ''}</span>
           </div>
-          <div style="text-align:right;">
-            <div style="font-size:0.78rem;font-weight:700;color:${statusColor(o.status)};margin-bottom:0.5rem;">${statusLabel(o.status)}</div>
-            ${isReceived && o.status === 'pending' ? `
-              <div style="display:flex;gap:0.5rem;">
-                <button class="btn btn-sm btn-primary" onclick="respondToTrade(${o.id}, 'accepted')">Aceptar</button>
-                <button class="btn btn-sm btn-danger" onclick="respondToTrade(${o.id}, 'rejected')">Rechazar</button>
-              </div>` : ''}
-          </div>
+          <div style="font-size:0.75rem;color:var(--text-3);">${isReceived ? 'De: ' + escapeHtml(o.proposer?.username || '') : 'Para: ' + escapeHtml(o.owner?.username || '')} · ${formatRelTime(o.created_at)}</div>
         </div>
-        <div style="font-size:0.75rem;color:var(--text-3);margin-top:0.5rem;">${formatRelTime(o.created_at)}</div>
+        <div style="display:flex;align-items:center;gap:0.4rem;flex-shrink:0;">
+          <span style="font-size:0.75rem;font-weight:700;color:${statusColor(o.status)};">${statusLabel(o.status)}</span>
+          ${isReceived && o.status === 'pending' ? `
+            <button class="btn btn-sm btn-primary" style="padding:0.2rem 0.6rem;font-size:0.78rem;" onclick="respondToTrade(${o.id}, 'accepted')">Aceptar</button>
+            <button class="btn btn-sm btn-danger" style="padding:0.2rem 0.6rem;font-size:0.78rem;" onclick="respondToTrade(${o.id}, 'rejected')">Rechazar</button>` : ''}
+        </div>
       </div>`;
 
     // Renderizar con colapso si hay más de 3
