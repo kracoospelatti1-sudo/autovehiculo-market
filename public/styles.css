@@ -786,7 +786,7 @@ body::before {
 }
 .input-icon-wrap input {
   width: 100%;
-  padding-left: 2.5rem;
+  padding-left: 2.75rem !important;
 }
 
 /* Barra de seguridad de contraseña */
