@@ -1160,12 +1160,21 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
     if (engine_cc !== undefined) updates.engine_cc = engine_cc ? parseInt(engine_cc) : null;
     if (contact_phone !== undefined) updates.contact_phone = contact_phone ? contact_phone.trim() : null;
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('vehicles')
       .update(updates)
       .eq('id', vid)
       .select()
       .single();
+
+    // If a column doesn't exist yet in DB schema, extract column name and retry without it
+    if (error?.code === 'PGRST204') {
+      const missingCol = error.message.match(/'([^']+)' column/)?.[1];
+      if (missingCol && updates[missingCol] !== undefined) delete updates[missingCol];
+      const retry = await supabase.from('vehicles').update(updates).eq('id', vid).select().single();
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) throw error;
 
@@ -1501,7 +1510,7 @@ app.put('/api/ping', authenticateToken, async (req, res) => {
     const lastWrite = lastSeenDebounce.get(userId) || 0
     if (Date.now() - lastWrite > 30000) {
       lastSeenDebounce.set(userId, Date.now())
-      await supabase.from('profiles').update({ last_seen: new Date().toISOString() }).eq('user_id', userId).catch(() => {})
+      await supabase.from('profiles').update({ last_seen: new Date().toISOString() }).eq('user_id', userId)
     }
   } catch (e) { console.error('[/api/ping]', e.message) }
   res.json({ success: true });
