@@ -618,8 +618,10 @@ async function initVehicleMap(city, province) {
   } catch { el?.parentElement && (el.parentElement.style.display = 'none'); }
 }
 
-function verifiedBadge() {
-  return `<span class="verified-badge"><svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>Verificado</span>`;
+function verifiedBadge(large = false) {
+  const cls = large ? 'verified-badge verified-badge--large' : 'verified-badge';
+  return `<span class="${cls}" title="Vendedor verificado por AutoVehículo">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>Verificado</span>`;
 }
 
 async function request(endpoint, options = {}) {
@@ -1243,7 +1245,7 @@ async function viewVehicle(id) {
             <div class="seller-avatar">${vehicle.seller_profile?.avatar_url ? `<img src="${escapeHtml(vehicle.seller_profile.avatar_url || '')}" alt="" loading="lazy">` : (vehicle.seller_name?.charAt(0)?.toUpperCase() || '?')}</div>
             <div class="seller-info">
               <h4 onclick="viewProfile(${vehicle.seller_id})">${vehicle.seller_verified && vehicle.seller_profile?.dealership_name ? escapeHtml(vehicle.seller_profile.dealership_name) : escapeHtml(vehicle.seller_name)}</h4>
-              ${vehicle.seller_verified ? `<div style="margin-bottom:0.5rem;">${verifiedBadge()}</div>` : ''}
+              ${vehicle.seller_verified ? `<div style="margin-bottom:0.5rem;">${verifiedBadge(true)}</div>` : ''}
               ${vehicle.seller_rating ? `<div class="rating">${'★'.repeat(Math.round(vehicle.seller_rating))}${'☆'.repeat(5-Math.round(vehicle.seller_rating))} <span>(${vehicle.seller_ratings_count} reseñas)</span></div>` : '<div class="rating"><span style="color:var(--text-secondary)">Sin reseñas aún</span></div>'}
               <div class="seller-stats">
                 <span><strong>${vehicle.seller_vehicles_count}</strong> vehículos</span>
@@ -1520,6 +1522,8 @@ async function handlePublish(e) {
 async function loadMyVehicles() {
   try {
     const vehicles = await request('/my-vehicles');
+    const vehicleStats = await request('/my-vehicles/stats').catch(() => []);
+    const statsMap = Object.fromEntries((vehicleStats || []).map(s => [String(s.id), s]));
     const stats = await request('/stats').catch(() => null);
     const dashboard = document.getElementById('statsDashboard');
     dashboard.innerHTML = stats ? `
@@ -1543,7 +1547,11 @@ async function loadMyVehicles() {
             <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
             ${formatPesos(v.price, v) ? `<p class="vehicle-price-ars">${formatPesos(v.price, v)}</p>` : ''}
           </div>
-          <div class="vehicle-views"><svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z"/></svg> ${v.view_count || 0} vistas</div>
+          <div class="vehicle-mini-stats">
+  <span title="Vistas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>${(statsMap[String(v.id)]?.view_count || v.view_count || 0)}</span>
+  <span title="Guardados"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>${(statsMap[String(v.id)]?.favorites_count || 0)}</span>
+  <span title="Consultas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>${(statsMap[String(v.id)]?.messages_count || 0)}</span>
+</div>
           <div style="display:flex;gap:0.5rem;margin-top:0.75rem;">
             <button class="btn btn-secondary" style="flex:1;" onclick="openEditModal(${v.id}, event)">✏️ Editar</button>
             <button class="btn btn-danger" style="flex:1;" onclick="deleteVehicle(${v.id}, event)">Eliminar</button>

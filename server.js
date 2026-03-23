@@ -1259,6 +1259,41 @@ app.get('/api/my-vehicles', authenticateToken, async (req, res) => {
   }
 });
 
+app.get('/api/my-vehicles/stats', authenticateToken, async (req, res) => {
+  try {
+    const { data: vehicles, error } = await supabase
+      .from('vehicles')
+      .select('id, view_count')
+      .eq('user_id', req.user.id);
+    if (error) throw error;
+    if (!vehicles?.length) return res.json([]);
+
+    const ids = vehicles.map(v => v.id);
+
+    const [favsRes, convsRes] = await Promise.all([
+      supabase.from('favorites').select('vehicle_id').in('vehicle_id', ids),
+      supabase.from('conversations').select('vehicle_id').in('vehicle_id', ids)
+    ]);
+
+    const favsMap = (favsRes.data || []).reduce((acc, r) => {
+      acc[r.vehicle_id] = (acc[r.vehicle_id] || 0) + 1; return acc;
+    }, {});
+    const convsMap = (convsRes.data || []).reduce((acc, r) => {
+      acc[r.vehicle_id] = (acc[r.vehicle_id] || 0) + 1; return acc;
+    }, {});
+
+    res.json(vehicles.map(v => ({
+      id: v.id,
+      view_count: v.view_count || 0,
+      favorites_count: favsMap[v.id] || 0,
+      messages_count: convsMap[v.id] || 0
+    })));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener estadísticas' });
+  }
+});
+
 // UPLOAD IMAGE
 app.post('/api/upload', authenticateToken, upload.single('image'), async (req, res) => {
   try {

@@ -3769,6 +3769,38 @@ select {
   flex-shrink: 0;
 }
 
+.verified-badge--large {
+  font-size: 0.82rem;
+  padding: 0.3rem 0.85rem;
+  gap: 5px;
+}
+
+.verified-badge--large svg {
+  width: 14px;
+  height: 14px;
+}
+
+.verified-badge {
+  position: relative;
+  cursor: default;
+}
+
+.verified-badge:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: 130%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.88);
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 100;
+}
+
 .seller-name-row {
   display: flex;
   align-items: center;
@@ -4603,4 +4635,29 @@ select {
     max-height: none;
     overflow-y: visible;
   }
-}
+}
+
+/* ===== VEHICLE MINI STATS ===== */
+.vehicle-mini-stats {
+  display: flex;
+  gap: 0.9rem;
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+}
+
+.vehicle-mini-stats span {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  color: var(--text-3);
+  font-weight: 600;
+  cursor: default;
+}
+
+.vehicle-mini-stats svg {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
