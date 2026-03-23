@@ -132,36 +132,32 @@ let currentChatOtherUserId = null;
 const API_URL = '/api';
 
 const carBrands = {
-  'Acura': ['ILX', 'MDX', 'RDX', 'RLX', 'TLX', 'TSX', 'ZDX'],
-  'Alfa Romeo': ['Giulia', 'Stelvio', 'Giulietta', 'Giulia Quadrifoglio', 'Tonale', '4C'],
-  'Aston Martin': ['DB11', 'DB12', 'DBX', 'DBS', 'Vantage', 'Vanquish', 'Valkyrie'],
-  'Audi': ['A1', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'Q2', 'Q3', 'Q5', 'Q7', 'Q8', 'e-tron', 'TT', 'R8'],
-  'BMW': ['Serie 1', 'Serie 2', 'Serie 3', 'Serie 4', 'Serie 5', 'Serie 7', 'X1', 'X3', 'X5', 'X7', 'Z4', 'i3', 'i4', 'iX'],
-  'Chevrolet': ['Aveo', 'Camaro', 'Colorado', 'Corvette', 'Cruze', 'Equinox', 'Malibu', 'Onix', 'Silverado', 'Sonic', 'Spark', 'Suburban', 'Tahoe', 'Traverse', 'Trax'],
-  'Citroën': ['C3', 'C4', 'C4 Cactus', 'C5 Aircross', 'Berlingo'],
-  'Ford': ['Bronco', 'Bronco Sport', 'EcoSport', 'Edge', 'Escape', 'Everest', 'Explorer', 'F-150', 'Fiesta', 'Focus', 'Fusion', 'Mustang', 'Ranger', 'Territory'],
-  'Honda': ['Accord', 'Civic', 'City', 'CR-V', 'HR-V', 'Odyssey', 'Pilot', 'WR-V'],
-  'Hyundai': ['Accent', 'Creta', 'Elantra', 'Ioniq 5', 'Kona', 'Palisade', 'Santa Fe', 'Sonata', 'Tucson', 'Venue'],
-  'Jeep': ['Compass', 'Gladiator', 'Grand Cherokee', 'Renegade', 'Wrangler'],
-  'Kia': ['Carnival', 'Cerato', 'EV6', 'Forte', 'K5', 'Niro', 'Picanto', 'Rio', 'Seltos', 'Sorento', 'Sportage', 'Stinger', 'Telluride'],
-  'Land Rover': ['Defender', 'Discovery', 'Range Rover', 'Range Rover Sport', 'Range Rover Velar'],
-  'Lexus': ['CT', 'ES', 'GS', 'IS', 'LS', 'NX', 'RX', 'RZ', 'UX'],
-  'Mazda': ['2', '3', '6', 'CX-3', 'CX-30', 'CX-5', 'CX-9', 'MX-30', 'MX-5'],
-  'Mercedes-Benz': ['Clase A', 'Clase C', 'Clase E', 'Clase G', 'GLA', 'GLC', 'GLE', 'GLS', 'EQS'],
-  'Mini': ['Cooper', 'Cooper Clubman', 'Cooper Countryman', 'Electric'],
-  'Mitsubishi': ['ASX', 'Eclipse Cross', 'L200', 'Lancer', 'Outlander', 'Xpander'],
-  'Nissan': ['Altima', 'Kicks', 'Leaf', 'Maxima', 'Murano', 'Pathfinder', 'Qashqai', 'Rogue', 'Sentra', 'Versa', 'X-Trail'],
-  'Peugeot': ['208', '2008', '3008', '5008', '308', '508', 'Rifter'],
-  'Porsche': ['911', '718 Boxster', 'Cayenne', 'Macan', 'Panamera', 'Taycan'],
-  'Renault': ['Arkana', 'Captur', 'Clio', 'Duster', 'Kwid', 'Logan', 'Megane', 'Oroch', 'Sandero', 'Stepway'],
-  'Seat': ['Arona', 'Ateca', 'Ibiza', 'Leon', 'Tarraco'],
-  'Skoda': ['Fabia', 'Kamiq', 'Karoq', 'Kodiaq', 'Octavia', 'Scala', 'Superb'],
-  'Subaru': ['Ascent', 'BRZ', 'Crosstrek', 'Forester', 'Impreza', 'Legacy', 'Outback', 'Solterra', 'WRX'],
-  'Suzuki': ['Baleno', 'Ignis', 'Jimny', 'S-Presso', 'Swift', 'Vitara', 'XL7'],
-  'Tesla': ['Model 3', 'Model S', 'Model X', 'Model Y', 'Cybertruck'],
-  'Toyota': ['4Runner', 'Camry', 'Corolla', 'Corolla Cross', 'C-HR', 'Highlander', 'Hilux', 'Land Cruiser', 'Prius', 'RAV4', 'Sequoia', 'Tacoma', 'Tundra', 'Yaris'],
-  'Volkswagen': ['Amarok', 'Arteon', 'Gol', 'Golf', 'Jetta', 'Nivus', 'Passat', 'Polo', 'T-Cross', 'Taos', 'Tiguan', 'Virtus', 'ID.4'],
-  'Volvo': ['C40', 'EX30', 'XC40', 'XC60', 'XC90', 'S60', 'S90']
+  'Alfa Romeo': ['Giulia', 'Stelvio', 'Tonale', 'Giulietta'],
+  'Audi': ['A1', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'Q2', 'Q3', 'Q5', 'Q7', 'Q8', 'TT', 'e-tron'],
+  'BMW': ['Serie 1', 'Serie 2', 'Serie 3', 'Serie 4', 'Serie 5', 'Serie 7', 'X1', 'X2', 'X3', 'X5', 'X6', 'Z4', 'i4', 'iX'],
+  'Chevrolet': ['Cruze', 'Equinox', 'Montana', 'Onix', 'Onix Plus', 'S10', 'Spin', 'Tracker', 'Trailblazer', 'Trax'],
+  'Citroën': ['Berlingo', 'C3', 'C4', 'C4 Cactus', 'C5 Aircross', 'Jumpy', 'Spacetourer'],
+  'Fiat': ['Argo', 'Cronos', 'Doblò', 'Ducato', 'Fiorino', 'Mobi', 'Pulse', 'Strada', 'Toro'],
+  'Ford': ['EcoSport', 'Edge', 'Explorer', 'F-150', 'Focus', 'Fusion', 'Ka', 'Kuga', 'Maverick', 'Mondeo', 'Mustang', 'Ranger', 'Territory'],
+  'Honda': ['City', 'Civic', 'CR-V', 'Fit', 'HR-V', 'WR-V'],
+  'Hyundai': ['Creta', 'Elantra', 'HB20', 'Ioniq 5', 'Ioniq 6', 'Santa Fe', 'Staria', 'Tucson', 'Venue'],
+  'Jeep': ['Avenger', 'Commander', 'Compass', 'Gladiator', 'Grand Cherokee', 'Renegade', 'Wrangler'],
+  'Kia': ['Carnival', 'Cerato', 'EV6', 'Niro', 'Picanto', 'Rio', 'Seltos', 'Sorento', 'Sportage', 'Stonic'],
+  'Land Rover': ['Defender', 'Discovery', 'Discovery Sport', 'Range Rover', 'Range Rover Evoque', 'Range Rover Sport', 'Range Rover Velar'],
+  'Mazda': ['2', '3', '6', 'CX-3', 'CX-30', 'CX-5', 'MX-5'],
+  'Mercedes-Benz': ['Clase A', 'Clase B', 'Clase C', 'Clase E', 'Clase G', 'GLA', 'GLB', 'GLC', 'GLE', 'GLS', 'Sprinter'],
+  'Mini': ['Cooper', 'Cooper Clubman', 'Cooper Countryman'],
+  'Mitsubishi': ['ASX', 'Eclipse Cross', 'L200', 'Montero', 'Outlander'],
+  'Nissan': ['Frontier', 'Kicks', 'March', 'Murano', 'Note', 'Qashqai', 'Sentra', 'Versa', 'X-Trail'],
+  'Peugeot': ['208', '2008', '3008', '5008', '308', '408', 'Expert', 'Partner', 'Rifter'],
+  'Porsche': ['718 Boxster', '718 Cayman', '911', 'Cayenne', 'Macan', 'Panamera', 'Taycan'],
+  'Ram': ['700', '1500', 'ProMaster'],
+  'Renault': ['Alaskan', 'Arkana', 'Captur', 'Clio', 'Duster', 'Kangoo', 'Kwid', 'Logan', 'Master', 'Megane', 'Oroch', 'Sandero', 'Stepway'],
+  'Subaru': ['BRZ', 'Forester', 'Impreza', 'Outback', 'WRX', 'XV'],
+  'Suzuki': ['Ignis', 'Jimny', 'S-Cross', 'Swift', 'Vitara'],
+  'Toyota': ['Camry', 'Corolla', 'Corolla Cross', 'Etios', 'Fortuner', 'Hiace', 'Hilux', 'Land Cruiser', 'Land Cruiser Prado', 'Prius', 'RAV4', 'Rush', 'SW4', 'Yaris'],
+  'Volkswagen': ['Amarok', 'Fox', 'Gol', 'Golf', 'Nivus', 'Polo', 'Suran', 'T-Cross', 'Taos', 'Tiguan', 'Touareg', 'Vento', 'Virtus'],
+  'Volvo': ['C40', 'S60', 'S90', 'XC40', 'XC60', 'XC90'],
 };
 
 const motoBrands = {
@@ -428,13 +424,9 @@ function applyTheme(day) {
 }
 
 function initTheme() {
-  // Usar override de sesión si existe, si no auto-detectar por hora
+  // Usar override de sesión si existe, si no usar modo noche por defecto
   const override = sessionStorage.getItem('themeOverride');
-  applyTheme(override !== null ? override === 'day' : isDay());
-  // Re-verificar cada 5 minutos para auto-cambiar cuando cambia la hora
-  setInterval(() => {
-    if (sessionStorage.getItem('themeOverride') === null) applyTheme(isDay());
-  }, 5 * 60 * 1000);
+  applyTheme(override !== null ? override === 'day' : false);
 }
 
 function toggleTheme() {
