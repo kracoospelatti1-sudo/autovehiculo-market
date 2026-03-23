@@ -1112,7 +1112,7 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
     if (brand !== undefined) updates.brand = brand;
     if (model !== undefined) updates.model = model;
     if (version !== undefined) updates.version = version;
-    if (year !== undefined) updates.year = parseInt(year);
+    if (year !== undefined && year !== '' && !isNaN(parseInt(year))) updates.year = parseInt(year);
     // Auto-generate title if any of brand/model/version/year changed
     if (brand !== undefined || model !== undefined || version !== undefined || year !== undefined) {
       const { data: cur } = await supabase.from('vehicles').select('brand,model,version,year').eq('id', vid).maybeSingle();

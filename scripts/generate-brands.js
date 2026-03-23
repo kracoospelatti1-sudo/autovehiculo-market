@@ -1,0 +1,89 @@
+// Script para generar brands-data.json con marcas y modelos del mercado argentino
+// Ejecutar: node scripts/generate-brands.js
+
+const fs = require('fs');
+const path = require('path');
+
+const data = {
+  carBrands: {
+    "Acura": ["ILX","MDX","RDX","TL","TLX"],
+    "Alfa Romeo": ["147","156","159","166","Giulia","Giulietta","MiTo","Stelvio","Tonale"],
+    "Aston Martin": ["DB11","DB9","DBS","Rapide","Vantage"],
+    "Audi": ["A1","A3","A4","A5","A6","A7","A8","Q2","Q3","Q5","Q7","Q8","R8","RS3","RS4","RS5","RS6","RS7","S3","S4","S5","S6","S7","S8","TT"],
+    "BMW": ["116i","118i","120i","125i","128i","130i","218i","220i","228i","230i","316i","318i","320i","325i","328i","330i","335i","340i","418i","420i","428i","430i","435i","440i","520i","523i","525i","528i","530i","535i","540i","545i","550i","630i","640i","650i","730i","740i","750i","M2","M3","M4","M5","M6","X1","X2","X3","X4","X5","X6","X7","Z4"],
+    "BYD": ["Atto 3","Dolphin","EA1","Han","Seal","Song Plus","Tang"],
+    "Chery": ["Arrizo 5","Arrizo 6","Tiggo 2","Tiggo 3","Tiggo 4","Tiggo 5","Tiggo 7","Tiggo 8"],
+    "Chevrolet": ["Aveo","Blazer","Camaro","Captiva","Cavalier","Classic","Cobalt","Colorado","Corvette","Cruze","Equinox","Express","HHR","Joy","Malibu","Montana","Onix","Onix Plus","Orlando","Prisma","S10","Sail","Silverado","Sonic","Spark","Spin","Suburban","Tahoe","Tornado","Tracker","Trail Blazer","Traverse"],
+    "Chrysler": ["200","300","300C","Crossfire","Neon","Pacifica","PT Cruiser","Sebring","Town & Country","Voyager"],
+    "Citroen": ["Berlingo","C3","C3 Aircross","C4","C4 Cactus","C4 Lounge","C4 Picasso","C5","C5 Aircross","C6","C8","DS3","DS4","DS5","Jumper","Jumpy","Xsara","Xsara Picasso"],
+    "Daewoo": ["Cielo","Espero","Lanos","Leganza","Matiz","Nubira","Tacuma"],
+    "Daihatsu": ["Boon","Charade","Cuore","Feroza","Sirion","Terios","YRV"],
+    "Dodge": ["Avenger","Caliber","Challenger","Charger","Dakota","Dart","Durango","Journey","Neon","Ram","Viper"],
+    "DS": ["DS3","DS4","DS5","DS7"],
+    "Ferrari": ["296","458","488","California","F430","F8","GTC4Lusso","Portofino","Roma","SF90"],
+    "Fiat": ["500","500X","Argo","Bravo","Cronos","Doblo","Ducato","Fiorino","Idea","Linea","Marea","Mobi","Palio","Palio Weekend","Panda","Punto","Qubo","Siena","Tipo","Toro"],
+    "Ford": ["Bronco","EcoSport","Edge","Escape","Expedition","Explorer","F-150","F-250","F-350","Fiesta","Focus","Fusion","Galaxy","Ka","Ka+","Kuga","Maverick","Mondeo","Mustang","Puma","Ranger","S-MAX","Territory","Thunderbird"],
+    "GAC": ["Empow","GS3","GS4","GS8"],
+    "Genesis": ["G70","G80","G90","GV70","GV80"],
+    "Great Wall": ["Haval H2","Haval H6","Wingle 6","Wingle 7"],
+    "Haval": ["H2","H6","H9","Jolion"],
+    "Honda": ["Accord","City","Civic","CR-V","CR-Z","Element","Fit","HR-V","Jazz","Legend","Odyssey","Pilot","Prelude","Ridgeline","Stream","WR-V"],
+    "Hyundai": ["Accent","Atos","Azera","Creta","Elantra","Getz","H1","HB20","i10","i20","i25","i30","Ioniq","Ioniq 5","Ioniq 6","ix35","Kona","Santa Fe","Sonata","Tiburon","Tucson","Veloster","Venue"],
+    "Infiniti": ["EX35","FX35","FX37","G35","G37","JX35","Q50","Q60","Q70","QX50","QX56","QX60","QX70","QX80"],
+    "Jaguar": ["E-Pace","F-Pace","F-Type","I-Pace","S-Type","X-Type","XE","XF","XJ","XK"],
+    "Jeep": ["Cherokee","Commander","Compass","Gladiator","Grand Cherokee","Patriot","Renegade","Wrangler"],
+    "Kia": ["Carens","Carnival","Ceed","Cerato","EV6","Morning","Niro","Optima","Picanto","Rio","Seltos","Sorento","Soul","Sportage","Stinger","Telluride"],
+    "Lamborghini": ["Aventador","Huracan","Urus"],
+    "Land Rover": ["Defender","Discovery","Discovery Sport","Freelander","Range Rover","Range Rover Evoque","Range Rover Sport","Range Rover Velar"],
+    "Lexus": ["CT200h","ES","GS","GX","IS","LC","LS","LX","NX","RX","UX"],
+    "Lifan": ["530","620","720","820","X50","X60","X70"],
+    "Lincoln": ["Continental","MKC","MKT","MKX","MKZ","Navigator"],
+    "Maserati": ["Ghibli","GranTurismo","Grecale","Levante","MC20","Quattroporte"],
+    "Mazda": ["2","3","5","6","BT-50","CX-3","CX-30","CX-5","CX-7","CX-9","MX-5","RX-8"],
+    "Mercedes-Benz": ["A180","A200","A250","B200","C180","C200","C220","C250","C300","C350","C400","C450","CLA","CLK","CLS","E200","E220","E250","E300","E350","E400","E450","G350","G500","G63","GLA","GLB","GLC","GLE","GLS","ML250","ML350","S300","S350","S400","S450","S500","S560","S600","S63","SL","SLC","SLK","Sprinter","V220","V250","Vito"],
+    "MG": ["3","5","6","HS","Marvel R","RX5","ZS"],
+    "Mini": ["Cabrio","Clubman","Cooper","Cooper S","Countryman","JCW","Paceman"],
+    "Mitsubishi": ["ASX","Eclipse Cross","Galant","L200","Lancer","Montero","Outlander","Pajero","Space Star"],
+    "Nissan": ["350Z","370Z","Altima","Armada","Frontier","GT-R","Juke","Kicks","Leaf","Maxima","Micra","Murano","Navara","Note","Pathfinder","Qashqai","Rogue","Sentra","Tiida","Titan","Versa","X-Trail"],
+    "Peugeot": ["106","107","108","206","207","208","301","307","308","3008","4007","4008","408","5008","508","607","Bipper","Boxer","Expert","Partner","RCZ"],
+    "Porsche": ["718","911","Cayenne","Macan","Panamera","Taycan"],
+    "RAM": ["1500","2500","3500","ProMaster","Rampage"],
+    "Renault": ["Captur","Clio","Duster","Fluence","Kangoo","Koleos","Kwid","Laguna","Latitude","Logan","Master","Megane","Oroch","Sandero","Scenic","Stepway","Symbol","Trafic","Zoe"],
+    "SEAT": ["Arona","Ateca","Cordoba","Ibiza","Leon","Toledo"],
+    "Skoda": ["Fabia","Karoq","Kodiaq","Octavia","Rapid","Superb","Yeti"],
+    "Smart": ["Forfour","Fortwo"],
+    "Subaru": ["Forester","Impreza","Legacy","Outback","Tribeca","WRX","XV"],
+    "Suzuki": ["Baleno","Celerio","Ertiga","Grand Vitara","Ignis","Jimny","Kizashi","S-Cross","Swift","Vitara","SX4"],
+    "Tesla": ["Model 3","Model S","Model X","Model Y"],
+    "Toyota": ["4Runner","Avalon","C-HR","Camry","Corolla","Corolla Cross","FJ Cruiser","Fortuner","GR86","Hiace","Highlander","Hilux","Land Cruiser","Land Cruiser Prado","Prius","RAV4","Rush","Sequoia","Sienna","SW4","Tacoma","Tundra","Vios","Yaris"],
+    "Volkswagen": ["Amarok","Bora","Caddy","Caravelle","Crafter","Fox","Gol","Gol Trend","Golf","Golf GTI","Golf R","Jetta","Passat","Polo","Polo Track","Saveiro","Suran","T-Cross","T-Roc","Taos","Tiguan","Touareg","Touran","Transporter","Vento","Virtus","Vivo"],
+    "Volvo": ["C30","S40","S60","S80","S90","V40","V50","V60","V70","V90","XC40","XC60","XC70","XC90"]
+  },
+  motoBrands: {
+    "Bajaj": ["Avenger 160","Avenger 220","Boxer 150","CT 100","Discover 125","Dominar 250","Dominar 400","NS 125","NS 160","NS 200","Platina 100","Platina 110","Pulsar 125","Pulsar 150","Pulsar 160","Pulsar 180","Pulsar 200","Pulsar 220","Pulsar NS 200","Pulsar RS 200","Rouser 135","Rouser 180","Rouser 200","Rouser 220"],
+    "Benelli": ["302R","502C","600i","752S","Leoncino 500","TRK 502","TRK 800"],
+    "Beta": ["BS 110","BS 150","City 110","Motard 200","Motard 250","RR 200","RR 250","RR 300","Tempo 125","Tempo 150","Urban 150","Urban 200","Urban 250"],
+    "BMW": ["F700GS","F750GS","F800GS","F850GS","G310GS","G310R","K1200GT","K1300GT","R1200GS","R1250GS","S1000R","S1000RR","S1000XR"],
+    "Corven": ["Bamx 110","Energy 110","Energy 125","Mirage 110","Road 110","Terrain 250","Triax 150","Triax 200","Triax 250"],
+    "Ducati": ["Diavel","Hypermotard","Monster","Multistrada","Panigale","Scrambler","SuperSport"],
+    "Gilera": ["RK6 200","Smash 110","Smash V6"],
+    "Harley-Davidson": ["Breakout","Fat Bob","Fat Boy","FLHR","FLSTC","Heritage Softail","Iron 883","Low Rider","Night Rod","Road King","Softail","Sportster","Street 500","Street Glide","Street Rod","Ultra Classic"],
+    "Hero": ["Dash 110","Eco Deluxe 100","Hunk 150","Ignitor 125","Passion Pro 110","Splendor"],
+    "Honda": ["CB 125","CB 190","CB 250 Twister","CB 300R","CB 500F","CB 500X","CB 600F Hornet","CB 750","CB 1000R","CBR 300R","CBR 600RR","CBR 1000RR","CG 150","CRF 250","CRF 450","Elite 125","NC 700X","NC 750X","NXR 150","PCX 150","Pop 100","Tornado 250","VT 750","Wave 110","XR 250","XRE 300"],
+    "Indian": ["Chief","Chieftain","Scout","Scout Bobber","Springfield","Vintage"],
+    "Kawasaki": ["Ninja 300","Ninja 400","Ninja 650","Ninja ZX-6R","Ninja ZX-10R","Ninja H2","KX450F","Versys 300","Versys 650","Versys 1000","Vulcan S","Z400","Z650","Z900","Z1000"],
+    "KTM": ["200 Duke","250 Duke","390 Duke","690 Duke","790 Duke","890 Duke","200 EXC","250 EXC","300 EXC","450 EXC","500 EXC","RC 200","RC 390","1090 Adventure","1190 Adventure","1290 Super Duke"],
+    "Kymco": ["AK 550","Downtown 125","Downtown 350","Like 125","Spade 150","Xciting S 400"],
+    "Motomel": ["Blitz 110","CG 150","CG 200","Cub 110","Custom 150","Custom 200","Go 50","S2 110","S3 150","Sirius 150","Strato 125","Strato 150","X3M 200","X3M 250"],
+    "Suzuki": ["Address 110","AN 125","AN 400","Burgman 125","Burgman 400","DL 1000","DR 160","DR 200","DR 650","GS500","GSR 150","GSX-R600","GSX-R750","GSX-R1000","GSX-S750","GSX-S1000","Hayabusa","Inazuma 250","V-Strom 650","V-Strom 1000"],
+    "Triumph": ["Bonneville","Daytona 675","Rocket III","Speed Triple","Street Triple","Thruxton","Tiger","Tiger Sport"],
+    "Vespa": ["GTS 125","GTS 250","GTS 300","LX 125","LX 150","Primavera 125","Sprint 125","Sprint 150"],
+    "Yamaha": ["Biz 125","Crypton 115","DT 175","DT 200","FZ 15","FZ 16","FZ 25","FZ-S","FZN 150","MT-03","MT-07","MT-09","MT-10","R1","R3","R6","R15","SR 150","T-Max 530","TDM 900","TFX 150","Tenere 250","Tenere 700","V-Max","XJ6","XTZ 125","XTZ 150","XTZ 250","XTZ 660","XT 660","YBR 125","YCZ 110","YS 150"]
+  }
+};
+
+const outPath = path.join(__dirname, '../public/brands-data.json');
+fs.writeFileSync(outPath, JSON.stringify(data, null, 2));
+console.log('Done!');
+console.log('  Cars:', Object.keys(data.carBrands).length, 'marcas');
+console.log('  Motos:', Object.keys(data.motoBrands).length, 'marcas');

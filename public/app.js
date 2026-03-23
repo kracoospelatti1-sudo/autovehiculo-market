@@ -131,52 +131,13 @@ let currentChatOtherUserId = null;
 
 const API_URL = '/api';
 
-const carBrands = {
-  'Alfa Romeo': ['Giulia', 'Stelvio', 'Tonale', 'Giulietta'],
-  'Audi': ['A1', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'Q2', 'Q3', 'Q5', 'Q7', 'Q8', 'TT', 'e-tron'],
-  'BMW': ['Serie 1', 'Serie 2', 'Serie 3', 'Serie 4', 'Serie 5', 'Serie 7', 'X1', 'X2', 'X3', 'X5', 'X6', 'Z4', 'i4', 'iX'],
-  'Chevrolet': ['Cruze', 'Equinox', 'Montana', 'Onix', 'Onix Plus', 'S10', 'Spin', 'Tracker', 'Trailblazer', 'Trax'],
-  'Citroën': ['Berlingo', 'C3', 'C4', 'C4 Cactus', 'C5 Aircross', 'Jumpy', 'Spacetourer'],
-  'Fiat': ['Argo', 'Cronos', 'Doblò', 'Ducato', 'Fiorino', 'Mobi', 'Pulse', 'Strada', 'Toro'],
-  'Ford': ['EcoSport', 'Edge', 'Explorer', 'F-150', 'Focus', 'Fusion', 'Ka', 'Kuga', 'Maverick', 'Mondeo', 'Mustang', 'Ranger', 'Territory'],
-  'Honda': ['City', 'Civic', 'CR-V', 'Fit', 'HR-V', 'WR-V'],
-  'Hyundai': ['Creta', 'Elantra', 'HB20', 'Ioniq 5', 'Ioniq 6', 'Santa Fe', 'Staria', 'Tucson', 'Venue'],
-  'Jeep': ['Avenger', 'Commander', 'Compass', 'Gladiator', 'Grand Cherokee', 'Renegade', 'Wrangler'],
-  'Kia': ['Carnival', 'Cerato', 'EV6', 'Niro', 'Picanto', 'Rio', 'Seltos', 'Sorento', 'Sportage', 'Stonic'],
-  'Land Rover': ['Defender', 'Discovery', 'Discovery Sport', 'Range Rover', 'Range Rover Evoque', 'Range Rover Sport', 'Range Rover Velar'],
-  'Mazda': ['2', '3', '6', 'CX-3', 'CX-30', 'CX-5', 'MX-5'],
-  'Mercedes-Benz': ['Clase A', 'Clase B', 'Clase C', 'Clase E', 'Clase G', 'GLA', 'GLB', 'GLC', 'GLE', 'GLS', 'Sprinter'],
-  'Mini': ['Cooper', 'Cooper Clubman', 'Cooper Countryman'],
-  'Mitsubishi': ['ASX', 'Eclipse Cross', 'L200', 'Montero', 'Outlander'],
-  'Nissan': ['Frontier', 'Kicks', 'March', 'Murano', 'Note', 'Qashqai', 'Sentra', 'Versa', 'X-Trail'],
-  'Peugeot': ['208', '2008', '3008', '5008', '308', '408', 'Expert', 'Partner', 'Rifter'],
-  'Porsche': ['718 Boxster', '718 Cayman', '911', 'Cayenne', 'Macan', 'Panamera', 'Taycan'],
-  'Ram': ['700', '1500', 'ProMaster'],
-  'Renault': ['Alaskan', 'Arkana', 'Captur', 'Clio', 'Duster', 'Kangoo', 'Kwid', 'Logan', 'Master', 'Megane', 'Oroch', 'Sandero', 'Stepway'],
-  'Subaru': ['BRZ', 'Forester', 'Impreza', 'Outback', 'WRX', 'XV'],
-  'Suzuki': ['Ignis', 'Jimny', 'S-Cross', 'Swift', 'Vitara'],
-  'Toyota': ['Camry', 'Corolla', 'Corolla Cross', 'Etios', 'Fortuner', 'Hiace', 'Hilux', 'Land Cruiser', 'Land Cruiser Prado', 'Prius', 'RAV4', 'Rush', 'SW4', 'Yaris'],
-  'Volkswagen': ['Amarok', 'Bora', 'CrossFox', 'CrossGol', 'Fox', 'Gol', 'Golf', 'Golf GTI', 'Jetta', 'Nivus', 'Passat', 'Polo', 'Saveiro', 'SpaceFox', 'Suran', 'T-Cross', 'T-Roc', 'Taos', 'Tiguan', 'Touareg', 'Up!', 'Vento', 'Virtus', 'Voyage'],
-  'Volvo': ['C40', 'S60', 'S90', 'XC40', 'XC60', 'XC90'],
-};
+let carBrands = {};
+let motoBrands = {};
 
-const motoBrands = {
-  'Beta': ['RR 125', 'RR 200', 'RR 250', 'RR 300', 'RR 390', 'RR 430', 'RR 480', 'X-Trainer 250', 'X-Trainer 300'],
-  'BMW Motorrad': ['G 310 R', 'G 310 GS', 'F 750 GS', 'F 850 GS', 'R 1250 GS', 'S 1000 RR'],
-  'Bajaj': ['Boxer 100', 'Discover 125', 'Pulsar NS160', 'Pulsar NS200', 'Pulsar RS200', 'Dominar 400', 'Rouser NS200'],
-  'Corven': ['Energy 110', 'Energy 125', 'Mirage 110', 'Triax 150', 'Triax 250', 'TK 150'],
-  'Ducati': ['Monster', 'Panigale V2', 'Panigale V4', 'Multistrada V4', 'Scrambler'],
-  'Gilera': ['Smash 110', 'Smash 125', 'VC 150', 'Sahara 150', 'Futura 150'],
-  'Harley-Davidson': ['Iron 883', 'Forty-Eight', 'Street Glide', 'Road Glide', 'Fat Boy', 'Sportster S'],
-  'Honda': ['CB190R', 'CB300R', 'CB500F', 'CB650R', 'CBR600RR', 'CBR1000RR', 'CG 150', 'Titan 160', 'Wave 110', 'XRE 300', 'Africa Twin'],
-  'KTM': ['Duke 200', 'Duke 390', 'Duke 790', 'RC 390', 'Adventure 390', 'Adventure 790', 'EXC 300'],
-  'Kawasaki': ['Ninja 300', 'Ninja 400', 'Ninja 650', 'Ninja ZX-6R', 'Z400', 'Z650', 'Z900', 'Versys 650'],
-  'Motomel': ['Blitz 110', 'S2 150', 'CG 150', 'Skua 150', 'Skua 250', 'Sirius 200'],
-  'Royal Enfield': ['Bullet 350', 'Classic 350', 'Meteor 350', 'Himalayan', 'Interceptor 650', 'Continental GT 650'],
-  'Suzuki': ['Gixxer 150', 'Gixxer 250', 'GSX-R600', 'GSX-R750', 'GSX-S750', 'V-Strom 650', 'DR 650'],
-  'Yamaha': ['FZ 150', 'FZ 250', 'MT-03', 'MT-07', 'MT-09', 'R3', 'R7', 'R1', 'XTZ 125', 'XTZ 250', 'XMAX 300', 'Tenere 700'],
-  'Zanella': ['ZB 110', 'ZB 125', 'Styler 150', 'RZ3 150', 'RX 150', 'Patagonia 250'],
-};
+fetch('/brands-data.json').then(r => r.json()).then(d => {
+  carBrands = d.carBrands || {};
+  motoBrands = d.motoBrands || {};
+}).catch(() => {});
 
 function getBrandsForType(type) {
   return type === 'moto' ? motoBrands : carBrands;
