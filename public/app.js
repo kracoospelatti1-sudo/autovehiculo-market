@@ -2970,28 +2970,34 @@ async function loadTradeOffers() {
         </div>
       </div>`;
 
-    // Renderizar con colapso si hay más de 3
-    function renderCollapsible(containerId, offers, isReceived, emptyMsg) {
-      const MAX_VISIBLE = 3;
+    // Renderizar: pendientes primero, historial colapsado
+    function renderWithHistory(containerId, offers, isReceived, emptyMsg) {
       const container = document.getElementById(containerId);
       if (!offers?.length) { container.innerHTML = `<p style="color:var(--text-3);font-size:0.9rem;">${emptyMsg}</p>`; return; }
-      const visible = offers.slice(0, MAX_VISIBLE);
-      const hidden = offers.slice(MAX_VISIBLE);
-      const hiddenId = containerId + '_hidden';
-      container.innerHTML = visible.map(o => renderOffer(o, isReceived)).join('')
-        + (hidden.length ? `
-          <div id="${hiddenId}" style="display:none;">${hidden.map(o => renderOffer(o, isReceived)).join('')}</div>
-          <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:0.25rem;" onclick="
-            const h = document.getElementById('${hiddenId}');
-            const open = h.style.display !== 'none';
-            h.style.display = open ? 'none' : 'block';
-            this.textContent = open ? 'Ver ${hidden.length} más ▾' : 'Ver menos ▴';
-          ">Ver ${hidden.length} más ▾</button>
-        ` : '');
+      const pending = offers.filter(o => o.status === 'pending');
+      const history = offers.filter(o => o.status !== 'pending');
+      const histId = containerId + '_hist';
+      let html = '';
+      if (pending.length) {
+        html += pending.map(o => renderOffer(o, isReceived)).join('');
+      } else {
+        html += `<p style="color:var(--text-3);font-size:0.85rem;margin-bottom:0.5rem;">Sin pendientes</p>`;
+      }
+      if (history.length) {
+        html += `
+          <div id="${histId}" style="display:none;">${history.map(o => renderOffer(o, isReceived)).join('')}</div>
+          <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:0.25rem;font-size:0.78rem;" onclick="
+            const h=document.getElementById('${histId}');
+            const open=h.style.display!=='none';
+            h.style.display=open?'none':'block';
+            this.textContent=open?'Ver historial (${history.length}) ▾':'Ocultar historial ▴';
+          ">Ver historial (${history.length}) ▾</button>`;
+      }
+      container.innerHTML = html;
     }
 
-    renderCollapsible('tradeOffersList', received, true,  'Sin permutas recibidas');
-    renderCollapsible('tradeSentList',   sent,     false, 'Sin permutas enviadas');
+    renderWithHistory('tradeOffersList', received, true,  'Sin permutas recibidas');
+    renderWithHistory('tradeSentList',   sent,     false, 'Sin permutas enviadas');
   } catch { section.style.display = 'none'; }
 }
 
