@@ -2496,7 +2496,7 @@ async function viewProfile(id) {
           </div>
         </div>
 
-        <h2>${escapeHtml((profile.first_name && profile.last_name) ? `${profile.first_name} ${profile.last_name}` : profile.username)}</h2>
+        <h2>${escapeHtml(profile.is_verified && profile.dealership_name ? profile.dealership_name : (profile.first_name && profile.last_name) ? `${profile.first_name} ${profile.last_name}` : profile.username)}</h2>
         <p style="color:var(--text-3);font-size:0.9rem;margin-top:0.1rem;">@${escapeHtml(profile.username)}</p>
         ${profile.is_verified ? verifiedBadge() : ''}
         
