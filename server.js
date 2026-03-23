@@ -1124,10 +1124,10 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
     } else if (title !== undefined) {
       updates.title = title;
     }
-    if (price !== undefined) updates.price = parseFloat(price);
-    if (price_original !== undefined) updates.price_original = price_original ? parseFloat(price_original) : null;
+    if (price !== undefined && price !== '' && !isNaN(parseFloat(price))) updates.price = parseFloat(price);
+    if (price_original !== undefined) updates.price_original = price_original && !isNaN(parseFloat(price_original)) ? parseFloat(price_original) : null;
     if (price_currency !== undefined) updates.price_currency = price_currency || 'USD';
-    if (mileage !== undefined) updates.mileage = parseInt(mileage);
+    if (mileage !== undefined && mileage !== '' && !isNaN(parseInt(mileage))) updates.mileage = parseInt(mileage);
     if (fuel !== undefined) updates.fuel = fuel;
     if (transmission !== undefined) updates.transmission = transmission;
     if (description !== undefined) updates.description = description;
@@ -1503,8 +1503,8 @@ app.put('/api/ping', authenticateToken, async (req, res) => {
       lastSeenDebounce.set(userId, Date.now())
       await supabase.from('profiles').update({ last_seen: new Date().toISOString() }).eq('user_id', userId).catch(() => {})
     }
-    res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: 'Ping fallido' }); }
+  } catch (e) { console.error('[/api/ping]', e.message) }
+  res.json({ success: true });
 });
 
 app.delete('/api/admin/reports/:id', authenticateToken, async (req, res) => {
