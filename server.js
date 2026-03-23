@@ -82,6 +82,11 @@ app.use(express.static('public', {
   maxAge: '7d',
   etag: true,
   lastModified: true,
+  setHeaders(res, filePath) {
+    if (filePath.endsWith('index.html')) {
+      res.setHeader('Cache-Control', 'no-cache');
+    }
+  },
 }));
 
 // Rate limiting
