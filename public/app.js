@@ -1098,6 +1098,133 @@ async function loadDolarRate() {
   } catch { /* silencioso */ }
 }
 
+// ===== BRAND PICKER =====
+const BRAND_LOGO_MAP = {
+  'Alfa Romeo': 'alfa-romeo', 'Audi': 'audi', 'BMW': 'bmw', 'Chevrolet': 'chevrolet',
+  'Citroën': 'citroen', 'Fiat': 'fiat', 'Ford': 'ford', 'Honda': 'honda',
+  'Hyundai': 'hyundai', 'Jeep': 'jeep', 'Kia': 'kia', 'Land Rover': 'land-rover',
+  'Mazda': 'mazda', 'Mercedes-Benz': 'mercedes-benz', 'Mini': 'mini',
+  'Mitsubishi': 'mitsubishi', 'Nissan': 'nissan', 'Peugeot': 'peugeot',
+  'Porsche': 'porsche', 'Ram': 'ram', 'Renault': 'renault', 'Subaru': 'subaru',
+  'Suzuki': 'suzuki', 'Toyota': 'toyota', 'Volkswagen': 'volkswagen', 'Volvo': 'volvo',
+};
+
+function brandLogoUrl(brand) {
+  const key = BRAND_LOGO_MAP[brand];
+  return key ? `/brand-logos/${key}.png` : null;
+}
+
+function initBrandPicker(selectId) {
+  const select = document.getElementById(selectId);
+  if (!select) return;
+  // Remove old picker if re-initializing
+  const old = select.parentElement.querySelector('.brand-picker');
+  if (old) old.remove();
+  select.style.display = 'none';
+
+  const emptyLabel = select.options[0]?.text || 'Seleccionar';
+  const picker = document.createElement('div');
+  picker.className = 'brand-picker';
+  picker.dataset.selectId = selectId;
+
+  picker.innerHTML = `
+    <button type="button" class="brand-picker-trigger" onclick="toggleBrandPicker('${selectId}')">
+      <img class="brand-picker-logo" style="display:none" alt="">
+      <span class="brand-picker-label">${emptyLabel}</span>
+      <svg class="brand-picker-arrow" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    </button>
+    <div class="brand-picker-dropdown" id="brand-picker-dropdown-${selectId}">
+      <input class="brand-picker-search" type="text" placeholder="Buscar marca..." oninput="filterBrandPicker('${selectId}', this.value)">
+      <div class="brand-picker-options" id="brand-picker-options-${selectId}"></div>
+    </div>
+  `;
+  select.parentElement.insertBefore(picker, select);
+  buildBrandPickerOptions(selectId);
+}
+
+function buildBrandPickerOptions(selectId) {
+  const select = document.getElementById(selectId);
+  const container = document.getElementById(`brand-picker-options-${selectId}`);
+  if (!select || !container) return;
+  container.innerHTML = '';
+  for (const opt of select.options) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'brand-picker-option' + (opt.value === select.value ? ' selected' : '');
+    btn.dataset.value = opt.value;
+    if (!opt.value) {
+      btn.innerHTML = `<span class="brand-picker-option-empty">${escapeHtml(opt.text)}</span>`;
+    } else {
+      const logo = brandLogoUrl(opt.value);
+      btn.innerHTML = `${logo ? `<img src="${logo}" alt="${escapeHtml(opt.value)}" loading="lazy">` : '<span style="width:24px"></span>'}<span>${escapeHtml(opt.text)}</span>`;
+    }
+    btn.onclick = () => selectBrandPicker(selectId, opt.value, opt.text);
+    container.appendChild(btn);
+  }
+}
+
+function selectBrandPicker(selectId, value, label) {
+  const select = document.getElementById(selectId);
+  const picker = select?.parentElement.querySelector('.brand-picker');
+  if (!select || !picker) return;
+  select.value = value;
+  const trigger = picker.querySelector('.brand-picker-trigger');
+  const logoEl = trigger.querySelector('.brand-picker-logo');
+  const labelEl = trigger.querySelector('.brand-picker-label');
+  const logo = value ? brandLogoUrl(value) : null;
+  if (logo) { logoEl.src = logo; logoEl.style.display = 'block'; }
+  else { logoEl.style.display = 'none'; }
+  labelEl.textContent = label;
+  picker.querySelectorAll('.brand-picker-option').forEach(b => b.classList.toggle('selected', b.dataset.value === value));
+  closeBrandPicker(selectId);
+  select.dispatchEvent(new Event('change'));
+}
+
+function toggleBrandPicker(selectId) {
+  const select = document.getElementById(selectId);
+  const dropdown = document.getElementById(`brand-picker-dropdown-${selectId}`);
+  const trigger = select?.parentElement.querySelector('.brand-picker-trigger');
+  if (!dropdown) return;
+  const isOpen = dropdown.classList.contains('open');
+  // Close all other pickers
+  document.querySelectorAll('.brand-picker-dropdown.open').forEach(d => {
+    d.classList.remove('open');
+    d.closest('.brand-picker')?.querySelector('.brand-picker-trigger')?.classList.remove('open');
+  });
+  if (!isOpen) {
+    dropdown.classList.add('open');
+    trigger?.classList.add('open');
+    dropdown.querySelector('.brand-picker-search')?.focus();
+  }
+}
+
+function closeBrandPicker(selectId) {
+  const dropdown = document.getElementById(`brand-picker-dropdown-${selectId}`);
+  const select = document.getElementById(selectId);
+  dropdown?.classList.remove('open');
+  select?.parentElement.querySelector('.brand-picker-trigger')?.classList.remove('open');
+}
+
+function filterBrandPicker(selectId, query) {
+  const container = document.getElementById(`brand-picker-options-${selectId}`);
+  if (!container) return;
+  const q = query.toLowerCase();
+  container.querySelectorAll('.brand-picker-option').forEach(btn => {
+    const text = btn.querySelector('span:last-child')?.textContent || btn.textContent;
+    btn.style.display = !q || text.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+// Close picker on outside click
+document.addEventListener('click', e => {
+  if (!e.target.closest('.brand-picker')) {
+    document.querySelectorAll('.brand-picker-dropdown.open').forEach(d => {
+      d.classList.remove('open');
+      d.closest('.brand-picker')?.querySelector('.brand-picker-trigger')?.classList.remove('open');
+    });
+  }
+});
+
 function initBrandFilters() {
   const select = document.getElementById('filterBrand');
   const provinceSelect = document.getElementById('filterProvince');
@@ -1122,6 +1249,7 @@ function initBrandFilters() {
     // Reset model select when brands change
     const filterModel = document.getElementById('filterModel');
     if (filterModel) filterModel.innerHTML = '<option value="">Todos</option>';
+    initBrandPicker('filterBrand');
   }
   const publishBrand = document.getElementById('publishBrand');
   if (publishBrand) {
@@ -1137,6 +1265,7 @@ function initBrandFilters() {
     // Reset model select when brands change
     const publishModel = document.getElementById('publishModel');
     if (publishModel) publishModel.innerHTML = '<option value="">Seleccionar modelo</option>';
+    initBrandPicker('publishBrand');
   }
 }
 
