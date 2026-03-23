@@ -66,7 +66,7 @@ function updateSEOMeta(vehicle, imageUrl) {
   setMeta('name', 'twitter:image', imageUrl);
   const canonical = document.querySelector('link[rel="canonical"]');
   if (canonical) canonical.href = url;
-  window.history.replaceState({ vehicleId: vehicle.id }, '', `?vehicle=${vehicle.id}`);
+  window.history.pushState({ vehicleId: vehicle.id, section: 'vehicle-detail' }, '', `?vehicle=${vehicle.id}`);
   // JSON-LD por vehículo
   document.getElementById('vehicle-jsonld')?.remove();
   const script = document.createElement('script');
@@ -468,6 +468,19 @@ async function handleEmailLinks() {
   }
 }
 
+// Botón atrás del navegador
+window.addEventListener('popstate', (e) => {
+  const section = e.state?.section;
+  const vehicleId = e.state?.vehicleId;
+  if (vehicleId) {
+    viewVehicle(vehicleId);
+  } else if (section) {
+    showSection(section);
+  } else {
+    showSection('home');
+  }
+});
+
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   setupProvinceCity('publishProvince', 'publishCity');
@@ -641,6 +654,14 @@ async function request(endpoint, options = {}) {
 function showSection(sectionId) {
   if (sectionId !== 'vehicle-detail') resetSEOMeta();
   if (currentUser && (sectionId === 'login' || sectionId === 'register')) return;
+  // Push state para que el botón atrás funcione dentro del SPA
+  const publicSections = ['home', 'vehicles', 'login', 'register', 'forgot-password', 'terms'];
+  if (publicSections.includes(sectionId)) {
+    const url = sectionId === 'home' ? '/' : `/?section=${sectionId}`;
+    history.pushState({ section: sectionId }, '', url);
+  } else {
+    history.pushState({ section: sectionId }, '', `/?section=${sectionId}`);
+  }
   // Limpiar el div de reenvío de verificación al salir del login
   document.getElementById('resendVerificationDiv')?.remove();
   document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
