@@ -156,7 +156,7 @@ const carBrands = {
   'Subaru': ['BRZ', 'Forester', 'Impreza', 'Outback', 'WRX', 'XV'],
   'Suzuki': ['Ignis', 'Jimny', 'S-Cross', 'Swift', 'Vitara'],
   'Toyota': ['Camry', 'Corolla', 'Corolla Cross', 'Etios', 'Fortuner', 'Hiace', 'Hilux', 'Land Cruiser', 'Land Cruiser Prado', 'Prius', 'RAV4', 'Rush', 'SW4', 'Yaris'],
-  'Volkswagen': ['Amarok', 'Fox', 'Gol', 'Golf', 'Nivus', 'Polo', 'Suran', 'T-Cross', 'Taos', 'Tiguan', 'Touareg', 'Vento', 'Virtus'],
+  'Volkswagen': ['Amarok', 'Bora', 'CrossFox', 'CrossGol', 'Fox', 'Gol', 'Golf', 'Golf GTI', 'Jetta', 'Nivus', 'Passat', 'Polo', 'Saveiro', 'SpaceFox', 'Suran', 'T-Cross', 'T-Roc', 'Taos', 'Tiguan', 'Touareg', 'Up!', 'Vento', 'Virtus', 'Voyage'],
   'Volvo': ['C40', 'S60', 'S90', 'XC40', 'XC60', 'XC90'],
 };
 
