@@ -96,10 +96,15 @@ try {
 
 ## Casos especiales conocidos
 
-- **Delete de vehículo**: Debe hacer cleanup en cascada manual (imágenes de Storage). El endpoint `/api/vehicles/:id` tiene lógica específica para esto.
+- **Delete de vehículo**: Debe hacer cleanup en cascada manual (imágenes de Storage + price_history). El endpoint `/api/vehicles/:id` tiene lógica específica para esto.
 - **Perfil no encontrado**: Usar `maybeSingle()` para evitar error cuando el perfil aún no existe.
 - **Conversación duplicada**: La tabla `conversations` tiene `UNIQUE(vehicle_id, buyer_id)`, entonces intentar crear una conversación existente devuelve la existente (lógica en el endpoint).
 - **Usuario baneado**: Verificar `is_banned` en `profiles` antes de operaciones de escritura críticas.
+- **Trade offers**: La tabla usa `proposer_id` y `owner_id` (NO `buyer_id`/`seller_id` como dice el CLAUDE.md).
+- **IDs de vehículos**: Son INTEGER (no UUID). El `parseInt` en los endpoints es correcto.
+- **Instagram URL**: La función `instagramUrl()` valida protocolo para prevenir XSS con `javascript:`.
+- **currentChatOtherUserId**: Se asigna en `loadChatFull`. Necesario para que el online status funcione via WebSocket.
+- **data-conv-id**: Los `.conversation-item` tienen `data-conv-id` para que `refreshConversationItem` pueda actualizarlos.
 
 ## Al reportar un bug encontrado
 1. Indicar el archivo y línea exacta del problema

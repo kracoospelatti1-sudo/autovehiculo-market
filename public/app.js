@@ -21,9 +21,85 @@ let dolarRate = null;
 let dolarRateInterval = null;
 let userFavoriteIds = new Set();
 
+// SEO helpers
+function setMeta(attr, key, value) {
+  const el = document.querySelector(`meta[${attr}="${CSS.escape ? CSS.escape(key) : key}"]`);
+  if (el) el.setAttribute('content', value);
+}
+
+function updateSEOMeta(vehicle, imageUrl) {
+  const price = Number(vehicle.price).toLocaleString('es-AR');
+  const mileage = Number(vehicle.mileage).toLocaleString('es-AR');
+  const location = vehicle.city + (vehicle.province ? ', ' + vehicle.province : '');
+  const title = `${vehicle.title} — $${price} | Autoventa`;
+  const desc = `${vehicle.brand} ${vehicle.model} ${vehicle.year}, ${mileage}km, ${vehicle.fuel}, ${vehicle.transmission}. En ${location}.`;
+  const url = `https://autoventa.online/?vehicle=${vehicle.id}`;
+  document.title = title;
+  setMeta('name', 'description', desc);
+  setMeta('property', 'og:title', title);
+  setMeta('property', 'og:description', desc);
+  setMeta('property', 'og:image', imageUrl);
+  setMeta('property', 'og:url', url);
+  setMeta('name', 'twitter:title', title);
+  setMeta('name', 'twitter:description', desc);
+  setMeta('name', 'twitter:image', imageUrl);
+  const canonical = document.querySelector('link[rel="canonical"]');
+  if (canonical) canonical.href = url;
+  window.history.replaceState({ vehicleId: vehicle.id }, '', `?vehicle=${vehicle.id}`);
+  // JSON-LD por vehículo
+  document.getElementById('vehicle-jsonld')?.remove();
+  const script = document.createElement('script');
+  script.type = 'application/ld+json';
+  script.id = 'vehicle-jsonld';
+  script.textContent = JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "Car",
+    "name": vehicle.title,
+    "brand": { "@type": "Brand", "name": vehicle.brand },
+    "model": vehicle.model,
+    "vehicleModelDate": String(vehicle.year),
+    "mileageFromOdometer": { "@type": "QuantitativeValue", "value": vehicle.mileage, "unitCode": "KMT" },
+    "fuelType": vehicle.fuel,
+    "vehicleTransmission": vehicle.transmission,
+    "image": imageUrl,
+    "description": vehicle.description || '',
+    "url": url,
+    "offers": {
+      "@type": "Offer",
+      "price": vehicle.price,
+      "priceCurrency": "ARS",
+      "availability": vehicle.status === 'active' ? "https://schema.org/InStock" : "https://schema.org/SoldOut",
+      "url": url
+    }
+  });
+  document.head.appendChild(script);
+}
+
+function resetSEOMeta() {
+  const defaultTitle = 'Autoventa — Comprá y Vendé tu Vehículo en Argentina';
+  const defaultDesc = 'La plataforma más moderna para comprar y vender vehículos en Argentina. Publica gratis, chatea con vendedores y cerrá negocios de forma segura.';
+  const defaultUrl = 'https://autoventa.online/';
+  const defaultImg = 'https://autoventa.online/og-default.png';
+  document.title = defaultTitle;
+  setMeta('name', 'description', defaultDesc);
+  setMeta('property', 'og:title', defaultTitle);
+  setMeta('property', 'og:description', defaultDesc);
+  setMeta('property', 'og:image', defaultImg);
+  setMeta('property', 'og:url', defaultUrl);
+  setMeta('name', 'twitter:title', defaultTitle);
+  setMeta('name', 'twitter:description', defaultDesc);
+  setMeta('name', 'twitter:image', defaultImg);
+  const canonical = document.querySelector('link[rel="canonical"]');
+  if (canonical) canonical.href = defaultUrl;
+  window.history.replaceState({}, '', '/');
+  document.getElementById('vehicle-jsonld')?.remove();
+}
+
 // WebSocket
 let wsConnection = null;
 let wsReconnectTimeout = null;
+// BUG-14: separate timeout variable for the 5-second fallback polling trigger
+let wsFallbackTimeout = null;
 let wsReconnectDelay = 1000;
 let wsReconnectAttempts = 0;
 let wsConnected = false;
@@ -542,6 +618,7 @@ async function request(endpoint, options = {}) {
 }
 
 function showSection(sectionId) {
+  if (sectionId !== 'vehicle-detail') resetSEOMeta();
   if (currentUser && (sectionId === 'login' || sectionId === 'register')) return;
   // Limpiar el div de reenvío de verificación al salir del login
   document.getElementById('resendVerificationDiv')?.remove();
@@ -796,10 +873,13 @@ function logout() {
   currentUser = null;
   uploadedImages = [];
   userFavoriteIds = new Set();
+  // BUG-06: clear heartbeat and notif intervals
   clearInterval(heartbeatInterval);
   heartbeatInterval = null;
   clearInterval(notifInterval);
   notifInterval = null;
+  // BUG-20: clear dolar rate interval so it doesn't keep running post-logout
+  if (dolarRateInterval) { clearInterval(dolarRateInterval); dolarRateInterval = null; }
   stopPolling();
   updateNav();
   showToast('Sesión cerrada', 'success');
@@ -877,9 +957,11 @@ async function loadVehicles(page = 1) {
           </div>
           <div class="vehicle-card-footer">
             <div class="vehicle-seller">
-              <div class="avatar-tiny">${v.seller_name?.charAt(0)?.toUpperCase()}</div>
-              <span>${escapeHtml(v.seller_name || 'Anónimo')}</span>
-              ${v.seller_verified ? verifiedBadge() : ''}
+              <div class="avatar-tiny">${(v.seller_verified ? v.seller_dealership : (v.seller_first_name || v.seller_name))?.charAt(0)?.toUpperCase()}</div>
+              <div class="vehicle-seller-info">
+                <span>${escapeHtml(v.seller_verified && v.seller_dealership ? v.seller_dealership : (v.seller_first_name && v.seller_last_name ? `${v.seller_first_name} ${v.seller_last_name}` : (v.seller_name || 'Anónimo')))}</span>
+                ${v.seller_verified ? verifiedBadge() : ''}
+              </div>
             </div>
             <div class="vehicle-views">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
@@ -1066,11 +1148,14 @@ async function viewVehicle(id) {
 
     const images = vehicle.vehicle_images?.length ? vehicle.vehicle_images : [{ url: vehicle.image_url || PLACEHOLDER_IMG }];
     const mainImgUrl = images[0].url;
+    updateSEOMeta(vehicle, mainImgUrl);
 
     // Price history
     let priceChangeHtml = '';
     try {
       const priceHistoryRes = await request(`/vehicles/${id}/price-history`);
+      // BUG-07: guard against race condition — user may have navigated away
+      if (currentVehicleId !== id) return;
       const history = priceHistoryRes?.history || [];
       if (history.length >= 2) {
         const oldest = history[0].price;
@@ -1091,15 +1176,15 @@ async function viewVehicle(id) {
       <div class="detail-container">
         <div class="detail-gallery desktop-only">
           <div class="main-image" style="position:relative;">
-            <img src="${escapeHtml(mainImgUrl)}" id="detailMainImage" alt="Vehículo" style="cursor:pointer;" onclick="openLightbox(window._detailImages, window._detailImages.indexOf(this.src) >= 0 ? window._detailImages.indexOf(this.src) : 0)">
+            <img src="${escapeHtml(mainImgUrl)}" id="detailMainImage" alt="Vehículo" fetchpriority="high" style="cursor:pointer;" onclick="openLightbox(window._detailImages, window._detailImages.indexOf(this.src) >= 0 ? window._detailImages.indexOf(this.src) : 0)">
             ${vehicle.status === 'sold' ? '<div class="detail-sold-overlay"><span>VENDIDO</span></div>' : ''}
           </div>
           <div class="thumbnail-list" id="imageThumbnails">
-            ${images.map((img, i) => `<img src="${escapeHtml(img.url || '')}" class="${i === 0 ? 'active' : ''}" data-url="${escapeHtml(img.url || '')}" data-index="${i}" onclick="document.getElementById('detailMainImage').src=this.dataset.url;this.parentElement.querySelectorAll('img').forEach(x=>x.classList.remove('active'));this.classList.add('active')">`).join('')}
+            ${images.map((img, i) => `<img src="${escapeHtml(img.url || '')}" class="${i === 0 ? 'active' : ''}" data-url="${escapeHtml(img.url || '')}" data-index="${i}" loading="lazy" onclick="document.getElementById('detailMainImage').src=this.dataset.url;this.parentElement.querySelectorAll('img').forEach(x=>x.classList.remove('active'));this.classList.add('active')">`).join('')}
           </div>
         </div>
         <div class="mobile-only" style="overflow-x: auto; scroll-snap-type: x mandatory; gap: 0.5rem; padding-bottom: 0.5rem; margin-bottom: 1.5rem; display:flex; position:relative;">
-          ${images.map((img, i) => `<img src="${escapeHtml(img.url || '')}" style="flex: 0 0 92%; scroll-snap-align: center; height: 350px; object-fit: cover; border-radius: var(--radius-lg); cursor:pointer;" onclick="openLightbox(window._detailImages, ${i})">`).join('')}
+          ${images.map((img, i) => `<img src="${escapeHtml(img.url || '')}" style="flex: 0 0 92%; scroll-snap-align: center; height: 350px; object-fit: cover; border-radius: var(--radius-lg); cursor:pointer;" loading="${i === 0 ? 'eager' : 'lazy'}" onclick="openLightbox(window._detailImages, ${i})">`).join('')}
           ${vehicle.status === 'sold' ? '<div class="detail-sold-overlay" style="border-radius:var(--radius-lg);"><span>VENDIDO</span></div>' : ''}
         </div>
         <div class="detail-info" id="vehicleDetail">
@@ -1114,8 +1199,8 @@ async function viewVehicle(id) {
             <div class="spec-card"><div class="label">Año</div><div class="value">${escapeHtml(String(vehicle.year))}</div></div>
             <div class="spec-card"><div class="label">Kilometraje</div><div class="value">${vehicle.mileage === 0 ? '<span class="badge-nuevo">NUEVO</span>' : formatNumber(vehicle.mileage) + ' km'}</div></div>
             ${vehicle.version ? `<div class="spec-card"><div class="label">Versión</div><div class="value">${escapeHtml(vehicle.version)}</div></div>` : ''}
-            <div class="spec-card"><div class="label">Combustible</div><div class="value">${vehicle.fuel || 'N/A'}</div></div>
-            <div class="spec-card"><div class="label">Transmisión</div><div class="value">${vehicle.transmission || 'N/A'}</div></div>
+            <div class="spec-card"><div class="label">Combustible</div><div class="value">${escapeHtml(vehicle.fuel || 'N/A')}</div></div>
+            <div class="spec-card"><div class="label">Transmisión</div><div class="value">${escapeHtml(vehicle.transmission || 'N/A')}</div></div>
             ${vehicle.vehicle_type === 'moto' && vehicle.engine_cc ? `<div class="spec-card"><div class="label">Cilindrada</div><div class="value">${vehicle.engine_cc} cc</div></div>` : ''}
             <div class="spec-card"><div class="label">Ciudad</div><div class="value">${vehicle.city || 'No especificada'}</div></div>
             ${vehicle.province ? `<div class="spec-card"><div class="label">Provincia</div><div class="value">${escapeHtml(vehicle.province.replace(/\s*\(.*?\)/g,'').trim())}</div></div>` : ''}
@@ -1132,7 +1217,7 @@ async function viewVehicle(id) {
             ` : ''}
 
             <div class="seller-card">
-            <div class="seller-avatar">${vehicle.seller_profile?.avatar_url ? `<img src="${escapeHtml(vehicle.seller_profile.avatar_url || '')}" alt="">` : (vehicle.seller_name?.charAt(0)?.toUpperCase() || '?')}</div>
+            <div class="seller-avatar">${vehicle.seller_profile?.avatar_url ? `<img src="${escapeHtml(vehicle.seller_profile.avatar_url || '')}" alt="" loading="lazy">` : (vehicle.seller_name?.charAt(0)?.toUpperCase() || '?')}</div>
             <div class="seller-info">
               <h4 onclick="viewProfile(${vehicle.seller_id})">${vehicle.seller_verified && vehicle.seller_profile?.dealership_name ? escapeHtml(vehicle.seller_profile.dealership_name) : escapeHtml(vehicle.seller_name)}</h4>
               ${vehicle.seller_verified ? `<div style="margin-bottom:0.5rem;">${verifiedBadge()}</div>` : ''}
@@ -1157,7 +1242,7 @@ async function viewVehicle(id) {
                     ${escapeHtml(instagramLabel(vehicle.seller_profile.instagram))}
                   </a>
                 ` : ''}
-                ${vehicle.seller_profile?.phone && vehicle.status !== 'sold' ? `
+                ${vehicle.seller_profile?.phone && vehicle.seller_profile?.show_phone !== false && vehicle.status !== 'sold' ? `
                   <a href="https://wa.me/${escapeHtml(vehicle.seller_profile.phone.replace(/[\s\-\(\)]/g,'').replace(/^\+/,''))}" target="_blank" rel="noopener" class="btn btn-primary" style="background:#25D366;border:none;width:100%;margin-top:0.5rem;">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="margin-right:0.4rem;"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg> 
                     Contactar por WhatsApp
@@ -1312,7 +1397,7 @@ function renderImagePreviews() {
   const container = document.getElementById('imagePreview');
   container.innerHTML = uploadedImages.map((img, i) => `
     <div class="preview-item ${i === 0 ? 'primary' : ''}">
-      <img src="${escapeHtml(img.preview || img.url || '')}" alt="">
+      <img src="${escapeHtml(img.preview || img.url || '')}" alt="" loading="lazy">
       <button class="preview-remove" onclick="removeImage(${i})">&times;</button>
       <button class="preview-cover ${i === 0 ? 'active' : ''}" onclick="setCoverImage(${i})">Portada</button>
     </div>
@@ -1401,8 +1486,11 @@ async function handlePublish(e) {
     if (pubHint) pubHint.textContent = '';
     showSection('my-vehicles');
   } catch (err) { showToast(err.message, 'error'); }
-  btn.disabled = false;
-  btn.textContent = 'Publicar Vehículo';
+  finally {
+    // BUG-09: always re-enable the button, even on error
+    btn.disabled = false;
+    btn.textContent = 'Publicar Vehículo';
+  }
 }
 
 // MY VEHICLES
@@ -1628,12 +1716,12 @@ async function loadConversations(page = 1) {
       renderEmptyChat(); return;
     }
     const html = conversations.map(c => `
-      <div class="conversation-item ${String(currentConversationId) === String(c.id) ? 'active' : ''}" onclick="openConversation(${c.id}, this)">
-        <div class="conversation-avatar">${c.other_user?.avatar_url ? `<img src="${escapeHtml(c.other_user.avatar_url || '')}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (c.other_user?.username ? c.other_user.username.charAt(0).toUpperCase() : '?')}</div>
+      <div class="conversation-item ${String(currentConversationId) === String(c.id) ? 'active' : ''}" data-conv-id="${c.id}" onclick="openConversation(${c.id}, this)">
+        <div class="conversation-avatar">${c.other_user?.avatar_url ? `<img src="${escapeHtml(c.other_user.avatar_url || '')}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (c.other_user?.username ? c.other_user.username.charAt(0).toUpperCase() : '?')}</div>
         <div class="conversation-info">
           <div class="conversation-name">${escapeHtml(c.other_user?.username || 'Usuario')}</div>
           <div class="conversation-vehicle">${escapeHtml(c.vehicle?.title || '')}</div>
-          <div class="conversation-preview">${escapeHtml(c.last_message?.startsWith('__TRADE_CARD__') ? 'Propuesta de permuta' : (c.last_message || ''))}</div>
+          <div class="conversation-preview">${(() => { const text = c.last_message?.startsWith('__TRADE_CARD__') ? 'Propuesta de permuta' : (c.last_message || ''); const prefix = c.last_message_sender_id === currentUser?.id ? 'Tú: ' : ''; return escapeHtml(prefix + text); })()}</div>
         </div>
         <div class="conversation-meta" style="display:flex;flex-direction:column;align-items:flex-end;">
           <span class="conversation-time">${formatRelTime(c.updated_at)}</span>
@@ -1655,8 +1743,13 @@ async function openConversation(convId, el) {
   lastMessageId = 0;
   pollCount = 0;
   document.querySelectorAll('.conversation-item').forEach(e => e.classList.remove('active'));
-  const target = el || (event && event.currentTarget);
-  if (target) target.classList.add('active');
+  // BUG-19: use only the passed `el` parameter; do not reference the global `event`
+  const target = el || null;
+  if (target) {
+    target.classList.add('active');
+    // Clear unread badge immediately on open
+    target.querySelector('[style*="background:#ef4444"]')?.remove();
+  }
   openMobileChat();
   await loadChatFull(convId);
   startPolling();
@@ -1674,6 +1767,8 @@ async function loadChatFull(convId) {
     const { messages, read_receipts } = messagesData;
 
     const otherUser = conv.buyer_id === currentUser?.id ? conv.seller : conv.buyer;
+    // BUG-15: assign so online_status WS events can be matched to the right user
+    currentChatOtherUserId = otherUser?.id || null;
     const vehicle = conv.vehicle;
     const chatView = document.getElementById('chatView');
 
@@ -1688,15 +1783,15 @@ async function loadChatFull(convId) {
     chatView.innerHTML = `
       <div class="chat-active-header">
         <button class="chat-back-btn" style="display:none;align-items:center;background:none;border:none;color:var(--text);cursor:pointer;padding:0.25rem;margin-right:0.5rem;font-size:1.3rem;" onclick="closeMobileChat()">&#8249;</button>
-        <div class="conversation-avatar">${otherUser?.avatar_url ? `<img src="${escapeHtml(otherUser.avatar_url || '')}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (otherUser?.username ? otherUser.username.charAt(0).toUpperCase() : '?')}</div>
+        <div class="conversation-avatar">${otherUser?.avatar_url ? `<img src="${escapeHtml(otherUser.avatar_url || '')}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (otherUser?.username ? otherUser.username.charAt(0).toUpperCase() : '?')}</div>
         <div class="chat-header-info">
-          <h4>${escapeHtml(otherUser?.username || 'Usuario')}</h4>
+          <h4 style="cursor:pointer;" onclick="viewProfile(${otherUser?.id})" title="Ver perfil">${escapeHtml(otherUser?.username || 'Usuario')}</h4>
           <span id="chatOnlineStatus" style="color:var(--text-secondary);font-size:0.8rem;transition:color 0.3s;font-weight:600;">Calculando...</span>
         </div>
 
         ${vehicle ? `
         <div class="chat-vehicle-ref-inline" onclick="viewVehicle(${vehicle.id})" title="Ver publicación">
-          <img src="${escapeHtml(vehicleImg)}" onerror="this.src=PLACEHOLDER_IMG" alt="">
+          <img src="${escapeHtml(vehicleImg)}" onerror="this.src=PLACEHOLDER_IMG" alt="" loading="lazy">
           <div class="chat-vehicle-ref-inline-info">
             <div class="chat-vehicle-ref-title">${escapeHtml(vehicle.title || (vehicle.brand + ' ' + vehicle.model))}</div>
             <div class="chat-vehicle-ref-price">$${formatNumber(vehicle.price)}</div>
@@ -1718,6 +1813,7 @@ async function loadChatFull(convId) {
 
     updateOnlineStatus(otherUser);
     scrollChat();
+    updateTradeCardStatuses();
 
     // Mark messages as read (fire-and-forget)
     request(`/conversations/${convId}/read`, { method: 'PUT' }).catch(() => {});
@@ -1750,6 +1846,15 @@ async function pollNewMessages(convId) {
       if (incoming.length > 0) {
         request(`/conversations/${convId}/read`, { method: 'PUT' }).catch(() => {});
         loadUnreadMessageCount();
+      }
+      // Update conversation preview in list
+      const lastMsg = messages[messages.length - 1];
+      const activeItem = document.querySelector(`.conversation-item.active`);
+      if (activeItem && lastMsg) {
+        const preview = activeItem.querySelector('.conversation-preview');
+        if (preview) preview.textContent = lastMsg.content?.startsWith('__TRADE_CARD__') ? 'Propuesta de permuta' : (lastMsg.content || '');
+        const timeEl = activeItem.querySelector('.conversation-time');
+        if (timeEl) timeEl.textContent = 'Ahora';
       }
 
       chatNoMessageStreak = 0;
@@ -1793,18 +1898,24 @@ function appendMessageToDOM(message, readAt) {
     const extraText = firstNewline === -1 ? '' : raw.slice(firstNewline + 1).trim();
     try {
       const v = JSON.parse(jsonPart);
+      const isOwner = v.owner_id && currentUser?.id === v.owner_id;
+      const offerId = v.offer_id || null;
       html += `
-        <div class="trade-card" onclick="viewVehicle(${v.id})">
+        <div class="trade-card" data-offer-id="${offerId || ''}" onclick="event.target.closest('button') || viewVehicle(${v.id})">
           <div class="trade-card-badge">🔄 Propuesta de permuta</div>
           <div class="trade-card-img">
-            <img src="${escapeHtml(v.image) || PLACEHOLDER_IMG}" onerror="this.src=PLACEHOLDER_IMG" alt="${escapeHtml(v.title)}">
+            <img src="${escapeHtml(v.image) || PLACEHOLDER_IMG}" onerror="this.src=PLACEHOLDER_IMG" alt="${escapeHtml(v.title)}" loading="lazy">
           </div>
           <div class="trade-card-body">
             <div class="trade-card-title">${escapeHtml(v.title)}</div>
             <div class="trade-card-sub">${escapeHtml(v.brand)} ${escapeHtml(v.model)} · ${escapeHtml(String(v.year))}</div>
             <div class="trade-card-price">$${formatNumber(v.price)}</div>
             ${v.city ? `<div class="trade-card-location">📍 ${escapeHtml(v.city)}${v.province ? ', ' + escapeHtml(v.province.replace(/\s*\(.*?\)/g,'').trim()) : ''}</div>` : ''}
-            <div class="trade-card-cta">Ver vehículo →</div>
+            ${isOwner && offerId ? `
+            <div class="trade-card-actions" id="trade-actions-${offerId}">
+              <button class="btn btn-primary btn-sm" onclick="respondToTradeInChat(${offerId}, 'accepted')">✅ Aceptar</button>
+              <button class="btn btn-ghost btn-sm" onclick="respondToTradeInChat(${offerId}, 'rejected')">❌ Rechazar</button>
+            </div>` : ''}
           </div>
         </div>`;
       if (extraText) html += `<div class="content" style="margin-top:0.5rem;">${escapeHtml(extraText)}</div>`;
@@ -1877,6 +1988,17 @@ async function sendMessage() {
     appendMessageToDOM(message, null);
     lastMessageId = message.id;
     scrollChat();
+    // Update conversation preview in list
+    const activeItem = document.querySelector(`.conversation-item.active`);
+    if (activeItem) {
+      const preview = activeItem.querySelector('.conversation-preview');
+      if (preview) preview.textContent = 'Tú: ' + content;
+      const timeEl = activeItem.querySelector('.conversation-time');
+      if (timeEl) timeEl.textContent = 'Ahora';
+      // Move to top of list
+      const list = activeItem.parentElement;
+      if (list && list.firstChild !== activeItem) list.prepend(activeItem);
+    }
   } catch (err) {
     document.querySelector(`[data-message-id="${optimisticId}"]`)?.remove();
     showToast(err.message, 'error');
@@ -1920,6 +2042,7 @@ function initWebSocket() {
   if (!token) return;
 
   clearTimeout(wsReconnectTimeout);
+  clearTimeout(wsFallbackTimeout);
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   const url = `${proto}://${location.host}/ws?token=${encodeURIComponent(token)}`;
 
@@ -1957,8 +2080,8 @@ function initWebSocket() {
 
   wsConnection.onerror = function () { /* onclose se dispara solo */ };
 
-  // Fallback timeout: si no conecta en 5s, activar polling
-  wsReconnectTimeout = setTimeout(function () {
+  // BUG-14: use wsFallbackTimeout so it doesn't overwrite wsReconnectTimeout
+  wsFallbackTimeout = setTimeout(function () {
     if (!wsConnected && currentConversationId) {
       startFallbackPolling();
     }
@@ -1968,6 +2091,8 @@ function initWebSocket() {
 function destroyWebSocket() {
   clearTimeout(wsReconnectTimeout);
   wsReconnectTimeout = null;
+  clearTimeout(wsFallbackTimeout);
+  wsFallbackTimeout = null;
   wsReconnectAttempts = 0;
   wsReconnectDelay = 1000;
   if (wsConnection) {
@@ -2153,6 +2278,8 @@ function stopPolling() {
   if (pollingInterval) { clearInterval(pollingInterval); pollingInterval = null; }
   clearTimeout(chatPollTimeout);
   chatPollTimeout = null;
+  // BUG-15: reset other-user reference when chat is no longer active
+  currentChatOtherUserId = null;
 }
 
 function hasUserScrolledToBottom() {
@@ -2198,21 +2325,45 @@ function notifIcon(type) {
   return `<div class="notification-icon" style="background:${bg}22;color:${bg};">${svg}</div>`;
 }
 
-async function loadNotifications() {
+let notificationsOffset = 0;
+let notificationsTotal = 0;
+
+async function loadNotifications(offset = 0) {
   try {
-    // Auto-mark all as read when viewing notifications
-    request('/notifications/read-all', { method: 'PUT' }).catch(() => {});
-    const badge = document.getElementById('notificationsBadge');
-    if (badge) { badge.textContent = ''; badge.style.display = 'none'; }
-    const notifications = await request('/notifications');
+    if (offset === 0) {
+      request('/notifications/read-all', { method: 'PUT' }).catch(() => {});
+      const badge = document.getElementById('notificationsBadge');
+      if (badge) { badge.textContent = ''; badge.style.display = 'none'; }
+      notificationsOffset = 0;
+    }
+    const { notifications, total } = await request(`/notifications?offset=${offset}`);
+    notificationsTotal = total;
     const container = document.getElementById('notificationsList');
-    if (!notifications?.length) { container.innerHTML = '<div class="empty-state"><p>Sin notificaciones</p></div>'; return; }
-    container.innerHTML = notifications.map(n => `
-      <div class="notification-item ${n.read ? '' : 'unread'}" data-link="${escapeHtml(n.link || '')}" data-notif-id="${n.id}" onclick="handleNotificationClick(this.dataset.link, this.dataset.notifId)">
-        ${notifIcon(n.type)}
-        <div class="notification-content"><h4>${escapeHtml(n.title)}</h4><p>${escapeHtml(n.message)}</p><div class="notification-time">${formatRelTime(n.created_at)}</div></div>
-      </div>
-    `).join('');
+    if (offset === 0) {
+      if (!notifications?.length) { container.innerHTML = '<div class="empty-state"><p>Sin notificaciones</p></div>'; return; }
+      container.innerHTML = '';
+    } else {
+      container.querySelector('.load-more-notif-btn')?.remove();
+    }
+    notifications.forEach((n, i) => {
+      const el = document.createElement('div');
+      el.className = `notification-item ${n.read ? '' : 'unread'} cascade-item`;
+      el.style.animationDelay = `${i * 60}ms`;
+      el.dataset.link = n.link || '';
+      el.dataset.notifId = n.id;
+      el.onclick = () => handleNotificationClick(el.dataset.link, el.dataset.notifId);
+      el.innerHTML = `${notifIcon(n.type)}<div class="notification-content"><h4>${escapeHtml(n.title)}</h4><p>${escapeHtml(n.message)}</p><div class="notification-time">${formatRelTime(n.created_at)}</div></div>`;
+      container.appendChild(el);
+    });
+    notificationsOffset = offset + notifications.length;
+    if (notificationsOffset < notificationsTotal) {
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-ghost btn-sm load-more-notif-btn';
+      btn.style.cssText = 'width:100%;margin-top:0.5rem;';
+      btn.textContent = `Cargar más (${notificationsTotal - notificationsOffset} restantes)`;
+      btn.onclick = () => loadNotifications(notificationsOffset);
+      container.appendChild(btn);
+    }
   } catch (err) { console.error(err); }
 }
 
@@ -2312,11 +2463,12 @@ async function viewProfile(id) {
       <div class="profile-header">
         <div class="profile-avatar-wrapper">
           <div class="profile-avatar">
-            ${profile.avatar_url ? `<img src="${escapeHtml(profile.avatar_url || '')}" alt="">` : profile.username?.charAt(0).toUpperCase()}
+            ${profile.avatar_url ? `<img src="${escapeHtml(profile.avatar_url || '')}" alt="" loading="lazy">` : (profile.first_name || profile.username)?.charAt(0).toUpperCase()}
           </div>
         </div>
-        
-        <h2>${escapeHtml(profile.username)}</h2>
+
+        <h2>${escapeHtml((profile.first_name && profile.last_name) ? `${profile.first_name} ${profile.last_name}` : profile.username)}</h2>
+        <p style="color:var(--text-3);font-size:0.9rem;margin-top:0.1rem;">@${escapeHtml(profile.username)}</p>
         ${profile.is_verified ? verifiedBadge() : ''}
         
         ${profile.rating ? `
@@ -2342,7 +2494,7 @@ async function viewProfile(id) {
               Instagram
             </a>
           ` : ''}
-          ${profile.phone ? `
+          ${profile.phone && profile.show_phone !== false ? `
             <a href="https://wa.me/${escapeHtml(profile.phone.replace(/[\\s\\-\\(\\)]/g,'').replace(/^\\+/,''))}" target="_blank" rel="noopener" class="profile-action-btn whatsapp">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg> 
               WhatsApp
@@ -2410,13 +2562,20 @@ function editProfile() {
       <div class="form-group" style="margin-bottom:1rem;">
         <label>Foto de perfil</label>
         <div style="display:flex;align-items:center;gap:1rem;">
-          <div class="profile-avatar" style="width:60px;height:60px;margin:0;" id="editAvatarPreview">${currentUser.profile?.avatar_url ? `<img src="${currentUser.profile.avatar_url}">` : currentUser.username.charAt(0).toUpperCase()}</div>
+          <div class="profile-avatar" style="width:60px;height:60px;margin:0;" id="editAvatarPreview">${currentUser.profile?.avatar_url ? `<img src="${currentUser.profile.avatar_url}" loading="lazy">` : currentUser.username.charAt(0).toUpperCase()}</div>
           <input type="file" id="editAvatarFile" accept="image/*" onchange="previewProfileImage(event)" style="flex:1;">
         </div>
         <input type="hidden" id="editAvatarBase64" value="${currentUser.profile?.avatar_url || ''}">
       </div>
       <div class="form-group"><label for="editUsername">Nombre de usuario</label><input type="text" id="editUsername" value="${escapeHtml(currentUser.username || '')}" placeholder="tunombre" minlength="3"></div>
-      <div class="form-group"><label for="editPhone">Teléfono</label><input type="tel" id="editPhone" value="${escapeHtml(currentUser.profile?.phone || '')}" placeholder="+54..."></div>
+      <div class="form-group">
+        <label for="editPhone">Teléfono / WhatsApp</label>
+        <input type="tel" id="editPhone" value="${escapeHtml(currentUser.profile?.phone || '')}" placeholder="+54...">
+        <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.5rem;">
+          <input type="checkbox" id="editShowPhone" ${currentUser.profile?.show_phone !== false ? 'checked' : ''} style="width:auto;margin:0;">
+          <label for="editShowPhone" style="margin:0;font-size:0.88rem;color:var(--text-secondary);cursor:pointer;">Mostrar botón de WhatsApp en mi perfil y publicaciones</label>
+        </div>
+      </div>
       <div class="form-group"><label for="editProfileProvince">Provincia</label><select id="editProfileProvince" onchange="onEditProfileProvinceChange()"><option value="">Seleccioná una provincia</option>${AR_PROVINCES.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('')}</select></div>
       <div class="form-group"><label for="editProfileCity">Ciudad</label><select id="editProfileCity"><option value="">Seleccioná una ciudad</option></select></div>
       <div class="form-group"><label for="editBio">Bio</label><textarea id="editBio" rows="3" placeholder="Cuéntanos sobre ti...">${escapeHtml(currentUser.profile?.bio || '')}</textarea></div>
@@ -2506,6 +2665,7 @@ async function saveProfile(e) {
     await request('/profile', { method: 'PUT', body: JSON.stringify({
       username: document.getElementById('editUsername')?.value?.trim() || currentUser.username,
       phone: document.getElementById('editPhone').value,
+      show_phone: document.getElementById('editShowPhone')?.checked ?? true,
       city: document.getElementById('editProfileCity')?.value || '',
       bio: document.getElementById('editBio').value,
       avatar_url: avatarUrl,
@@ -2756,6 +2916,9 @@ async function submitTradeOffer() {
   const offered = document.getElementById('tradeOfferedVehicle').value;
   const message = document.getElementById('tradeMessage').value;
   if (!offered) return showToast('Seleccioná un vehículo para ofrecer', 'error');
+  // BUG-13: disable button immediately to prevent double submit
+  const submitBtn = document.querySelector('#tradeModal button[onclick*="submitTradeOffer"], #tradeModal .btn-primary');
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Enviando...'; }
   try {
     await request(`/vehicles/${tradeTargetVehicleId}/trade-offer`, { method: 'POST', body: JSON.stringify({ offered_vehicle_id: offered, message }) });
     showToast('¡Propuesta enviada! Mirá el chat con el vendedor.', 'success');
@@ -2771,6 +2934,9 @@ async function submitTradeOffer() {
       showSection('messages');
     }
   } catch (err) { showToast(err.message, 'error'); }
+  finally {
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Enviar propuesta'; }
+  }
 }
 
 async function loadTradeOffers() {
@@ -2844,6 +3010,73 @@ async function respondToTrade(id, status) {
       loadTradeOffers();
     }
   } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function respondToTradeInChat(offerId, status) {
+  try {
+    const actionsEl = document.getElementById(`trade-actions-${offerId}`);
+    if (actionsEl) actionsEl.innerHTML = '<span style="color:var(--text-3);font-size:0.85rem;">Procesando...</span>';
+    await request(`/trade-offers/${offerId}`, { method: 'PUT', body: JSON.stringify({ status }) });
+    if (actionsEl) {
+      actionsEl.innerHTML = status === 'accepted'
+        ? '<span style="color:#22c55e;font-weight:600;">✅ Permuta aceptada</span>'
+        : '<span style="color:#ef4444;font-weight:600;">❌ Permuta rechazada</span>';
+    }
+    showToast(status === 'accepted' ? 'Permuta aceptada' : 'Permuta rechazada', status === 'accepted' ? 'success' : 'info');
+  } catch (err) {
+    showToast(err.message, 'error');
+    const actionsEl = document.getElementById(`trade-actions-${offerId}`);
+    if (actionsEl) actionsEl.innerHTML = `<button class="btn btn-primary btn-sm" onclick="respondToTradeInChat(${offerId}, 'accepted')">✅ Aceptar</button><button class="btn btn-ghost btn-sm" onclick="respondToTradeInChat(${offerId}, 'rejected')">❌ Rechazar</button>`;
+  }
+}
+
+async function updateTradeCardStatuses() {
+  const cards = document.querySelectorAll('.trade-card');
+  if (!cards.length) return;
+  try {
+    const { received } = await request('/trade-offers');
+    if (!received?.length) return;
+
+    // Map by offer id AND by offered_vehicle_id for old cards without offer_id
+    const byOfferId = Object.fromEntries(received.map(o => [String(o.id), o]));
+    const byVehicleId = Object.fromEntries(received.map(o => [String(o.offered_vehicle_id), o]));
+
+    cards.forEach(card => {
+      const offerId = card.dataset.offerId;
+      const offer = offerId ? byOfferId[offerId] : null;
+
+      // For old cards without offer_id, try to match by the vehicle id in the card JSON
+      const matchedOffer = offer || (() => {
+        // Extract vehicle id from the card's onclick attribute
+        const onclick = card.getAttribute('onclick') || '';
+        const match = onclick.match(/viewVehicle\((\d+)\)/);
+        return match ? byVehicleId[match[1]] : null;
+      })();
+
+      if (!matchedOffer) return;
+
+      const realOfferId = matchedOffer.id;
+      let actionsEl = document.getElementById(`trade-actions-${realOfferId}`);
+
+      // If no actions element exists (old card), inject one
+      if (!actionsEl) {
+        const body = card.querySelector('.trade-card-body');
+        if (!body) return;
+        actionsEl = document.createElement('div');
+        actionsEl.className = 'trade-card-actions';
+        actionsEl.id = `trade-actions-${realOfferId}`;
+        body.appendChild(actionsEl);
+      }
+
+      if (matchedOffer.status === 'accepted') {
+        actionsEl.innerHTML = '<span style="color:#22c55e;font-weight:600;">✅ Permuta aceptada</span>';
+      } else if (matchedOffer.status === 'rejected') {
+        actionsEl.innerHTML = '<span style="color:#ef4444;font-weight:600;">❌ Permuta rechazada</span>';
+      } else if (matchedOffer.status === 'pending') {
+        actionsEl.innerHTML = `<button class="btn btn-primary btn-sm" onclick="respondToTradeInChat(${realOfferId}, 'accepted')">✅ Aceptar</button><button class="btn btn-ghost btn-sm" onclick="respondToTradeInChat(${realOfferId}, 'rejected')">❌ Rechazar</button>`;
+      }
+    });
+  } catch {}
 }
 
 async function toggleVerify(id) {
@@ -2954,7 +3187,7 @@ function openLightbox(images, startIndex) {
   if (thumbsEl) {
     if (images.length > 1) {
       thumbsEl.innerHTML = images.map((url, i) =>
-        `<img src="${url}" class="lightbox-thumb${i === lightboxIndex ? ' active' : ''}" data-index="${i}" onclick="lightboxSetIndex(${i})" alt="">`
+        `<img src="${url}" class="lightbox-thumb${i === lightboxIndex ? ' active' : ''}" data-index="${i}" loading="lazy" onclick="lightboxSetIndex(${i})" alt="">`
       ).join('');
       thumbsEl.style.display = 'flex';
     } else {
@@ -3035,6 +3268,8 @@ function escapeHtml(t) { if (!t) return ''; const d = document.createElement('di
 function instagramUrl(val) {
   if (!val) return '';
   const v = val.trim();
+  // BUG-01: block dangerous protocols before any other check
+  if (v.startsWith('javascript:') || v.startsWith('data:') || v.startsWith('vbscript:')) return '#';
   if (v.startsWith('http://') || v.startsWith('https://')) return v;
   return 'https://instagram.com/' + v.replace(/^@/, '');
 }
@@ -3146,7 +3381,9 @@ async function loadVehicleMap() {
 
   let vehicles = [];
   try {
-    const res = await request('/vehicles?limit=200&status=active');
+    // BUG-12: backend caps results at 12; request matches real limit
+    // TODO: implement server-side pagination for the map to show more markers
+    const res = await request('/vehicles?limit=12&status=active');
     vehicles = res.vehicles || res || [];
   } catch {
     el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-2);">Error al cargar los vehículos.</div>';
@@ -3451,9 +3688,11 @@ async function loadFollowingFeed(page = 1, reset = false) {
           </div>
           <div class="vehicle-card-footer">
             <div class="vehicle-seller">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-              <span>${escapeHtml(v.seller_name || 'Anónimo')}</span>
-              ${v.seller_verified ? verifiedBadge() : ''}
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" style="flex-shrink:0;"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+              <div class="vehicle-seller-info">
+                <span>${escapeHtml(v.seller_verified && v.seller_dealership ? v.seller_dealership : (v.seller_first_name && v.seller_last_name ? `${v.seller_first_name} ${v.seller_last_name}` : (v.seller_name || 'Anónimo')))}</span>
+                ${v.seller_verified ? verifiedBadge() : ''}
+              </div>
             </div>
           </div>
         </div>
@@ -3555,9 +3794,15 @@ async function loadPublicStats() {
     if (us) us.textContent = data.total_users?.toLocaleString('es-AR') || '—';
   } catch { /* silencioso */ }
 }
-loadPublicStats();
-loadDolarRate();
-dolarRateInterval = setInterval(loadDolarRate, 10 * 60 * 1000);
+// Defer non-critical fetches until the browser is idle to free up the main thread
+const _scheduleIdle = window.requestIdleCallback
+  ? (fn) => requestIdleCallback(fn, { timeout: 3000 })
+  : (fn) => setTimeout(fn, 500);
+_scheduleIdle(() => {
+  loadPublicStats();
+  loadDolarRate();
+  dolarRateInterval = setInterval(loadDolarRate, 10 * 60 * 1000);
+});
 
 async function loadSimilarVehicles(vehicleId) {
   const grid = document.getElementById('similarVehiclesGrid');

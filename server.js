@@ -79,6 +79,83 @@ const upload = multer({
   }
 });
 
+// Versioned assets (?v=N) get long-lived cache; everything else stays no-cache
+app.use((req, res, next) => {
+  if (req.query.v) {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  }
+  next();
+});
+// SEO: Prerender dinámico para bots
+const BOT_UA = /googlebot|bingbot|slurp|duckduckbot|baiduspider|yandexbot|sogou|facebookexternalhit|twitterbot|linkedinbot|whatsapp/i;
+
+app.get('/', async (req, res, next) => {
+  const vehicleId = parseInt(req.query.vehicle);
+  if (!vehicleId || isNaN(vehicleId) || !BOT_UA.test(req.headers['user-agent'] || '')) return next();
+  try {
+    const { data: vehicle } = await supabase
+      .from('vehicles')
+      .select('id, title, brand, model, year, price, mileage, fuel, transmission, city, province, description, status')
+      .eq('id', vehicleId)
+      .eq('status', 'active')
+      .maybeSingle();
+    if (!vehicle) return next();
+    const { data: img } = await supabase
+      .from('vehicle_images')
+      .select('url')
+      .eq('vehicle_id', vehicleId)
+      .eq('is_primary', true)
+      .maybeSingle();
+    const imageUrl = img?.url || 'https://autoventa.online/og-default.png';
+    const title = `${vehicle.title} — $${Number(vehicle.price).toLocaleString('es-AR')} | Autoventa`;
+    const desc = `${vehicle.brand} ${vehicle.model} ${vehicle.year}, ${Number(vehicle.mileage).toLocaleString('es-AR')}km, ${vehicle.fuel}. En ${vehicle.city}${vehicle.province ? ', ' + vehicle.province : ''}.`;
+    const url = `https://autoventa.online/?vehicle=${vehicle.id}`;
+    const fs = require('fs');
+    const path = require('path');
+    let html = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
+    html = html
+      .replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`)
+      .replace(/(<meta name="description" content=")[^"]*(")/,  `$1${desc.replace(/"/g, '&quot;')}$2`)
+      .replace(/(<meta property="og:title" content=")[^"]*(")/,     `$1${title.replace(/"/g, '&quot;')}$2`)
+      .replace(/(<meta property="og:description" content=")[^"]*(")/,`$1${desc.replace(/"/g, '&quot;')}$2`)
+      .replace(/(<meta property="og:image" content=")[^"]*(")/,     `$1${imageUrl}$2`)
+      .replace(/(<meta property="og:url" content=")[^"]*(")/,       `$1${url}$2`)
+      .replace(/(<meta name="twitter:title" content=")[^"]*(")/,    `$1${title.replace(/"/g, '&quot;')}$2`)
+      .replace(/(<meta name="twitter:description" content=")[^"]*(")/,`$1${desc.replace(/"/g, '&quot;')}$2`)
+      .replace(/(<meta name="twitter:image" content=")[^"]*(")/,    `$1${imageUrl}$2`)
+      .replace(/(<link rel="canonical" href=")[^"]*(")/,            `$1${url}$2`);
+    res.send(html);
+  } catch (err) {
+    console.error('[SEO prerender]', err);
+    next();
+  }
+});
+
+// SEO: Sitemap XML
+app.get('/sitemap.xml', async (req, res) => {
+  try {
+    const { data } = await supabase
+      .from('vehicles')
+      .select('id, updated_at')
+      .eq('status', 'active')
+      .order('updated_at', { ascending: false })
+      .limit(1000);
+    const base = 'https://autoventa.online';
+    const staticUrls = [
+      `<url><loc>${base}/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>`,
+      `<url><loc>${base}/?section=vehicles</loc><changefreq>hourly</changefreq><priority>0.9</priority></url>`,
+    ];
+    const vehicleUrls = (data || []).map(v =>
+      `<url><loc>${base}/?vehicle=${v.id}</loc><lastmod>${new Date(v.updated_at).toISOString().split('T')[0]}</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>`
+    );
+    res.header('Content-Type', 'application/xml; charset=utf-8');
+    res.send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${[...staticUrls, ...vehicleUrls].join('')}</urlset>`);
+  } catch (err) {
+    console.error('[sitemap]', err);
+    res.status(500).send('Error generating sitemap');
+  }
+});
+
 app.use(express.static('public', {
   maxAge: 0,
   etag: false,
@@ -92,6 +169,8 @@ const messageLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, message: { erro
 app.use('/api/', globalLimiter);
 app.use('/api/login', authLimiter);
 app.use('/api/register', authLimiter);
+app.use('/api/auth/forgot-password', authLimiter);
+app.use('/api/auth/resend-verification', authLimiter);
 
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -597,7 +676,7 @@ app.get('/api/user', authenticateToken, async (req, res) => {
       .from('users')
       .select('id, username, email')
       .eq('id', req.user.id)
-      .single();
+      .maybeSingle(); // BUG-08
 
     if (error || !data) {
       return res.status(404).json({ error: 'Usuario no encontrado' });
@@ -717,10 +796,12 @@ app.get('/api/vehicles', async (req, res) => {
       seller_id: v.users?.id,
       seller_verified: profilesMap[v.user_id]?.is_verified || false,
       seller_dealership: profilesMap[v.user_id]?.dealership_name || '',
+      seller_first_name: profilesMap[v.user_id]?.first_name || '',
+      seller_last_name: profilesMap[v.user_id]?.last_name || '',
       images: imagesMap[v.id] || [],
       price_history: priceHistoryMap[v.id] || []
     }));
-    
+
     res.json({ vehicles, total: count || vehicles.length });
   } catch (error) {
     console.error(error);
@@ -730,10 +811,12 @@ app.get('/api/vehicles', async (req, res) => {
 
 app.get('/api/vehicles/:id', optionalAuth, async (req, res) => {
   try {
+    const vid = parseInt(req.params.id); // BUG-17
+    if (isNaN(vid)) return res.status(400).json({ error: 'ID inválido' });
     const { data: vehicle, error } = await supabase
       .from('vehicles')
       .select('*')
-      .eq('id', req.params.id)
+      .eq('id', vid)
       .maybeSingle();
 
     if (error || !vehicle) {
@@ -758,7 +841,7 @@ app.get('/api/vehicles/:id', optionalAuth, async (req, res) => {
     }
 
     const [userRes, imagesRes, profileRes, sellerVehiclesRes, sellerRatingsRes, followersRes] = await Promise.all([
-      supabase.from('users').select('id, username').eq('id', vehicle.user_id).single(),
+      supabase.from('users').select('id, username').eq('id', vehicle.user_id).maybeSingle(), // BUG-08
       supabase.from('vehicle_images').select('*').eq('vehicle_id', vehicle.id),
       supabase.from('profiles').select('*').eq('user_id', vehicle.user_id).maybeSingle(),
       supabase.from('vehicles').select('id').eq('user_id', vehicle.user_id).eq('status', 'active'),
@@ -938,11 +1021,13 @@ app.post('/api/vehicles', authenticateToken, async (req, res) => {
 
 app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
   try {
+    const vid = parseInt(req.params.id); // BUG-17
+    if (isNaN(vid)) return res.status(400).json({ error: 'ID inválido' });
     const { data: vehicle, error: vehicleError } = await supabase
       .from('vehicles')
       .select('user_id, price')
-      .eq('id', req.params.id)
-      .single();
+      .eq('id', vid)
+      .maybeSingle(); // BUG-08
 
     if (vehicleError || !vehicle) {
       return res.status(404).json({ error: 'Vehículo no encontrado' });
@@ -999,7 +1084,7 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
     const { data, error } = await supabase
       .from('vehicles')
       .update(updates)
-      .eq('id', req.params.id)
+      .eq('id', vid)
       .select()
       .single();
 
@@ -1008,7 +1093,7 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
     const newPrice = price !== undefined ? parseFloat(price) : null;
     if (newPrice && vehicle.price !== newPrice) {
       await supabase.from('vehicle_price_history').insert({
-        vehicle_id: parseInt(req.params.id),
+        vehicle_id: vid,
         price: newPrice
       });
     }
@@ -1018,7 +1103,7 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
       const { data: favUsers } = await supabase
         .from('favorites')
         .select('user_id')
-        .eq('vehicle_id', req.params.id);
+        .eq('vehicle_id', vid);
       if (favUsers?.length) {
         const vehicleTitle = data.title || title || 'Un vehículo';
         const filtered = favUsers.filter(f => f.user_id !== req.user.id);
@@ -1026,7 +1111,7 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
           type: 'favorite_sold',
           title: 'Vehículo vendido',
           message: `${vehicleTitle} que tenías en favoritos fue marcado como vendido.`,
-          link: `vehicle/${req.params.id}`,
+          link: `vehicle/${vid}`,
           read: false
         })));
       }
@@ -1048,7 +1133,7 @@ app.delete('/api/vehicles/:id', authenticateToken, async (req, res) => {
       .from('vehicles')
       .select('user_id')
       .eq('id', vid)
-      .single();
+      .maybeSingle(); // BUG-08
 
     if (vehicleError || !vehicle) {
       return res.status(404).json({ error: 'Vehículo no encontrado' });
@@ -1087,12 +1172,13 @@ app.delete('/api/vehicles/:id', authenticateToken, async (req, res) => {
     }
 
     // Clean up all related tables — each failure is isolated
-    await safeDelete('conversations',   t => t.delete().eq('vehicle_id', vid));
-    await safeDelete('vehicle_images',  t => t.delete().eq('vehicle_id', vid));
-    await safeDelete('favorites',       t => t.delete().eq('vehicle_id', vid));
-    await safeDelete('reports',         t => t.delete().eq('vehicle_id', vid));
-    await safeDelete('trade_offers',    t => t.delete().or(`vehicle_id.eq.${vid},offered_vehicle_id.eq.${vid}`));
-    await safeDelete('notifications',   t => t.delete().eq('link', `vehicle/${vid}`));
+    await safeDelete('conversations',          t => t.delete().eq('vehicle_id', vid));
+    await safeDelete('vehicle_images',         t => t.delete().eq('vehicle_id', vid));
+    await safeDelete('favorites',              t => t.delete().eq('vehicle_id', vid));
+    await safeDelete('reports',                t => t.delete().eq('vehicle_id', vid));
+    await safeDelete('trade_offers',           t => t.delete().or(`vehicle_id.eq.${vid},offered_vehicle_id.eq.${vid}`));
+    await safeDelete('vehicle_price_history',  t => t.delete().eq('vehicle_id', vid)); // BUG-16
+    await safeDelete('notifications',          t => t.delete().eq('link', `vehicle/${vid}`));
 
     const { error: delErr } = await supabase.from('vehicles').delete().eq('id', vid);
     if (delErr) {
@@ -1184,7 +1270,7 @@ app.post('/api/upload', authenticateToken, upload.single('image'), async (req, r
 });
 
 // PROFILE
-app.get('/api/profile/:id', async (req, res) => {
+app.get('/api/profile/:id', optionalAuth, async (req, res) => {
   try {
     const targetId = parseInt(req.params.id);
     if (isNaN(targetId)) return res.status(400).json({ error: 'ID de usuario inválido' });
@@ -1193,19 +1279,14 @@ app.get('/api/profile/:id', async (req, res) => {
       .from('users')
       .select('id, username')
       .eq('id', targetId)
-      .single();
+      .maybeSingle(); // BUG-08
 
     if (userError || !user) {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
-    // Resolve optional auth for is_following
-    let viewerId = null;
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-    if (token) {
-      try { const decoded = require('jsonwebtoken').verify(token, SECRET_KEY); viewerId = decoded.id; } catch {}
-    }
+    // Use optionalAuth result for viewerId
+    const viewerId = req.user?.id ?? null;
 
     const [profileRes, vehiclesRes, ratingsRes, followersRes, followingRes, isFollowingRes] = await Promise.all([
       supabase.from('profiles').select('*').eq('user_id', targetId).maybeSingle(),
@@ -1222,9 +1303,15 @@ app.get('/api/profile/:id', async (req, res) => {
       ? (ratingsRes.data.reduce((a, b) => a + b.stars, 0) / ratingsRes.data.length).toFixed(1)
       : null;
 
+    // BUG-02: only expose phone to the profile owner
+    const profileData = profileRes.data ? { ...profileRes.data } : {};
+    if (viewerId !== targetId) {
+      delete profileData.phone;
+    }
+
     res.json({
       ...user,
-      ...profileRes.data,
+      ...profileData,
       vehicles_count: vehiclesRes.count || 0,
       rating: avgRating,
       ratings_count: ratingsRes.data?.length || 0,
@@ -1258,6 +1345,7 @@ app.post('/api/users/:id/follow', authenticateToken, async (req, res) => {
   try {
     const followerId = req.user.id;
     const followingId = parseInt(req.params.id);
+    if (isNaN(followingId)) return res.status(400).json({ error: 'ID inválido' }); // BUG-17
     if (followerId === followingId) return res.status(400).json({ error: 'No podés seguirte a vos mismo' });
 
     const { data: existing } = await supabase.from('follows').select('id').eq('follower_id', followerId).eq('following_id', followingId).maybeSingle();
@@ -1386,9 +1474,18 @@ app.put('/api/profile', authenticateToken, async (req, res) => {
     if (req.body.city !== undefined) fields.city = req.body.city?.trim() || existingProfile?.city || '';
     if (req.body.bio !== undefined) fields.bio = req.body.bio?.trim() || existingProfile?.bio || '';
     if (req.body.avatar_url !== undefined) fields.avatar_url = req.body.avatar_url || existingProfile?.avatar_url || '';
+    if (req.body.show_phone !== undefined) fields.show_phone = req.body.show_phone === true || req.body.show_phone === 'true';
     if (req.body.dealership_name !== undefined) fields.dealership_name = req.body.dealership_name?.trim() ?? '';
     if (req.body.dealership_address !== undefined) fields.dealership_address = req.body.dealership_address?.trim() ?? '';
-    if (req.body.instagram !== undefined) fields.instagram = req.body.instagram?.trim() ?? '';
+    if (req.body.instagram !== undefined) {
+      const igRaw = req.body.instagram?.trim() ?? '';
+      // BUG-01: validate instagram — allow empty, @handle, or http(s):// URLs only
+      if (igRaw !== '' && !/^(@[\w.]{1,30}|https?:\/\/.+)$/.test(igRaw)) {
+        console.warn(`[PUT /api/profile] instagram value rejected for user ${req.user.id}: "${igRaw}"`);
+        return res.status(400).json({ error: 'El campo Instagram debe ser un @usuario o una URL válida (http/https).' });
+      }
+      fields.instagram = igRaw;
+    }
 
 
     let savedProfile;
@@ -1472,9 +1569,9 @@ app.post('/api/favorites/:vehicleId', authenticateToken, async (req, res) => {
 
     const { data: vehicle } = await supabase
       .from('vehicles')
-      .select('user_id, status')
+      .select('user_id, status, title, brand, model, year')
       .eq('id', vehicleId)
-      .single();
+      .maybeSingle(); // BUG-08
 
     if (vehicle?.status === 'sold') {
       return res.status(400).json({ error: 'No podés agregar un vehículo vendido a favoritos' });
@@ -1484,10 +1581,11 @@ app.post('/api/favorites/:vehicleId', authenticateToken, async (req, res) => {
     if (insertError && insertError.code !== '23505') throw insertError;
 
     if (vehicle && vehicle.user_id !== req.user.id) {
+      const vehicleName = vehicle.title || `${vehicle.brand} ${vehicle.model} ${vehicle.year}`;
       await pushNotif(vehicle.user_id, {
         type: 'favorite',
         title: 'Nuevo favorito',
-        message: 'Alguien agregó tu vehículo a favoritos',
+        message: `${req.user.username} agregó "${vehicleName}" a favoritos`,
         link: `vehicle/${vehicleId}`
       });
     }
@@ -1570,6 +1668,7 @@ app.get('/api/conversations', authenticateToken, async (req, res) => {
         vehicle: vehiclesMap[c.vehicle_id],
         other_user: otherUser,
         last_message: lastMsg?.content,
+        last_message_sender_id: lastMsg?.sender_id,
         last_message_time: lastMsg?.created_at,
         unread_count: unreadMap[c.id] || 0
       };
@@ -1703,7 +1802,7 @@ app.get('/api/conversations/:id', authenticateToken, async (req, res) => {
       .from('conversations')
       .select('*')
       .eq('id', req.params.id)
-      .single();
+      .maybeSingle(); // BUG-08
 
     if (convError || !conversation) {
       return res.status(404).json({ error: 'Conversación no encontrada' });
@@ -1714,11 +1813,11 @@ app.get('/api/conversations/:id', authenticateToken, async (req, res) => {
     }
 
     const [vehicleRes, vehicleImagesRes, buyerUserRes, buyerProfileRes, sellerUserRes, sellerProfileRes] = await Promise.all([
-      supabase.from('vehicles').select('*').eq('id', conversation.vehicle_id).single(),
+      supabase.from('vehicles').select('*').eq('id', conversation.vehicle_id).maybeSingle(), // BUG-08
       supabase.from('vehicle_images').select('url').eq('vehicle_id', conversation.vehicle_id).limit(1),
-      supabase.from('users').select('id, username').eq('id', conversation.buyer_id).single(),
+      supabase.from('users').select('id, username').eq('id', conversation.buyer_id).maybeSingle(), // BUG-08
       supabase.from('profiles').select('avatar_url, last_seen').eq('user_id', conversation.buyer_id).maybeSingle(),
-      supabase.from('users').select('id, username').eq('id', conversation.seller_id).single(),
+      supabase.from('users').select('id, username').eq('id', conversation.seller_id).maybeSingle(), // BUG-08
       supabase.from('profiles').select('avatar_url, last_seen').eq('user_id', conversation.seller_id).maybeSingle()
     ]);
     const vehicleUrl = vehicleImagesRes.data?.[0]?.url;
@@ -1749,7 +1848,7 @@ app.get('/api/conversations/:id/messages', authenticateToken, async (req, res) =
       .from('conversations')
       .select('buyer_id, seller_id')
       .eq('id', req.params.id)
-      .single();
+      .maybeSingle(); // BUG-08
 
     if (!conversation) {
       return res.status(404).json({ error: 'Conversación no encontrada' });
@@ -1830,7 +1929,7 @@ app.post('/api/conversations/:id/messages', authenticateToken, messageLimiter, a
       .from('conversations')
       .select('buyer_id, seller_id')
       .eq('id', req.params.id)
-      .single();
+      .maybeSingle(); // BUG-08
 
     if (!conversation) return res.status(404).json({ error: 'Conversación no encontrada' });
 
@@ -1920,7 +2019,7 @@ app.put('/api/conversations/:id/read', authenticateToken, async (req, res) => {
       .from('conversations')
       .select('buyer_id, seller_id')
       .eq('id', req.params.id)
-      .single();
+      .maybeSingle(); // BUG-08
 
     if (!conversation) return res.status(404).json({ error: 'Conversación no encontrada' });
     if (conversation.buyer_id !== req.user.id && conversation.seller_id !== req.user.id) {
@@ -2032,6 +2131,8 @@ app.post('/api/vehicles/:id/trade-offer', authenticateToken, async (req, res) =>
     // 3. Enviar mensaje especial con card del vehículo ofrecido
     if (conversationId && offeredFull) {
       const cardData = {
+        offer_id: offer.id,
+        owner_id: target.user_id,
         id: offeredFull.id,
         title: offeredFull.title,
         brand: offeredFull.brand,
@@ -2184,15 +2285,17 @@ app.put('/api/trade-offers/:id', authenticateToken, async (req, res) => {
 // NOTIFICATIONS
 app.get('/api/notifications', authenticateToken, async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const limit = 10;
+    const offset = parseInt(req.query.offset) || 0;
+    const { data, error, count } = await supabase
       .from('notifications')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('user_id', req.user.id)
       .order('created_at', { ascending: false })
-      .limit(50);
+      .range(offset, offset + limit - 1);
 
     if (error) throw error;
-    res.json(data);
+    res.json({ notifications: data, total: count });
   } catch (error) {
     res.status(500).json({ error: 'Error' });
   }
@@ -2770,6 +2873,8 @@ app.get('/api/following-feed', authenticateToken, async (req, res) => {
       seller_id: v.users?.id,
       seller_verified: profilesMap[v.user_id]?.is_verified || false,
       seller_dealership: profilesMap[v.user_id]?.dealership_name || '',
+      seller_first_name: profilesMap[v.user_id]?.first_name || '',
+      seller_last_name: profilesMap[v.user_id]?.last_name || '',
       images: imagesMap[v.id] || [],
       price_history: priceHistoryMap[v.id] || []
     }));
@@ -2793,6 +2898,9 @@ const httpServer = http.createServer(app)
 httpServer.on('upgrade', (req, socket, head) => {
   const url = new URL(req.url, `http://localhost`)
   if (url.pathname !== '/ws') { socket.destroy(); return }
+  // BUG-05: Token passed via query string (?token=xxx) is a known limitation of the
+  // browser WebSocket API — it does not support custom headers. This is acceptable
+  // for vanilla JS clients. Token is short-lived (30d) and validated via JWT below.
   const token = url.searchParams.get('token')
   if (!token) { socket.destroy(); return }
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {

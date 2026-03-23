@@ -8,20 +8,70 @@
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <meta name="description"
     content="Autoventa — La plataforma más moderna para comprar y vender vehículos en Argentina. Publica gratis, chatea con vendedores y cierra negocios de forma segura.">
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Autoventa">
+  <meta property="og:locale" content="es_AR">
+  <meta property="og:title" content="Autoventa — Comprá y Vendé tu Vehículo en Argentina">
+  <meta property="og:description" content="La plataforma más moderna para comprar y vender vehículos en Argentina. Publica gratis, chatea con vendedores y cerrá negocios de forma segura.">
+  <meta property="og:image" content="https://autoventa.online/og-default.png">
+  <meta property="og:url" content="https://autoventa.online/">
+  <!-- Twitter Cards -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Autoventa — Comprá y Vendé tu Vehículo en Argentina">
+  <meta name="twitter:description" content="La plataforma más moderna para comprar y vender vehículos en Argentina.">
+  <meta name="twitter:image" content="https://autoventa.online/og-default.png">
+  <!-- Canonical & extras -->
+  <link rel="canonical" href="https://autoventa.online/">
+  <meta name="theme-color" content="#f59e0b">
+  <meta name="robots" content="index, follow">
   <!-- Preconnect para recursos externos críticos -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://unpkg.com">
   <!-- Fuentes: no-render-blocking -->
-  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" onload="this.rel='stylesheet'">
-  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap"></noscript>
-  <link rel="stylesheet" href="styles.css?v=15">
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" onload="this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"></noscript>
+  <link rel="stylesheet" href="styles.min.css?v=16">
   <!-- Leaflet CSS: non-blocking (solo se necesita cuando se abre el mapa) -->
   <link rel="preload" as="style" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" onload="this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"></noscript>
   <!-- Lucide con defer: no bloquea el renderizado inicial -->
   <script src="https://unpkg.com/lucide@latest" defer></script>
   <script src="https://js.hcaptcha.com/1/api.js?render=explicit&recaptchacompat=off" async defer></script>
+  <!-- JSON-LD: WebSite + Organization -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://autoventa.online/#website",
+        "url": "https://autoventa.online/",
+        "name": "Autoventa",
+        "description": "Marketplace de vehículos en Argentina",
+        "inLanguage": "es-AR",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": { "@type": "EntryPoint", "urlTemplate": "https://autoventa.online/?q={search_term_string}" },
+          "query-input": "required name=search_term_string"
+        }
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://autoventa.online/#organization",
+        "name": "Autoventa",
+        "url": "https://autoventa.online/",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://autoventa.online/favicon.svg",
+          "width": 512,
+          "height": 512
+        }
+      }
+    ]
+  }
+  </script>
 </head>
 
 <body>
@@ -636,13 +686,13 @@
       <div id="myVehiclesList" class="vehicles-grid"></div>
       <div id="tradeOffersSection" style="margin-top:2rem;display:none;">
         <h3
-          style="font-family:'Space Grotesk',sans-serif;font-size:1.1rem;font-weight:700;margin-bottom:1rem;display:flex;align-items:center;gap:0.5rem;">
+          style="font-family:inherit;font-size:1.1rem;font-weight:700;margin-bottom:1rem;display:flex;align-items:center;gap:0.5rem;">
           🔄 Permutas recibidas <span id="tradeOffersCount"
             style="background:rgba(245,158,11,0.15);color:var(--primary);padding:1px 8px;border-radius:99px;font-size:0.8rem;"></span>
         </h3>
         <div id="tradeOffersList"></div>
         <h3
-          style="font-family:'Space Grotesk',sans-serif;font-size:1.1rem;font-weight:700;margin:1.5rem 0 1rem;display:flex;align-items:center;gap:0.5rem;">
+          style="font-family:inherit;font-size:1.1rem;font-weight:700;margin:1.5rem 0 1rem;display:flex;align-items:center;gap:0.5rem;">
           📤 Permutas enviadas</h3>
         <div id="tradeSentList"></div>
       </div>
@@ -1043,7 +1093,7 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
-  <script src="app.js?v=15" defer></script>
+  <script src="app.js?v=16" defer></script>
   <script>
     // Lucide es defer — ejecutar cuando el DOM esté listo (los defer corren antes de DOMContentLoaded)
     document.addEventListener('DOMContentLoaded', () => {
