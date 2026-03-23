@@ -2725,7 +2725,10 @@ async function loadAdminReports() {
                   <button class="btn btn-sm btn-secondary" onclick="resolveReport(${r.id}, 'resolved')">Resolver</button>
                   <button class="btn btn-sm btn-ghost" onclick="resolveReport(${r.id}, 'dismissed')">Descartar</button>
                 ` : ''}
-                ${r.vehicle?.id ? `<button class="btn btn-sm btn-danger" data-vid="${r.vehicle.id}" data-title="${escapeHtml(r.vehicle.title || '')}" onclick="adminDeleteVehicle(+this.dataset.vid, this.dataset.title)">🗑 Eliminar pub.</button>` : ''}
+                ${r.vehicle?.id ? `
+                  <button class="btn btn-sm btn-secondary" onclick="openEditModal(${r.vehicle.id}, event)">✏️ Editar pub.</button>
+                  <button class="btn btn-sm btn-danger" data-vid="${r.vehicle.id}" data-title="${escapeHtml(r.vehicle.title || '')}" onclick="adminDeleteVehicle(+this.dataset.vid, this.dataset.title)">🗑 Eliminar pub.</button>
+                ` : ''}
               </td>
             </tr>
           `).join('')}
@@ -2797,7 +2800,8 @@ async function loadAdminVehicles(page = 1) {
                   </td>
                   <td style="text-align:center;font-size:0.82rem;">${v.view_count || 0}</td>
                   <td style="font-size:0.78rem;color:var(--text-3);">${formatRelTime(v.created_at)}</td>
-                  <td>
+                  <td style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+                    <button class="btn btn-sm btn-secondary" onclick="openEditModal(${v.id}, event)">✏️ Editar</button>
                     <button class="btn btn-sm btn-danger" data-vid="${v.id}" data-title="${escapeHtml(v.title)}"
                       onclick="adminDeleteVehicle(+this.dataset.vid, this.dataset.title)">Eliminar</button>
                   </td>
