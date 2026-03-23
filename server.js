@@ -79,14 +79,9 @@ const upload = multer({
 });
 
 app.use(express.static('public', {
-  maxAge: '7d',
-  etag: true,
-  lastModified: true,
-  setHeaders(res, filePath) {
-    if (filePath.endsWith('index.html')) {
-      res.setHeader('Cache-Control', 'no-cache');
-    }
-  },
+  maxAge: 0,
+  etag: false,
+  lastModified: false,
 }));
 
 // Rate limiting
