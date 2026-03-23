@@ -660,7 +660,7 @@ function showSection(sectionId) {
     renderImagePreviews();
     // Mostrar campo de teléfono de contacto solo para admins
     const phoneGroup = document.getElementById('publishContactPhoneGroup');
-    if (phoneGroup) phoneGroup.style.display = currentUser?.isAdmin ? 'block' : 'none';
+    if (phoneGroup) phoneGroup.style.display = currentUser?.profile?.is_admin ? 'block' : 'none';
     const pubCurrencyEl = document.getElementById('publishCurrency');
     if (pubCurrencyEl) { pubCurrencyEl.value = 'ARS'; pubCurrencyEl.dataset.prev = 'ARS'; }
     const pubHintEl = document.getElementById('publishPriceHint');
@@ -1748,7 +1748,7 @@ async function openEditModal(id, e) {
     if (editCCEl) editCCEl.value = v.engine_cc || '';
     toggleEngineCCField('edit');
     const editPhoneGroup = document.getElementById('editContactPhoneGroup');
-    if (editPhoneGroup) editPhoneGroup.style.display = currentUser?.isAdmin ? 'block' : 'none';
+    if (editPhoneGroup) editPhoneGroup.style.display = currentUser?.profile?.is_admin ? 'block' : 'none';
     const editPhoneEl = document.getElementById('editContactPhone');
     if (editPhoneEl) editPhoneEl.value = v.contact_phone || '';
     document.getElementById('editVehicleModal').style.display = 'block';
