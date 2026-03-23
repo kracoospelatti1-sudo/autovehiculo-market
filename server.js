@@ -441,6 +441,7 @@ async function deleteSoldVehicle(vid) {
   await safeDelete('vehicle_images',        t => t.delete().eq('vehicle_id', vid));
   await safeDelete('favorites',             t => t.delete().eq('vehicle_id', vid));
   await safeDelete('reports',               t => t.delete().eq('vehicle_id', vid));
+  await safeDelete('ratings',               t => t.delete().eq('vehicle_id', vid));
   await safeDelete('trade_offers',          t => t.delete().or(`vehicle_id.eq.${vid},offered_vehicle_id.eq.${vid}`));
   await safeDelete('vehicle_price_history', t => t.delete().eq('vehicle_id', vid));
   await safeDelete('notifications',         t => t.delete().eq('link', `vehicle/${vid}`));
@@ -1267,6 +1268,7 @@ app.delete('/api/vehicles/:id', authenticateToken, async (req, res) => {
     await safeDelete('vehicle_images',         t => t.delete().eq('vehicle_id', vid));
     await safeDelete('favorites',              t => t.delete().eq('vehicle_id', vid));
     await safeDelete('reports',                t => t.delete().eq('vehicle_id', vid));
+    await safeDelete('ratings',                t => t.delete().eq('vehicle_id', vid));
     await safeDelete('trade_offers',           t => t.delete().or(`vehicle_id.eq.${vid},offered_vehicle_id.eq.${vid}`));
     await safeDelete('vehicle_price_history',  t => t.delete().eq('vehicle_id', vid)); // BUG-16
     await safeDelete('notifications',          t => t.delete().eq('link', `vehicle/${vid}`));
