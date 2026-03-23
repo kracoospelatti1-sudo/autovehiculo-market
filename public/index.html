@@ -32,13 +32,12 @@
   <!-- Fuentes: no-render-blocking -->
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" onload="this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"></noscript>
-  <link rel="stylesheet" href="styles.min.css?v=16">
+  <link rel="stylesheet" href="styles.min.css?v=16" fetchpriority="high">
   <!-- Leaflet CSS: non-blocking (solo se necesita cuando se abre el mapa) -->
   <link rel="preload" as="style" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" onload="this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"></noscript>
   <!-- Lucide con defer: no bloquea el renderizado inicial -->
   <script src="https://unpkg.com/lucide@latest" defer></script>
-  <script src="https://js.hcaptcha.com/1/api.js?render=explicit&recaptchacompat=off" async defer></script>
   <!-- JSON-LD: WebSite + Organization -->
   <script type="application/ld+json">
   {
@@ -1097,7 +1096,6 @@
     </div>
   </div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
   <script src="app.js?v=16" defer></script>
   <script>
     // Lucide es defer — ejecutar cuando el DOM esté listo (los defer corren antes de DOMContentLoaded)

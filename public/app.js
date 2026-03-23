@@ -21,6 +21,27 @@ let dolarRate = null;
 let dolarRateInterval = null;
 let userFavoriteIds = new Set();
 
+function loadLeaflet() {
+  return new Promise((resolve) => {
+    if (window.L) return resolve();
+    const script = document.createElement('script');
+    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    script.onload = resolve;
+    document.head.appendChild(script);
+  });
+}
+
+function loadHCaptcha() {
+  return new Promise((resolve) => {
+    if (window.hcaptcha) return resolve();
+    const script = document.createElement('script');
+    script.src = 'https://js.hcaptcha.com/1/api.js';
+    script.async = true;
+    script.onload = resolve;
+    document.head.appendChild(script);
+  });
+}
+
 // SEO helpers
 function setMeta(attr, key, value) {
   const el = document.querySelector(`meta[${attr}="${CSS.escape ? CSS.escape(key) : key}"]`);
@@ -554,7 +575,7 @@ function updateVehicleTypeOptions(prefix = 'publish') {
 
 
 async function initVehicleMap(city, province) {
-  if (!window.L) return;
+  await loadLeaflet();
   if (vehicleMapInstance) { vehicleMapInstance.remove(); vehicleMapInstance = null; }
   const el = document.getElementById('vehicleMap');
   if (!el) return;
@@ -638,12 +659,14 @@ function showSection(sectionId) {
   else if (sectionId === 'admin') loadAdmin();
   else if (sectionId === 'register') {
     // Render hCaptcha when section becomes visible (needed with render=explicit)
-    setTimeout(() => {
-      const container = document.querySelector('.h-captcha');
-      if (container && window.hcaptcha && !container.querySelector('iframe')) {
-        try { hcaptcha.render(container, { sitekey: container.dataset.sitekey }); } catch(e) {}
-      }
-    }, 50);
+    loadHCaptcha().then(() => {
+      setTimeout(() => {
+        const container = document.querySelector('.h-captcha');
+        if (container && window.hcaptcha && !container.querySelector('iframe')) {
+          try { hcaptcha.render(container, { sitekey: container.dataset.sitekey }); } catch(e) {}
+        }
+      }, 50);
+    });
   }
   else if (sectionId === 'publish') {
     uploadedImages = [];
@@ -930,7 +953,7 @@ async function loadVehicles(page = 1) {
           <span class="vehicle-badge">${escapeHtml(String(v.year))}</span>
           ${v.status === 'sold' ? '<span class="vehicle-badge badge-sold">VENDIDO</span>' : ''}
           ${v.status !== 'sold' ? `<span class="vehicle-trade-badge ${v.accepts_trade ? 'trade-yes' : 'trade-no'}">${v.accepts_trade ? '🔄 Permuta' : 'Sin permuta'}</span>` : ''}
-          ${v.status !== 'sold' ? `<button class="favorite-btn ${userFavoriteIds.has(v.id) ? 'active' : ''}" data-vehicle-id="${v.id}" onclick="toggleFavorite(${v.id}, event)"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>` : ''}
+          ${v.status !== 'sold' ? `<button class="favorite-btn ${userFavoriteIds.has(v.id) ? 'active' : ''}" data-vehicle-id="${v.id}" onclick="toggleFavorite(${v.id}, event)" aria-label="Agregar a favoritos"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>` : ''}
         </div>
         <div class="vehicle-info">
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
@@ -1646,7 +1669,7 @@ async function loadFavorites() {
             <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
             ${formatPesos(v.price, v) ? `<p class="vehicle-price-ars">${formatPesos(v.price, v)}</p>` : ''}
           </div>
-          ${v.status === 'sold' ? `<button class="btn btn-ghost btn-sm" style="margin-top:0.5rem;color:var(--text-3);width:100%;" onclick="toggleFavorite(${v.id}, event);this.closest('.vehicle-card').remove()">Eliminar de favoritos</button>` : ''}
+          <button class="btn btn-ghost btn-sm" style="margin-top:0.5rem;color:var(--text-3);width:100%;" onclick="toggleFavorite(${v.id}, event);this.closest('.vehicle-card').remove()">Eliminar de favoritos</button>
         </div>
       </div>
     `).join('');
@@ -3679,7 +3702,7 @@ async function loadFollowingFeed(page = 1, reset = false) {
           <img src="${thumbUrl(v.images?.find(i => i.is_primary)?.url || v.images?.[0]?.url)}" class="vehicle-image" alt="${escapeHtml(v.title)}" loading="lazy" onerror="this.src=PLACEHOLDER_IMG">
           <span class="vehicle-badge">${escapeHtml(String(v.year))}</span>
           ${v.status === 'sold' ? '<span class="vehicle-badge badge-sold">VENDIDO</span>' : ''}
-          ${v.status !== 'sold' ? `<button class="favorite-btn ${userFavoriteIds.has(v.id) ? 'active' : ''}" data-vehicle-id="${v.id}" onclick="toggleFavorite(${v.id}, event)"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>` : ''}
+          ${v.status !== 'sold' ? `<button class="favorite-btn ${userFavoriteIds.has(v.id) ? 'active' : ''}" data-vehicle-id="${v.id}" onclick="toggleFavorite(${v.id}, event)" aria-label="Agregar a favoritos"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>` : ''}
         </div>
         <div class="vehicle-info">
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
@@ -3765,7 +3788,7 @@ async function loadHomeRecent() {
           <span class="vehicle-badge">${escapeHtml(String(v.year))}</span>
           ${v.status === 'sold' ? '<span class="vehicle-badge badge-sold">VENDIDO</span>' : ''}
           ${v.status !== 'sold' ? `<span class="vehicle-trade-badge ${v.accepts_trade ? 'trade-yes' : 'trade-no'}">${v.accepts_trade ? '🔄 Permuta' : 'Sin permuta'}</span>` : ''}
-          ${v.status !== 'sold' ? `<button class="favorite-btn ${userFavoriteIds.has(v.id) ? 'active' : ''}" data-vehicle-id="${v.id}" onclick="toggleFavorite(${v.id}, event)"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>` : ''}
+          ${v.status !== 'sold' ? `<button class="favorite-btn ${userFavoriteIds.has(v.id) ? 'active' : ''}" data-vehicle-id="${v.id}" onclick="toggleFavorite(${v.id}, event)" aria-label="Agregar a favoritos"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>` : ''}
         </div>
         <div class="vehicle-info">
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>

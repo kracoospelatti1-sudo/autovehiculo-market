@@ -172,8 +172,7 @@ body.day-mode .vehicle-detail span:not(.badge):not(.vehicle-badge):not(.badge-nu
 }
 
 /* ---- Notifications & misc text ---- */
-body.day-mode .notification-title,
-body.day-mode .notification-message,
+body.day-mode .notification-content h4,
 body.day-mode .notification-item,
 body.day-mode .rating-review,
 body.day-mode .seller-name,
@@ -518,7 +517,7 @@ body::before {
 
 .home-stat-label {
   font-size: 0.72rem;
-  color: var(--text-3);
+  color: #64748b;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -608,7 +607,7 @@ body::before {
 
 .home-feature-card span {
   font-size: 0.85rem;
-  color: var(--text-3);
+  color: #64748b;
   line-height: 1.55;
 }
 
@@ -1072,7 +1071,7 @@ select {
   align-items: center;
   gap: 0.35rem;
   font-size: 0.85rem;
-  color: var(--text-3);
+  color: #64748b;
   margin-bottom: 1rem;
 }
 
@@ -2434,7 +2433,7 @@ select {
 .notification-icon svg {
   width: 18px;
   height: 18px;
-  fill: var(--primary-light);
+  fill: currentColor;
 }
 
 .notification-content {
@@ -2442,14 +2441,14 @@ select {
   min-width: 0;
 }
 
-.notification-title {
+.notification-content h4 {
   font-weight: 600;
   font-size: 0.88rem;
   color: var(--text);
   margin-bottom: 0.2rem;
 }
 
-.notification-msg {
+.notification-content p {
   font-size: 0.82rem;
   color: var(--text-2);
   line-height: 1.4;
@@ -4504,20 +4503,22 @@ select {
   position: relative;
   display: flex;
   align-items: center;
-  background: var(--dark-3);
-  border: 1px solid var(--border);
-  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(245,158,11,0.08) 0%, rgba(255,255,255,0.04) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: var(--radius-md);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 
 .sort-wrapper:hover {
   border-color: var(--primary);
-  background: rgba(255, 255, 255, 0.05);
+  background: linear-gradient(135deg, rgba(245,158,11,0.14) 0%, rgba(255,255,255,0.06) 100%);
+  box-shadow: 0 4px 16px rgba(245,158,11,0.12);
 }
 
 .sort-select {
-  padding: 0.65rem 1rem 0.65rem 2.5rem;
+  padding: 0.6rem 2.2rem 0.6rem 2.4rem;
   background: transparent;
   color: var(--text);
   border: none;
@@ -4526,17 +4527,33 @@ select {
   cursor: pointer;
   outline: none;
   width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.sort-wrapper::after {
+  content: '';
+  position: absolute;
+  right: 0.8rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid var(--primary);
+  opacity: 0.7;
+  pointer-events: none;
 }
 
 .sort-wrapper i[data-lucide] {
   position: absolute;
-  left: 0.9rem;
+  left: 0.75rem;
   top: 50%;
   transform: translateY(-50%);
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   color: var(--primary);
-  opacity: 0.8;
   pointer-events: none;
 }
 
