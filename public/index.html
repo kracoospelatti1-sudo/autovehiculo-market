@@ -800,7 +800,10 @@
       <div class="modal-body" style="max-height:80vh;overflow-y:auto;">
         <form onsubmit="handleEditVehicle(event)">
           <input type="hidden" id="editVehicleId">
-          <input type="hidden" id="editTitle">
+          <div class="form-group">
+            <label>Título generado</label>
+            <input type="text" id="editTitle" readonly style="background:var(--dark-3);color:var(--primary);font-weight:600;cursor:default;" tabindex="-1">
+          </div>
           <div class="form-group">
             <label>Tipo de vehículo</label>
             <select id="editVehicleTypeTop" onchange="toggleEngineCCField('edit'); updateEditBrands()">
@@ -811,13 +814,13 @@
           <div class="form-row">
             <div class="form-group">
               <label>Marca *</label>
-              <select id="editBrand" required onchange="updateEditModels(); autoGenEditDescription()">
+              <select id="editBrand" required onchange="updateEditModels(); updateEditTitle(); autoGenEditDescription()">
                 <option value="">Seleccionar marca</option>
               </select>
             </div>
             <div class="form-group">
               <label>Modelo *</label>
-              <select id="editModel" required onchange="autoGenEditDescription()">
+              <select id="editModel" required onchange="updateEditTitle(); autoGenEditDescription()">
                 <option value="">Seleccionar modelo</option>
               </select>
             </div>
@@ -825,11 +828,11 @@
           <div class="form-row">
             <div class="form-group">
               <label>Año *</label>
-              <input type="number" id="editYear" required min="1950" max="2030" placeholder="Ej: 2022" onchange="autoGenEditDescription()">
+              <input type="number" id="editYear" required min="1950" max="2030" placeholder="Ej: 2022" oninput="updateEditTitle(); autoGenEditDescription()">
             </div>
             <div class="form-group">
               <label>Versión</label>
-              <input type="text" id="editVersion" placeholder="Ej: SE, LX, Titanium, GT..." onchange="autoGenEditDescription()">
+              <input type="text" id="editVersion" placeholder="Ej: SE, LX, Titanium, GT..." oninput="updateEditTitle(); autoGenEditDescription()">
             </div>
           </div>
           <div class="form-row">

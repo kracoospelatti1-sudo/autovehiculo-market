@@ -1747,6 +1747,7 @@ async function openEditModal(id, e) {
     if (editModelEl) editModelEl.value = v.model || '';
     document.getElementById('editYear').value = v.year || '';
     document.getElementById('editVersion').value = v.version || '';
+    updateEditTitle();
     const editCurrencyEl = document.getElementById('editCurrency');
     if (editCurrencyEl) { editCurrencyEl.value = 'USD'; editCurrencyEl.dataset.prev = 'USD'; }
     document.getElementById('editPrice').value = v.price || '';
@@ -3775,6 +3776,16 @@ function updateEditModels() {
     });
   }
   modelSelect.value = prev || '';
+}
+
+function updateEditTitle() {
+  const brand   = document.getElementById('editBrand')?.value || '';
+  const model   = document.getElementById('editModel')?.value || '';
+  const version = document.getElementById('editVersion')?.value || '';
+  const year    = document.getElementById('editYear')?.value || '';
+  const title   = `${brand} ${model} ${version} ${year}`.replace(/\s+/g, ' ').trim();
+  const el = document.getElementById('editTitle');
+  if (el) el.value = title;
 }
 
 function autoGenEditDescription() {
