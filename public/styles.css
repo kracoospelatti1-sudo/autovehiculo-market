@@ -2896,6 +2896,7 @@ select {
   color: #fff;
   border: none;
   font-weight: 600;
+  border-radius: var(--radius-md);
 }
 
 .btn-danger:hover {

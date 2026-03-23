@@ -1,6 +1,6 @@
 ---
 name: performance
-description: Especialista en rendimiento y escalabilidad de AutoVehículo Market. Usar cuando el sitio es lento, las queries tardan mucho, hay problemas con el polling del chat, o se quiere optimizar para más tráfico. Ejemplos: "el listado de vehículos tarda", "optimizar queries de Supabase", "el chat consume mucho", "agregar caché", "reducir tiempo de carga".
+description: Especialista en rendimiento, seguridad y PageSpeed de AutoVehículo Market. Usar para mejorar puntajes de PageSpeed/Core Web Vitals, optimizar imágenes, headers de seguridad (CSP/HSTS), caché de assets, accesibilidad, queries lentas, polling del chat, o reducir bundle size. Ejemplos: "mejorar LCP", "agregar CSP", "caché de assets", "reducir JS sin usar", "aria-labels", "query lenta".
 tools: Read, Write, Edit, Bash, Grep, Glob
 ---
 
@@ -81,7 +81,49 @@ res.set('Cache-Control', 'public, max-age=30') // 30 segundos
 | Payload de listado de vehículos | < 100KB | Reducir columnas, paginar |
 | Polling del chat (req/min) | < 20 req/min por usuario | Aumentar intervalo si hay muchos usuarios |
 
-### 6. Checklist de rendimiento
+### 6. Security headers (implementados en server.js)
+
+Middleware unificado antes de `express.static`:
+- `X-Frame-Options: SAMEORIGIN` — anti-clickjacking
+- `X-Content-Type-Options: nosniff`
+- `Referrer-Policy: strict-origin-when-cross-origin`
+- `Cross-Origin-Opener-Policy: same-origin-allow-popups`
+- `Strict-Transport-Security: max-age=31536000; includeSubDomains`
+- `Content-Security-Policy` con `object-src 'none'` (alta severidad en PageSpeed)
+- Permite: unpkg.com, js.hcaptcha.com, pagead2.googlesyndication.com, fonts.googleapis.com
+
+### 7. Caché de assets
+
+`express.static` con `setHeaders`:
+- URLs con `?v=N` → `Cache-Control: public, max-age=31536000, immutable`
+- Resto → `no-cache, no-store, must-revalidate`
+
+Para bustar caché del navegador: incrementar `?v=N` en `index.html` (skill css-minify).
+Para bustar CDN: hPanel → CDN → Flush Cache.
+
+### 8. Image transforms (Supabase)
+
+`thumbUrl(url, width)` en app.js:
+```js
+// Convierte /storage/v1/object/public/ → /storage/v1/render/image/public/
+// + ?width=400&quality=70&format=webp
+```
+Usar solo en thumbnails de cards. No usar en detalle/lightbox.
+
+### 9. Diagnósticos PageSpeed (estado tras fixes)
+
+| Issue | Estado |
+|-------|--------|
+| Caché de assets (842 KiB) | ✅ Resuelto |
+| Imágenes (653 KiB) | ✅ Resuelto (WebP transforms) |
+| CSP/HSTS/X-Frame-Options | ✅ Resuelto |
+| `<main>` landmark | ✅ Resuelto |
+| Links rastreables | ✅ Resuelto (href en todos los `<a>`) |
+| JS sin usar (304 KiB) | ⚠️ Requiere code splitting |
+| Tareas largas (5) | ⚠️ Requiere refactor |
+| Animaciones no compuestas | ⚠️ Usar solo transform/opacity |
+
+### 10. Checklist de rendimiento
 
 - [ ] `optimize-db.sql` ejecutado en Supabase
 - [ ] Paginación activa en listado de vehículos (`.range()`)
@@ -89,3 +131,5 @@ res.set('Cache-Control', 'public, max-age=30') // 30 segundos
 - [ ] `compression()` middleware activo en server.js
 - [ ] Imágenes tienen compresión Canvas antes de upload
 - [ ] Queries solo seleccionan columnas necesarias (no `SELECT *` en listas)
+- [ ] Security headers activos: `curl -I https://autoventa.online/`
+- [ ] `npm run build:css` ejecutado tras cambios en styles.css

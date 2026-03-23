@@ -1913,8 +1913,8 @@ function appendMessageToDOM(message, readAt) {
             ${v.city ? `<div class="trade-card-location">📍 ${escapeHtml(v.city)}${v.province ? ', ' + escapeHtml(v.province.replace(/\s*\(.*?\)/g,'').trim()) : ''}</div>` : ''}
             ${isOwner && offerId ? `
             <div class="trade-card-actions" id="trade-actions-${offerId}">
-              <button class="btn btn-primary btn-sm" onclick="respondToTradeInChat(${offerId}, 'accepted')">✅ Aceptar</button>
-              <button class="btn btn-ghost btn-sm" onclick="respondToTradeInChat(${offerId}, 'rejected')">❌ Rechazar</button>
+              <button class="btn btn-primary btn-sm" style="margin-right:0.4rem;" onclick="respondToTradeInChat(${offerId}, 'accepted')">✅ Aceptar</button>
+              <button class="btn btn-danger btn-sm" onclick="respondToTradeInChat(${offerId}, 'rejected')">❌ Rechazar</button>
             </div>` : ''}
           </div>
         </div>`;
@@ -3022,7 +3022,7 @@ async function respondToTradeInChat(offerId, status) {
   } catch (err) {
     showToast(err.message, 'error');
     const actionsEl = document.getElementById(`trade-actions-${offerId}`);
-    if (actionsEl) actionsEl.innerHTML = `<button class="btn btn-primary btn-sm" onclick="respondToTradeInChat(${offerId}, 'accepted')">✅ Aceptar</button><button class="btn btn-ghost btn-sm" onclick="respondToTradeInChat(${offerId}, 'rejected')">❌ Rechazar</button>`;
+    if (actionsEl) actionsEl.innerHTML = `<button class="btn btn-primary btn-sm" style="margin-right:0.4rem;" onclick="respondToTradeInChat(${offerId}, 'accepted')">✅ Aceptar</button><button class="btn btn-danger btn-sm" onclick="respondToTradeInChat(${offerId}, 'rejected')">❌ Rechazar</button>`;
   }
 }
 
@@ -3069,7 +3069,7 @@ async function updateTradeCardStatuses() {
       } else if (matchedOffer.status === 'rejected') {
         actionsEl.innerHTML = '<span style="color:#ef4444;font-weight:600;">❌ Permuta rechazada</span>';
       } else if (matchedOffer.status === 'pending') {
-        actionsEl.innerHTML = `<button class="btn btn-primary btn-sm" onclick="respondToTradeInChat(${realOfferId}, 'accepted')">✅ Aceptar</button><button class="btn btn-ghost btn-sm" onclick="respondToTradeInChat(${realOfferId}, 'rejected')">❌ Rechazar</button>`;
+        actionsEl.innerHTML = `<button class="btn btn-primary btn-sm" style="margin-right:0.4rem;" onclick="respondToTradeInChat(${realOfferId}, 'accepted')">✅ Aceptar</button><button class="btn btn-danger btn-sm" onclick="respondToTradeInChat(${realOfferId}, 'rejected')">❌ Rechazar</button>`;
       }
     });
   } catch {}
