@@ -2491,13 +2491,9 @@ select {
 }
 
 .profile-actions-grid {
-  display: flex;
-  flex-wrap: nowrap;
-  justify-content: center;
-  align-items: center;
-  overflow-x: auto;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: stretch;
   gap: 0.6rem;
   margin-top: 1rem;
 }
@@ -2507,7 +2503,8 @@ select {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 0 1.25rem;
+  width: 100%;
+  padding: 0 1rem;
   height: 46px;
   min-height: 46px;
   line-height: 1;
@@ -2521,6 +2518,26 @@ select {
   border: 1px solid var(--border);
   vertical-align: middle;
   flex: 0 0 auto;
+}
+
+@media (max-width: 768px) {
+  .profile-actions-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 0.55rem;
+    row-gap: 0.35rem;
+  }
+
+  .profile-action-btn {
+    height: 44px;
+    min-height: 44px;
+    padding: 0 0.9rem;
+    font-size: 0.84rem;
+  }
+
+  .profile-action-btn svg {
+    width: 16px;
+    height: 16px;
+  }
 }
 
 .profile-action-btn svg {
