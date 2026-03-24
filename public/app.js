@@ -590,7 +590,7 @@ function updateVehicleTypeOptions(prefix = 'publish') {
 async function initVehicleMap(city, province) {
   await loadLeaflet();
   if (vehicleMapInstance) { vehicleMapInstance.remove(); vehicleMapInstance = null; }
-  const el = document.getElementById('vehicleMap');
+  const el = document.getElementById('vehicleMapSecondary') || document.getElementById('vehicleMap');
   if (!el) return;
   try {
     // Limpiar nombre de provincia: quitar paréntesis y su contenido (ej: "Buenos Aires (Prov.)" → "Buenos Aires")
@@ -608,7 +608,7 @@ async function initVehicleMap(city, province) {
 
     if (!data?.length) { el.parentElement.style.display = 'none'; return; }
     const { lat, lon, display_name } = data[0];
-    vehicleMapInstance = L.map('vehicleMap', {
+    vehicleMapInstance = L.map(el, {
       zoomControl: false,
       scrollWheelZoom: false,
       dragging: false,
@@ -1092,6 +1092,7 @@ async function loadVehicles(page = 1) {
             </div>
           </div>
         </div>
+        </div>
       </div>
     `).join('');
     applyCardCascade(container);
@@ -1465,12 +1466,32 @@ async function viewVehicle(id) {
     const ownerLocationAddress = (vehicle.contact_address || '').trim();
     const ownerLocationProvince = (vehicle.province || '').replace(/\s*\(.*?\)/g, '').trim();
     const ownerLocationCity = (vehicle.city || '').trim();
+    const ownerLocationSummary = [ownerLocationCity, ownerLocationProvince].filter(Boolean).join(', ');
     const ownerLocationQuery = [ownerLocationAddress, ownerLocationCity, ownerLocationProvince].filter(Boolean).join(', ');
     const ownerLocationUrl = ownerLocationQuery ? googleMapsSearchUrl(ownerLocationQuery) : '';
     const showDealershipLocationButton = !!ownerLocationAddress;
     const profileWhatsapp = (vehicle.seller_profile?.phone || '').replace(/[\s\-\(\)]/g, '').replace(/^\+/, '');
     const sellerMapsUrl = vehicle.seller_profile?.dealership_address ? googleMapsSearchUrl(vehicle.seller_profile.dealership_address) : '';
     const whatsappText = encodeURIComponent(`Hola, te contacto desde AutoVenta.online por el siguiente anuncio: https://autoventa.online/?vehicle=${vehicle.id}`);
+    const descriptionParagraphs = String(vehicle.description || '')
+      .split(/\n\s*\n/)
+      .map(p => p.trim())
+      .filter(Boolean);
+    const normalizedDescriptionParagraphs = descriptionParagraphs.length
+      ? descriptionParagraphs
+      : String(vehicle.description || '')
+          .split(/(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ])/)
+          .reduce((chunks, sentence) => {
+            const clean = sentence.trim();
+            if (!clean) return chunks;
+            if (!chunks.length || chunks[chunks.length - 1].length > 140) chunks.push(clean);
+            else chunks[chunks.length - 1] += ` ${clean}`;
+            return chunks;
+          }, []);
+    const descriptionHtml = normalizedDescriptionParagraphs.length
+      ? normalizedDescriptionParagraphs.map(p => `<p>${escapeHtml(p)}</p>`).join('')
+      : '';
+    const pickupLocationLabel = [ownerLocationCity, ownerLocationProvince].filter(Boolean).join(', ');
 
     // Price history
     let priceChangeHtml = '';
@@ -1516,6 +1537,12 @@ async function viewVehicle(id) {
           <div class="detail-price-block">
             <div class="detail-price">USD ${formatNumber(vehicle.price)}${priceChangeHtml}</div>
             ${formatPesos(vehicle.price, vehicle) ? `<div class="detail-price-ars">${formatPesos(vehicle.price, vehicle)}</div>` : ''}
+            ${ownerLocationSummary ? `
+              <div class="detail-price-location">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                ${escapeHtml(ownerLocationSummary)}
+              </div>
+            ` : ''}
             ${vehicle.contact_phone && vehicle.status !== 'sold' ? `
               <a href="https://wa.me/${escapeHtml(ownerWhatsapp)}?text=${whatsappText}" target="_blank" rel="noopener" class="btn btn-primary" style="background:#25D366;border:none;width:100%;margin-top:0.75rem;">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="margin-right:0.4rem;"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
@@ -1536,13 +1563,17 @@ async function viewVehicle(id) {
             <div class="spec-card"><div class="label">Combustible</div><div class="value">${escapeHtml(vehicle.fuel || 'N/A')}</div></div>
             <div class="spec-card"><div class="label">Transmisión</div><div class="value">${escapeHtml(vehicle.transmission || 'N/A')}</div></div>
             ${vehicle.vehicle_type === 'moto' && vehicle.engine_cc ? `<div class="spec-card"><div class="label">Cilindrada</div><div class="value">${vehicle.engine_cc} cc</div></div>` : ''}
-            <div class="spec-card"><div class="label">Ciudad</div><div class="value">${vehicle.city || 'No especificada'}</div></div>
-            ${vehicle.province ? `<div class="spec-card"><div class="label">Provincia</div><div class="value">${escapeHtml(vehicle.province.replace(/\s*\(.*?\)/g,'').trim())}</div></div>` : ''}
           </div>
         </div>
         <div class="detail-secondary-grid">
           <div class="detail-secondary-main">
-          ${vehicle.description ? `<div class="detail-description"><h4>Descripción</h4><p>${escapeHtml(vehicle.description)}</p></div>` : ''}
+          ${vehicle.description ? `
+            <div class="detail-description">
+              <div class="detail-section-eyebrow">Historia del vehiculo</div>
+              <h4>Descripción</h4>
+              <div class="detail-description-copy">${descriptionHtml}</div>
+            </div>
+          ` : ''}
           </div>
           <div class="detail-secondary-sidebar">
           <div class="seller-card">
@@ -1586,7 +1617,7 @@ async function viewVehicle(id) {
             <div class="detail-map-section">
               <h4 style="margin-bottom:0.75rem;font-size:0.9rem;color:var(--text-2);display:flex;align-items:center;gap:0.4rem;">
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-                  Ubicación: ${escapeHtml(ownerLocationAddress || vehicle.city)}
+                  Ubicacion: ${escapeHtml(ownerLocationSummary || vehicle.city)}
                 </h4>
                 <div id="vehicleMap" class="vehicle-map"></div>
               </div>
@@ -1625,18 +1656,35 @@ ${vehicle.accepts_trade && isLoggedIn && !isOwner && vehicle.status === 'active'
             </div>
           ` : ''}
 
-          <div class="detail-actions" style="margin-top:1.5rem;display:flex;gap:1rem;flex-direction:column;">
-            ${isAdminView ? `
-              <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-                <button class="btn btn-sm btn-secondary" onclick="openEditModal(${vehicle.id}, event)">Editar</button>
+          <div class="detail-actions-zone">
+            <div class="detail-actions" style="margin-top:1.5rem;display:flex;gap:1rem;flex-direction:column;">
+              <button class="btn btn-secondary share-btn" onclick="shareVehicle(${vehicle.id}, '${escapeHtml(vehicle.title).replace(/'/g, '&#39;')}', ${vehicle.price})"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="margin-right:0.5rem;"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>Compartir</button>
+              ${isLoggedIn && (vehicle.status !== 'sold' || isFavorite) ? `<button id="detailFavBtn" class="btn ${isFavorite ? 'btn-primary' : 'btn-secondary'}" onclick="toggleFavorite(${vehicle.id}, event)"><svg width="18" height="18" viewBox="0 0 24 24" fill="${isFavorite ? 'currentColor' : 'none'}" stroke="currentColor" style="margin-right:0.5rem;"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>${isFavorite ? 'Quitar de favoritos' : 'Guardar en favoritos'}</button>` : ''}
+              ${isLoggedIn && !isOwner ? `<button class="btn btn-ghost" onclick="openReportModal(${vehicle.id})" style="color:var(--text-3);">Reportar esta publicación</button>` : ''}
+              ${!isLoggedIn ? `<button class="btn btn-primary" style="width:100%" onclick="showSection('login')">Iniciar sesión para contactar y ofrecer permutas</button>` : ''}
+            </div>
+          </div>
+          ${isAdminView ? `
+            <div class="admin-edit-outside">
+              <button class="btn admin-edit-btn" onclick="openEditModal(${vehicle.id}, event)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path></svg>
+                Editar
+              </button>
+            </div>
+          ` : ''}
+          </div>
+          ${vehicle.city ? `
+            <div class="detail-secondary-map">
+              <div class="detail-map-section detail-map-section-secondary">
+                <h4 style="margin-bottom:0.75rem;font-size:0.9rem;color:var(--text-2);display:flex;align-items:center;gap:0.4rem;">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                    Ubicacion: ${escapeHtml(ownerLocationSummary || vehicle.city)}
+                  </h4>
+                  <div id="vehicleMapSecondary" class="vehicle-map"></div>
+                </div>
               </div>
             ` : ''}
-            <button class="btn btn-secondary share-btn" onclick="shareVehicle(${vehicle.id}, '${escapeHtml(vehicle.title).replace(/'/g, '&#39;')}', ${vehicle.price})"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="margin-right:0.5rem;"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>Compartir</button>
-            ${isLoggedIn && (vehicle.status !== 'sold' || isFavorite) ? `<button id="detailFavBtn" class="btn ${isFavorite ? 'btn-primary' : 'btn-secondary'}" onclick="toggleFavorite(${vehicle.id}, event)"><svg width="18" height="18" viewBox="0 0 24 24" fill="${isFavorite ? 'currentColor' : 'none'}" stroke="currentColor" style="margin-right:0.5rem;"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>${isFavorite ? 'Quitar de favoritos' : 'Guardar en favoritos'}</button>` : ''}
-            ${isLoggedIn && !isOwner ? `<button class="btn btn-ghost" onclick="openReportModal(${vehicle.id})" style="color:var(--text-3);">Reportar esta publicación</button>` : ''}
-            ${!isLoggedIn ? `<button class="btn btn-primary" style="width:100%" onclick="showSection('login')">Inicia sesión para contactar</button>` : ''}
-          </div>
-        </div>
+      </div>
       </div>
       <div class="similar-vehicles-section" id="similarVehiclesSection">
         <h3 class="similar-title">Vehículos similares</h3>
@@ -4467,4 +4515,6 @@ async function loadSimilarVehicles(vehicleId) {
     document.getElementById('similarVehiclesSection')?.remove();
   }
 }
+
+
 
