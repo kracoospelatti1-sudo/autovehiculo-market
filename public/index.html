@@ -508,7 +508,10 @@
             <input type="text" id="filterCity" placeholder="Ej: Córdoba" oninput="applyFilters()">
           </div>
         </div>
-        <button class="btn btn-ghost btn-sm" onclick="clearFilters()">Limpiar filtros</button>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+          <button class="btn btn-primary btn-sm" id="filterApplyBtn" onclick="applyFiltersNow()" style="display:none;">Aplicar filtros</button>
+          <button class="btn btn-ghost btn-sm" onclick="clearFilters()">Limpiar filtros</button>
+        </div>
       </div>
       <div class="results-header">
         <div class="results-title-group">
@@ -1042,7 +1045,7 @@
   <!-- BOTTOM NAVIGATION (MOBILE) -->
   <nav class="bottom-nav">
     <a class="bottom-nav-item active" href="/"
-      onclick="showSection('home'); document.querySelectorAll('.bottom-nav-item').forEach(e=>e.classList.remove('active')); this.classList.add('active'); return false;">
+      onclick="showSection('home'); return false;">
       <svg>
         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
         <polyline points="9 22 9 12 15 12 15 22" />
@@ -1050,7 +1053,7 @@
       <span>Inicio</span>
     </a>
     <a class="bottom-nav-item" href="/?section=vehicles"
-      onclick="showSection('vehicles'); document.querySelectorAll('.bottom-nav-item').forEach(e=>e.classList.remove('active')); this.classList.add('active'); return false;">
+      onclick="showSection('vehicles'); return false;">
       <svg>
         <circle cx="11" cy="11" r="8" />
         <line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -1058,14 +1061,14 @@
       <span>Buscar</span>
     </a>
     <a class="bottom-nav-item" href="/?section=messages"
-      onclick="if(currentUser){showSection('messages'); document.querySelectorAll('.bottom-nav-item').forEach(e=>e.classList.remove('active')); this.classList.add('active');}else{showSection('login');} return false;">
+      onclick="if(currentUser){showSection('messages');}else{showSection('login');} return false;">
       <svg>
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
       </svg>
       <span>Chats</span>
     </a>
     <a class="bottom-nav-item" href="/?section=publish"
-      onclick="tryPublish(); document.querySelectorAll('.bottom-nav-item').forEach(e=>e.classList.remove('active')); this.classList.add('active'); return false;">
+      onclick="tryPublish(); return false;">
       <svg>
         <line x1="12" y1="5" x2="12" y2="19" />
         <line x1="5" y1="12" x2="19" y2="12" />
@@ -1073,7 +1076,7 @@
       <span>Publicar</span>
     </a>
     <a class="bottom-nav-item" href="/"
-      onclick="if(currentUser){toggleMobileMenu();}else{showSection('login');} document.querySelectorAll('.bottom-nav-item').forEach(e=>e.classList.remove('active')); this.classList.add('active'); return false;">
+      onclick="if(currentUser){toggleMobileMenu();}else{showSection('login');} return false;">
       <svg>
         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
         <circle cx="12" cy="7" r="4" />

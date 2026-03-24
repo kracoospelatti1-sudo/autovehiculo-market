@@ -1701,10 +1701,23 @@ function renderImagePreviews() {
   container.innerHTML = uploadedImages.map((img, i) => `
     <div class="preview-item ${i === 0 ? 'primary' : ''}">
       <img src="${escapeHtml(img.preview || img.url || '')}" alt="" loading="lazy">
+      <span class="preview-order-badge">${i + 1}</span>
       <button class="preview-remove" onclick="removeImage(${i})">&times;</button>
-      <button class="preview-cover ${i === 0 ? 'active' : ''}" onclick="setCoverImage(${i})">Portada</button>
+      <div class="preview-controls">
+        <button class="preview-move" onclick="moveImage(${i}, -1)" ${i === 0 ? 'disabled' : ''} title="Mover antes" aria-label="Mover foto antes">&#8593;</button>
+        <button class="preview-move" onclick="moveImage(${i}, 1)" ${i === uploadedImages.length - 1 ? 'disabled' : ''} title="Mover después" aria-label="Mover foto después">&#8595;</button>
+        <button class="preview-cover ${i === 0 ? 'active' : ''}" onclick="setCoverImage(${i})">Portada</button>
+      </div>
     </div>
   `).join('');
+}
+
+function moveImage(index, direction) {
+  const newIndex = index + direction;
+  if (newIndex < 0 || newIndex >= uploadedImages.length) return;
+  const item = uploadedImages.splice(index, 1)[0];
+  uploadedImages.splice(newIndex, 0, item);
+  renderImagePreviews();
 }
 
 function setCoverImage(index) {
