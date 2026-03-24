@@ -1307,9 +1307,37 @@ select {
 /* ===== VEHICLE DETAIL ===== */
 .detail-container {
   display: grid;
-  grid-template-columns: 1fr 380px;
-  gap: 2rem;
+  grid-template-columns: minmax(0, 60%) minmax(340px, 40%);
+  gap: 1.25rem;
+  align-items: stretch;
+}
+
+.detail-info-primary {
+  min-width: 0;
+}
+
+.detail-secondary-grid {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 60%) minmax(340px, 40%);
+  gap: 1.25rem;
   align-items: start;
+}
+
+.detail-secondary-main,
+.detail-secondary-tail,
+.detail-secondary-sidebar {
+  min-width: 0;
+}
+
+.detail-secondary-main,
+.detail-secondary-tail {
+  grid-column: 1;
+}
+
+.detail-secondary-sidebar {
+  grid-column: 2;
+  grid-row: 1 / span 2;
 }
 
 .detail-main {
@@ -2068,7 +2096,8 @@ select {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 0.6rem 1.25rem;
+  padding: 0 1.25rem;
+  height: 46px;
   min-height: 46px;
   line-height: 1;
   box-sizing: border-box;
@@ -2076,8 +2105,16 @@ select {
   font-size: 0.88rem;
   font-weight: 600;
   text-decoration: none;
+  white-space: nowrap;
   transition: var(--transition);
   border: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.profile-action-btn svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
 
 .profile-action-btn.whatsapp {
@@ -3127,9 +3164,20 @@ select {
 }
 
 /* ===== RESPONSIVE ===== */
-@media (max-width: 1100px) {
+@media (max-width: 960px) {
   .detail-container {
     grid-template-columns: 1fr;
+  }
+
+  .detail-secondary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-secondary-main,
+  .detail-secondary-tail,
+  .detail-secondary-sidebar {
+    grid-column: auto;
+    grid-row: auto;
   }
 
   .detail-sidebar {
@@ -3461,6 +3509,11 @@ select {
 .detail-gallery {
   display: flex !important;
   flex-direction: column;
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0.75rem;
+  min-height: 100%;
 }
 
 .main-image {

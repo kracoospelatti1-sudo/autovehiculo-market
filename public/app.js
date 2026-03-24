@@ -1509,7 +1509,7 @@ async function viewVehicle(id) {
           ${images.map((img, i) => `<img src="${escapeHtml(img.url || '')}" style="flex: 0 0 92%; scroll-snap-align: center; height: 350px; object-fit: cover; border-radius: var(--radius-lg); cursor:pointer;" loading="${i === 0 ? 'eager' : 'lazy'}" onclick="openLightbox(window._detailImages, ${i})">`).join('')}
           ${vehicle.status === 'sold' ? '<div class="detail-sold-overlay" style="border-radius:var(--radius-lg);"><span>VENDIDO</span></div>' : ''}
         </div>
-        <div class="detail-info" id="vehicleDetail">
+        <div class="detail-info detail-info-primary" id="vehicleDetail">
           ${vehicle.status === 'paused' ? '<div class="sold-banner" style="border-color:rgba(245,158,11,0.3);color:var(--primary);background:rgba(245,158,11,0.08);">PAUSADO</div>' : ''}
           <h1>${escapeHtml(vehicle.title)}</h1>
           <p class="detail-subtitle">${escapeHtml(vehicle.brand)} ${escapeHtml(vehicle.model)}</p>
@@ -1539,18 +1539,13 @@ async function viewVehicle(id) {
             <div class="spec-card"><div class="label">Ciudad</div><div class="value">${vehicle.city || 'No especificada'}</div></div>
             ${vehicle.province ? `<div class="spec-card"><div class="label">Provincia</div><div class="value">${escapeHtml(vehicle.province.replace(/\s*\(.*?\)/g,'').trim())}</div></div>` : ''}
           </div>
+        </div>
+        <div class="detail-secondary-grid">
+          <div class="detail-secondary-main">
           ${vehicle.description ? `<div class="detail-description"><h4>Descripción</h4><p>${escapeHtml(vehicle.description)}</p></div>` : ''}
-          ${vehicle.city ? `
-            <div class="detail-map-section">
-              <h4 style="margin-bottom:0.75rem;font-size:0.9rem;color:var(--text-2);display:flex;align-items:center;gap:0.4rem;">
-                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-                  Ubicación: ${escapeHtml(ownerLocationAddress || vehicle.city)}
-                </h4>
-                <div id="vehicleMap" class="vehicle-map"></div>
-              </div>
-            ` : ''}
-
-            <div class="seller-card">
+          </div>
+          <div class="detail-secondary-sidebar">
+          <div class="seller-card">
             <div class="seller-avatar">${vehicle.seller_profile?.avatar_url ? `<img src="${escapeHtml(vehicle.seller_profile.avatar_url || '')}" alt="" loading="lazy">` : (vehicle.seller_name?.charAt(0)?.toUpperCase() || '?')}</div>
             <div class="seller-info">
               <h4 onclick="viewProfile(${vehicle.seller_id})">${vehicle.seller_verified && vehicle.seller_profile?.dealership_name ? escapeHtml(vehicle.seller_profile.dealership_name) : (vehicle.seller_profile?.first_name && vehicle.seller_profile?.last_name ? escapeHtml(`${vehicle.seller_profile.first_name} ${vehicle.seller_profile.last_name}`) : escapeHtml(vehicle.seller_name))}</h4>
@@ -1573,7 +1568,7 @@ async function viewVehicle(id) {
                 ${vehicle.seller_profile?.instagram ? `
                   <a href="${escapeHtml(instagramUrl(vehicle.seller_profile.instagram))}" target="_blank" rel="noopener" class="seller-contact-link instagram">
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
-                    ${escapeHtml(instagramLabel(vehicle.seller_profile.instagram))}
+                    Ver su instagram
                   </a>
                 ` : ''}
                 ${(vehicle.seller_profile?.phone && vehicle.seller_profile?.show_phone !== false) && vehicle.status !== 'sold' ? `
@@ -1586,7 +1581,20 @@ async function viewVehicle(id) {
             ` : ''}
           </div>
           
-          ${vehicle.accepts_trade && isLoggedIn && !isOwner && vehicle.status === 'active' ? `
+          
+          ${vehicle.city ? `
+            <div class="detail-map-section">
+              <h4 style="margin-bottom:0.75rem;font-size:0.9rem;color:var(--text-2);display:flex;align-items:center;gap:0.4rem;">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                  Ubicación: ${escapeHtml(ownerLocationAddress || vehicle.city)}
+                </h4>
+                <div id="vehicleMap" class="vehicle-map"></div>
+              </div>
+            ` : ''}
+          </div>
+          <div class="detail-secondary-tail">
+
+${vehicle.accepts_trade && isLoggedIn && !isOwner && vehicle.status === 'active' ? `
             <div style="margin-top:1.5rem;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:var(--radius-md);padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
               <div>
                 <div style="font-weight:600;font-size:0.95rem;">🔄 Este vendedor acepta permutas</div>
@@ -4459,3 +4467,4 @@ async function loadSimilarVehicles(vehicleId) {
     document.getElementById('similarVehiclesSection')?.remove();
   }
 }
+

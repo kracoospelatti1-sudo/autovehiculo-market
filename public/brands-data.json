@@ -126,6 +126,8 @@
       "Tiggo 8"
     ],
     "Chevrolet": [
+      "Agile",
+      "Astra",
       "Aveo",
       "Blazer",
       "Camaro",
@@ -134,12 +136,14 @@
       "Classic",
       "Cobalt",
       "Colorado",
+      "Corsa",
       "Corvette",
       "Cruze",
       "Equinox",
       "Express",
       "HHR",
       "Joy",
+      "Meriva",
       "Malibu",
       "Montana",
       "Onix",
@@ -157,7 +161,9 @@
       "Tornado",
       "Tracker",
       "Trail Blazer",
-      "Traverse"
+      "Traverse",
+      "Vectra",
+      "Zafira"
     ],
     "Chrysler": [
       "200",
@@ -172,6 +178,7 @@
       "Voyager"
     ],
     "Citroen": [
+      "Aircross",
       "Berlingo",
       "C3",
       "C3 Aircross",
@@ -179,6 +186,7 @@
       "C4 Cactus",
       "C4 Lounge",
       "C4 Picasso",
+      "C-Elysee",
       "C5",
       "C5 Aircross",
       "C6",
@@ -243,6 +251,7 @@
     "Fiat": [
       "500",
       "500X",
+      "600",
       "Argo",
       "Bravo",
       "Cronos",
@@ -255,6 +264,7 @@
       "Linea",
       "Marea",
       "Mobi",
+      "Pulse Abarth",
       "Palio",
       "Palio Weekend",
       "Panda",
@@ -268,6 +278,7 @@
       "Uno"
     ],
     "Ford": [
+      "Courier",
       "Bronco",
       "EcoSport",
       "Edge",
@@ -291,7 +302,8 @@
       "Ranger",
       "S-MAX",
       "Territory",
-      "Thunderbird"
+      "Thunderbird",
+      "Transit"
     ],
     "GAC": [
       "Empow",
@@ -320,6 +332,7 @@
     ],
     "Honda": [
       "Accord",
+      "BR-V",
       "City",
       "Civic",
       "CR-V",
@@ -389,7 +402,8 @@
       "XJ",
       "XK"
     ],
-    "Jeep": [
+      "Jeep": [
+      "Avenger",
       "Cherokee",
       "Commander",
       "Compass",
@@ -572,10 +586,12 @@
       "Juke",
       "Kicks",
       "Leaf",
+      "March",
       "Maxima",
       "Micra",
       "Murano",
       "Navara",
+      "NP300",
       "Note",
       "Pathfinder",
       "Qashqai",
@@ -590,23 +606,40 @@
       "106",
       "107",
       "108",
+      "2008",
+      "205",
       "206",
       "207",
       "208",
+      "209",
+      "214",
+      "215",
       "301",
+      "306",
       "307",
       "308",
       "3008",
+      "404",
+      "405",
+      "406",
       "4007",
       "4008",
       "408",
+      "504",
+      "505",
+      "508 RXH",
       "5008",
       "508",
       "607",
+      "807",
       "Bipper",
       "Boxer",
       "Expert",
+      "Hoggar",
+      "Landtrek",
+      "Partner Patagonica",
       "Partner",
+      "Rifter",
       "RCZ"
     ],
     "Porsche": [
@@ -625,10 +658,13 @@
       "Rampage"
     ],
     "Renault": [
+      "Alaskan",
       "Captur",
       "Clio",
+      "Express",
       "Duster",
       "Fluence",
+      "Kardian",
       "Kangoo",
       "Koleos",
       "Kwid",
@@ -643,6 +679,7 @@
       "Stepway",
       "Symbol",
       "Trafic",
+      "Twingo",
       "Zoe"
     ],
     "SEAT": [
@@ -701,12 +738,14 @@
       "Camry",
       "Corolla",
       "Corolla Cross",
+      "Etios",
       "FJ Cruiser",
       "Fortuner",
       "GR86",
       "Hiace",
       "Highlander",
       "Hilux",
+      "Innova",
       "Land Cruiser",
       "Land Cruiser Prado",
       "Prius",
@@ -720,7 +759,7 @@
       "Vios",
       "Yaris"
     ],
-    "Volkswagen": [
+      "Volkswagen": [
       "Amarok",
       "Bora",
       "Caddy",
@@ -733,10 +772,12 @@
       "Golf GTI",
       "Golf R",
       "Jetta",
+      "Nivus",
       "Passat",
       "Polo",
       "Polo Track",
       "Saveiro",
+      "Sharan",
       "Suran",
       "T-Cross",
       "T-Roc",
@@ -745,6 +786,7 @@
       "Touareg",
       "Touran",
       "Transporter",
+      "up!",
       "Vento",
       "Virtus",
       "Vivo"
