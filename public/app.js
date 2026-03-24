@@ -4422,7 +4422,16 @@ async function loadHomeRecent() {
     const data = await request('/vehicles?limit=6&sort=newest');
     const vehicles = data.vehicles || data;
     if (!vehicles?.length) {
-      container.innerHTML = '<div class="empty-state"><p>No hay vehículos publicados aún</p></div>';
+      container.innerHTML = `
+        <div class="home-recent-empty">
+          <h4>Por ahora no hay destacados recientes</h4>
+          <p>Explora el catalogo completo o publica tu vehiculo para empezar a recibir consultas.</p>
+          <div class="home-recent-empty-actions">
+            <button class="btn btn-secondary" onclick="showSection('vehicles')">Ver vehiculos</button>
+            <button class="btn btn-ghost" onclick="tryPublish()">Publicar gratis</button>
+          </div>
+        </div>
+      `;
       return;
     }
     container.innerHTML = vehicles.slice(0, 6).map(v => `

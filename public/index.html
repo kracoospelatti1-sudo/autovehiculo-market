@@ -37,7 +37,7 @@
   <!-- Fuentes: no-render-blocking -->
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" onload="this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"></noscript>
-  <link rel="stylesheet" href="styles.min.css?v=24" fetchpriority="high">
+  <link rel="stylesheet" href="styles.min.css?v=25" fetchpriority="high">
   <!-- Leaflet CSS: non-blocking (solo se necesita cuando se abre el mapa) -->
   <link rel="preload" as="style" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" onload="this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"></noscript>
@@ -127,75 +127,88 @@
 
     <!-- HOME -->
     <section id="home" class="section">
-
-      <!-- HERO -->
-      <div class="hero fade-in">
-        <div class="hero-tag">🚗 Marketplace de Vehículos #1 en Argentina</div>
-        <h1>Encontrá tu próximo<br><em>vehículo ideal</em></h1>
-        <p>Comprá, vendé y conectá con miles de compradores reales. Seguro, rápido y sin complicaciones.</p>
-        <div class="hero-actions">
-          <button class="btn btn-primary btn-lg" onclick="showSection('vehicles')">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
-            </svg>
-            Explorar Vehículos
-          </button>
-          <button class="btn btn-ghost btn-lg" onclick="tryPublish()">Publicar gratis →</button>
+      <div class="home-shell">
+        <div class="home-hero fade-in">
+          <div class="home-hero-badge">Marketplace de vehiculos con compradores reales</div>
+          <h1>Tu proximo vehiculo esta mas cerca de lo que pensas</h1>
+          <p>Publicaciones verificadas, contacto directo y un flujo simple para consultar, negociar y cerrar una operacion en menos tiempo.</p>
+          <div class="home-hero-actions">
+            <button class="btn btn-primary btn-lg" onclick="showSection('vehicles')">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 5L20.5 19zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14"/>
+              </svg>
+              Ver vehiculos
+            </button>
+            <button class="btn btn-ghost btn-lg" onclick="tryPublish()">Publicar gratis</button>
+          </div>
         </div>
       </div>
 
-      <!-- STATS BAR -->
-      <div class="home-stats-bar">
-        <div class="home-stat">
-          <div class="home-stat-value" id="statVehicles"><span class="skeleton" style="display:inline-block;width:3rem;height:1.5rem;border-radius:4px;vertical-align:middle;"></span></div>
-          <div class="home-stat-label">Vehículos activos</div>
-        </div>
-        <div class="home-stat-sep"></div>
-        <div class="home-stat">
-          <div class="home-stat-value" id="statUsers"><span class="skeleton" style="display:inline-block;width:3rem;height:1.5rem;border-radius:4px;vertical-align:middle;"></span></div>
-          <div class="home-stat-label">Usuarios registrados</div>
-        </div>
-        <div class="home-stat-sep"></div>
-        <div class="home-stat">
-          <div class="home-stat-value" style="color:var(--success);">Gratis</div>
-          <div class="home-stat-label">Sin comisión</div>
+      <div class="home-shell">
+        <div class="home-stats-bar">
+          <div class="home-stat">
+            <div class="home-stat-value" id="statVehicles"><span class="skeleton" style="display:inline-block;width:3rem;height:1.5rem;border-radius:4px;vertical-align:middle;"></span></div>
+            <div class="home-stat-label">Vehiculos activos</div>
+          </div>
+          <div class="home-stat-sep"></div>
+          <div class="home-stat">
+            <div class="home-stat-value" id="statUsers"><span class="skeleton" style="display:inline-block;width:3rem;height:1.5rem;border-radius:4px;vertical-align:middle;"></span></div>
+            <div class="home-stat-label">Usuarios registrados</div>
+          </div>
+          <div class="home-stat-sep"></div>
+          <div class="home-stat">
+            <div class="home-stat-value" style="color:var(--success);">Gratis</div>
+            <div class="home-stat-label">Sin comision</div>
+          </div>
         </div>
       </div>
 
-      <!-- ÚLTIMOS PUBLICADOS -->
-      <div class="home-wrap">
+      <div class="home-shell home-recent-wrap">
         <div class="home-section-header">
           <div>
-            <h2>Últimos publicados</h2>
-            <p>Los vehículos más recientes en el mercado</p>
+            <h2>Destacados recientes</h2>
+            <p>Explora las publicaciones mas nuevas y habla directo con el vendedor.</p>
           </div>
-          <button class="btn btn-ghost" onclick="showSection('vehicles')">Ver todos →</button>
+          <button class="btn btn-ghost" onclick="showSection('vehicles')">Ver todos</button>
         </div>
-        <div id="homeRecentVehicles" class="vehicles-grid"></div>
+        <div id="homeRecentVehicles" class="vehicles-grid home-recent-grid"></div>
       </div>
 
-      <!-- CÓMO FUNCIONA -->
-      <div class="home-wrap">
+      <div class="home-shell home-benefits-wrap">
+        <div class="home-section-header">
+          <div>
+            <h2>Por que elegir AutoVenta</h2>
+            <p>Una experiencia pensada para concretar mas consultas y mejores operaciones.</p>
+          </div>
+        </div>
         <div class="home-features">
           <div class="home-feature-card" onclick="showSection('vehicles')">
-            <div class="home-feature-icon">🔍</div>
-            <strong>Buscá</strong>
-            <span>Miles de vehículos con filtros avanzados por marca, precio, año y más</span>
+            <div class="home-feature-icon">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><line x1="16.65" y1="16.65" x2="21" y2="21"></line></svg>
+            </div>
+            <strong>Busqueda precisa</strong>
+            <span>Filtra por marca, version, rango de precio y ubicacion para encontrar opciones reales mas rapido.</span>
           </div>
           <div class="home-feature-card" onclick="showSection('messages')">
-            <div class="home-feature-icon">💬</div>
-            <strong>Consultá</strong>
-            <span>Chat directo con el vendedor, sin intermediarios ni comisiones</span>
+            <div class="home-feature-icon">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            </div>
+            <strong>Contacto directo</strong>
+            <span>Consulta por chat o WhatsApp sin intermediarios para resolver dudas y avanzar en minutos.</span>
           </div>
           <div class="home-feature-card">
-            <div class="home-feature-icon">🤝</div>
-            <strong>Negociá</strong>
-            <span>Cerrá el trato de forma segura con historial de conversación</span>
+            <div class="home-feature-icon">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"></path></svg>
+            </div>
+            <strong>Confianza y claridad</strong>
+            <span>Informacion relevante, perfiles activos y publicaciones cuidadas para negociar con mas seguridad.</span>
           </div>
           <div class="home-feature-card" onclick="tryPublish()">
-            <div class="home-feature-icon">⚡</div>
-            <strong>Publicá gratis</strong>
-            <span>Tu anuncio online en segundos, con fotos y descripción completa</span>
+            <div class="home-feature-icon">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            </div>
+            <strong>Publicacion express</strong>
+            <span>Sube fotos, datos y precio en pocos pasos para recibir consultas desde el primer dia.</span>
           </div>
         </div>
       </div>
