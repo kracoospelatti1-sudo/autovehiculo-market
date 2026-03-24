@@ -102,6 +102,12 @@ const upload = multer({
 });
 // SEO: Prerender dinámico para bots
 const BOT_UA = /googlebot|bingbot|slurp|duckduckbot|baiduspider|yandexbot|sogou|facebookexternalhit|twitterbot|linkedinbot|whatsapp/i;
+const escapeHtml = (value = '') => String(value)
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#39;');
 
 app.get('/', async (req, res, next) => {
   const vehicleId = parseInt(req.query.vehicle);
@@ -125,23 +131,27 @@ app.get('/', async (req, res, next) => {
     const title = `${vehicle.title} — $${Number(vehicle.price).toLocaleString('es-AR')} | Autoventa`;
     const desc = `${vehicle.brand} ${vehicle.model} ${vehicle.year}, ${Number(vehicle.mileage).toLocaleString('es-AR')}km, ${vehicle.fuel}. En ${vehicle.city}${vehicle.province ? ', ' + vehicle.province : ''}.`;
     const url = `https://autoventa.online/?vehicle=${vehicle.id}`;
+    const titleEsc = escapeHtml(title);
+    const descEsc = escapeHtml(desc);
+    const imageUrlEsc = escapeHtml(imageUrl);
+    const urlEsc = escapeHtml(url);
     const fs = require('fs');
     const path = require('path');
     let html = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
     html = html
-      .replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`)
-      .replace(/(<meta name="description" content=")[^"]*(")/,  `$1${desc.replace(/"/g, '&quot;')}$2`)
-      .replace(/(<meta property="og:title" content=")[^"]*(")/,     `$1${title.replace(/"/g, '&quot;')}$2`)
-      .replace(/(<meta property="og:description" content=")[^"]*(")/,`$1${desc.replace(/"/g, '&quot;')}$2`)
-      .replace(/(<meta property="og:image" content=")[^"]*(")/,     `$1${imageUrl}$2`)
+      .replace(/<title>[^<]*<\/title>/, `<title>${titleEsc}</title>`)
+      .replace(/(<meta name="description" content=")[^"]*(")/,  `$1${descEsc}$2`)
+      .replace(/(<meta property="og:title" content=")[^"]*(")/,     `$1${titleEsc}$2`)
+      .replace(/(<meta property="og:description" content=")[^"]*(")/,`$1${descEsc}$2`)
+      .replace(/(<meta property="og:image" content=")[^"]*(")/,     `$1${imageUrlEsc}$2`)
       .replace(/(<meta property="og:image:width" content=")[^"]*(")/,  `$11920$2`)
       .replace(/(<meta property="og:image:height" content=")[^"]*(")/,  `$11080$2`)
       .replace(/(<meta property="og:image:type" content=")[^"]*(")/,  `$1image/jpeg$2`)
-      .replace(/(<meta property="og:url" content=")[^"]*(")/,       `$1${url}$2`)
-      .replace(/(<meta name="twitter:title" content=")[^"]*(")/,    `$1${title.replace(/"/g, '&quot;')}$2`)
-      .replace(/(<meta name="twitter:description" content=")[^"]*(")/,`$1${desc.replace(/"/g, '&quot;')}$2`)
-      .replace(/(<meta name="twitter:image" content=")[^"]*(")/,    `$1${imageUrl}$2`)
-      .replace(/(<link rel="canonical" href=")[^"]*(")/,            `$1${url}$2`);
+      .replace(/(<meta property="og:url" content=")[^"]*(")/,       `$1${urlEsc}$2`)
+      .replace(/(<meta name="twitter:title" content=")[^"]*(")/,    `$1${titleEsc}$2`)
+      .replace(/(<meta name="twitter:description" content=")[^"]*(")/,`$1${descEsc}$2`)
+      .replace(/(<meta name="twitter:image" content=")[^"]*(")/,    `$1${imageUrlEsc}$2`)
+      .replace(/(<link rel="canonical" href=")[^"]*(")/,            `$1${urlEsc}$2`);
     res.send(html);
   } catch (err) {
     console.error('[SEO prerender]', err);
