@@ -451,6 +451,8 @@ document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   setupProvinceCity('publishProvince', 'publishCity');
   setupProvinceCity('editProvince', 'editCity');
+  const publishForm = document.querySelector('#publish form');
+  if (publishForm) publishForm.noValidate = true;
 
   // Manejar links de verificación y reseteo desde emails
   handleEmailLinks();
