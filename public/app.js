@@ -656,37 +656,81 @@ function showSection(sectionId) {
     });
   }
   else if (sectionId === 'publish') {
-    uploadedImages = [];
-    renderImagePreviews();
-    // Mostrar campo de teléfono de contacto solo para admins
-    const phoneGroup = document.getElementById('publishContactPhoneGroup');
-    if (phoneGroup) phoneGroup.style.display = currentUser?.profile?.is_admin ? 'block' : 'none';
-    const pubCurrencyEl = document.getElementById('publishCurrency');
-    if (pubCurrencyEl) { pubCurrencyEl.value = 'ARS'; pubCurrencyEl.dataset.prev = 'ARS'; }
-    const pubHintEl = document.getElementById('publishPriceHint');
-    if (pubHintEl) pubHintEl.textContent = '';
-    // Auto-fill location from user profile
-    if (currentUser?.profile?.city) {
-      const match = AR_CITIES.find(c => c.city === currentUser.profile.city);
-      if (match) {
-        setTimeout(() => {
-          const provEl = document.getElementById('publishProvince');
-          if (provEl && !provEl.value) {
-            provEl.value = match.prov;
-            provEl.dispatchEvent(new Event('change'));
-            setTimeout(() => {
-              const cityEl = document.getElementById('publishCity');
-              if (cityEl) cityEl.value = match.city;
-            }, 50);
-          }
-        }, 50);
-      }
-    }
+    resetPublishForm();
   }
   if (sectionId !== 'messages') stopPolling();
   if (sectionId !== 'messages') currentConversationId = null;
   if (sectionId !== 'vehicle-detail') currentVehicleId = null;
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function autofillPublishLocationFromProfile() {
+  if (!currentUser?.profile?.city) return;
+  const match = AR_CITIES.find(c => c.city === currentUser.profile.city);
+  if (!match) return;
+  setTimeout(() => {
+    const provEl = document.getElementById('publishProvince');
+    if (provEl && !provEl.value) {
+      provEl.value = match.prov;
+      provEl.dispatchEvent(new Event('change'));
+      setTimeout(() => {
+        const cityEl = document.getElementById('publishCity');
+        if (cityEl) cityEl.value = match.city;
+      }, 50);
+    }
+  }, 50);
+}
+
+function resetPublishForm() {
+  const form = document.querySelector('#publish form');
+  if (form) form.reset();
+
+  uploadedImages = [];
+  renderImagePreviews();
+
+  const imageInput = document.getElementById('imageInput');
+  if (imageInput) imageInput.value = '';
+
+  const titleInput = document.getElementById('publishTitle');
+  if (titleInput) titleInput.value = '';
+  const titlePreview = document.getElementById('publishTitlePreview');
+  if (titlePreview) {
+    titlePreview.textContent = 'Completá marca, modelo y año para ver el título';
+    titlePreview.style.color = 'var(--text-3)';
+  }
+
+  const cityEl = document.getElementById('publishCity');
+  if (cityEl) {
+    cityEl.innerHTML = '<option value="">Primero seleccioná una provincia</option>';
+    cityEl.disabled = true;
+  }
+
+  const typeEl = document.getElementById('publishVehicleType');
+  if (typeEl) typeEl.value = 'auto';
+  toggleEngineCCField('publish');
+  updateVehicleTypeOptions('publish');
+  initBrandFilters();
+
+  const pubCurrencyEl = document.getElementById('publishCurrency');
+  if (pubCurrencyEl) {
+    pubCurrencyEl.value = 'ARS';
+    pubCurrencyEl.dataset.prev = 'ARS';
+  }
+
+  const pubHintEl = document.getElementById('publishPriceHint');
+  if (pubHintEl) pubHintEl.textContent = '';
+
+  const btn = document.getElementById('publishBtn');
+  if (btn) {
+    btn.disabled = false;
+    btn.textContent = 'Publicar Vehículo';
+  }
+
+  // Mostrar campo de teléfono de contacto solo para admins
+  const phoneGroup = document.getElementById('publishContactPhoneGroup');
+  if (phoneGroup) phoneGroup.style.display = currentUser?.profile?.is_admin ? 'block' : 'none';
+
+  autofillPublishLocationFromProfile();
 }
 
 
@@ -1617,16 +1661,7 @@ async function handlePublish(e) {
     };
     await request('/vehicles', { method: 'POST', body: JSON.stringify(data) });
     showToast('¡Vehículo publicado!', 'success');
-    uploadedImages = [];
-    renderImagePreviews();
-    e.target.reset();
-    document.getElementById('publishProvince').value = '';
-    document.getElementById('publishCity').innerHTML = '<option value="">Primero seleccioná una provincia</option>';
-    document.getElementById('publishCity').disabled = true;
-    const pubCur = document.getElementById('publishCurrency');
-    if (pubCur) pubCur.dataset.prev = 'USD';
-    const pubHint = document.getElementById('publishPriceHint');
-    if (pubHint) pubHint.textContent = '';
+    resetPublishForm();
     showSection('my-vehicles');
   } catch (err) { showToast(err.message, 'error'); }
   finally {
