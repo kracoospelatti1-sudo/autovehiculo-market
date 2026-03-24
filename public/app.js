@@ -1010,7 +1010,7 @@ function logout() {
 }
 
 // VEHICLES
-async function loadVehicles(page = 1) {
+async function loadVehicles(page = 1, scrollToResults = false) {
   if (vehicleSearchAbortController) {
     vehicleSearchAbortController.abort();
   }
@@ -1073,11 +1073,7 @@ async function loadVehicles(page = 1) {
               return '';
             })()}
           </div>
-          <div class="vehicle-meta">
-            ${v.mileage === 0 ? '<span class="badge-nuevo">NUEVO</span>' : `<span><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>${formatNumber(v.mileage)} km</span>`}
-            <span>${escapeHtml(v.fuel || 'N/A')}</span>
-            ${v.vehicle_type === 'moto' && v.engine_cc ? `<span>${v.engine_cc} cc</span>` : v.transmission ? `<span>${escapeHtml(v.transmission)}</span>` : ''}
-          </div>
+          ${buildVehicleMetaHtml(v)}
           <div class="vehicle-card-footer">
             <div class="vehicle-seller">
               <div class="avatar-tiny">${(v.seller_verified ? v.seller_dealership : (v.seller_first_name || v.seller_name))?.charAt(0)?.toUpperCase()}</div>
@@ -1097,6 +1093,12 @@ async function loadVehicles(page = 1) {
     `).join('');
     applyCardCascade(container);
     renderPagination(total, page);
+    if (scrollToResults) {
+      const nav = document.querySelector('.navbar');
+      const navHeight = nav ? nav.getBoundingClientRect().height : 0;
+      const y = container.getBoundingClientRect().top + window.scrollY - navHeight - 10;
+      window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+    }
   } catch (err) {
     if (err.name === 'AbortError') return;
     showToast(err.message, 'error');
@@ -1118,7 +1120,7 @@ function renderPagination(total, current) {
     if (p - prevPage > 1) {
       html += `<button class="" disabled style="cursor:default;opacity:0.5;">…</button>`;
     }
-    html += `<button class="${p === current ? 'active' : ''}" onclick="loadVehicles(${p})">${p}</button>`;
+    html += `<button class="${p === current ? 'active' : ''}" onclick="loadVehicles(${p}, true)">${p}</button>`;
     prevPage = p;
   }
   container.innerHTML = html;
@@ -1190,6 +1192,45 @@ function formatPesos(usdPrice, vehicle) {
   if (!dolarRate?.venta || !usdPrice) return null;
   const ars = Math.round(Number(usdPrice) * dolarRate.venta);
   return '$' + ars.toLocaleString('es-AR');
+}
+
+function isCompactVehicleCardsMobile() {
+  return typeof window !== 'undefined'
+    && !!window.matchMedia
+    && window.matchMedia('(max-width: 768px)').matches;
+}
+
+function buildVehicleMetaHtml(v) {
+  const chips = [];
+  const mileageChip = v.mileage === 0
+    ? '<span class="badge-nuevo">NUEVO</span>'
+    : `<span><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>${formatNumber(v.mileage)} km</span>`;
+  chips.push(mileageChip);
+
+  let usedTransmission = false;
+  let usedCc = false;
+  const rawFuel = String(v.fuel || '').trim();
+  const hasFuel = rawFuel && rawFuel.toLowerCase() !== 'n/a' && rawFuel.toLowerCase() !== 'na';
+
+  if (hasFuel) {
+    chips.push(`<span>${escapeHtml(rawFuel)}</span>`);
+  } else if (v.transmission) {
+    chips.push(`<span>${escapeHtml(v.transmission)}</span>`);
+    usedTransmission = true;
+  } else if (v.vehicle_type === 'moto' && v.engine_cc) {
+    chips.push(`<span>${v.engine_cc} cc</span>`);
+    usedCc = true;
+  }
+
+  if (!isCompactVehicleCardsMobile()) {
+    if (v.vehicle_type === 'moto' && v.engine_cc && !usedCc) {
+      chips.push(`<span>${v.engine_cc} cc</span>`);
+    } else if (v.transmission && !usedTransmission) {
+      chips.push(`<span>${escapeHtml(v.transmission)}</span>`);
+    }
+  }
+
+  return `<div class="vehicle-meta">${chips.join('')}</div>`;
 }
 
 function updateDolarWidget() {
@@ -3111,11 +3152,7 @@ async function viewProfile(id) {
             <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
             ${formatPesos(v.price, v) ? `<p class="vehicle-price-ars">${formatPesos(v.price, v)}</p>` : ''}
           </div>
-          <div class="vehicle-meta">
-            ${v.mileage === 0 ? '<span class="badge-nuevo">NUEVO</span>' : `<span><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>${formatNumber(v.mileage)} km</span>`}
-            <span>${escapeHtml(v.fuel || 'N/A')}</span>
-            ${v.transmission ? `<span>${escapeHtml(v.transmission)}</span>` : ''}
-          </div>
+          ${buildVehicleMetaHtml(v)}
           ${isViewerAdmin && !isOwn ? `<button class="btn btn-sm btn-danger" style="margin-top:0.5rem;width:100%;" data-vid="${v.id}" data-title="${escapeHtml(v.title)}" onclick="event.stopPropagation(); adminDeleteVehicle(+this.dataset.vid, this.dataset.title)">🗑 Eliminar</button>` : ''}
         </div>
       </div>
@@ -4451,11 +4488,7 @@ async function loadHomeRecent() {
             <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
             ${formatPesos(v.price, v) ? `<p class="vehicle-price-ars">${formatPesos(v.price, v)}</p>` : ''}
           </div>
-          <div class="vehicle-meta">
-            ${v.mileage === 0 ? '<span class="badge-nuevo">NUEVO</span>' : `<span>${formatNumber(v.mileage)} km</span>`}
-            <span>${escapeHtml(v.fuel || 'N/A')}</span>
-            ${v.transmission ? `<span>${escapeHtml(v.transmission)}</span>` : ''}
-          </div>
+          ${buildVehicleMetaHtml(v)}
           <div class="vehicle-card-footer">
             <div class="vehicle-seller">
               <div class="avatar-tiny">${v.seller_name?.charAt(0)?.toUpperCase()}</div>

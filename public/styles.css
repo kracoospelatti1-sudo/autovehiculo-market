@@ -5474,3 +5474,116 @@ select {
   color: var(--text-2);
   font-style: italic;
 }
+
+/* ===== MOBILE CARD POLISH (HORIZONTAL CLEAN) ===== */
+@media (max-width: 768px) {
+  .vehicles-grid {
+    gap: 0.65rem;
+  }
+
+  .vehicles-grid .vehicle-card {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    height: 214px;
+    min-height: 214px;
+    border-radius: 18px;
+    overflow: hidden;
+  }
+
+  .vehicles-grid .vehicle-image-container {
+    width: 44% !important;
+    min-width: 136px;
+    max-width: 158px;
+    min-height: 0;
+    height: 100%;
+    align-self: stretch;
+  }
+
+  .vehicles-grid .vehicle-info {
+    padding: 0.72rem 0.78rem 0.66rem;
+    justify-content: flex-start;
+    gap: 0.24rem;
+  }
+
+  .vehicles-grid .vehicle-title {
+    font-size: 0.98rem;
+    font-weight: 700;
+    line-height: 1.2;
+    min-height: 2.35em;
+    margin-bottom: 0.08rem;
+  }
+
+  .vehicles-grid .vehicle-location {
+    font-size: 0.74rem;
+    color: var(--text-3);
+    margin-bottom: 0.3rem;
+  }
+
+  .vehicles-grid .vehicle-price-block {
+    margin-bottom: 0.34rem;
+  }
+
+  .vehicles-grid .vehicle-price {
+    font-size: 1.65rem;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.14rem;
+  }
+
+  .vehicles-grid .vehicle-price-ars {
+    font-size: 0.86rem;
+    opacity: 0.9;
+  }
+
+  .vehicles-grid .vehicle-meta {
+    gap: 0.28rem;
+    margin-bottom: 0.42rem;
+  }
+
+  .vehicles-grid .vehicle-meta span {
+    font-size: 0.69rem;
+    padding: 0.16rem 0.44rem;
+  }
+
+  .vehicles-grid .vehicle-card-footer {
+    margin-top: auto;
+    padding-top: 0.38rem;
+    min-height: 26px;
+  }
+
+  .vehicles-grid .vehicle-trade-badge {
+    font-size: 0.6rem;
+    padding: 0.19rem 0.42rem;
+  }
+
+  .vehicles-grid .favorite-btn {
+    width: 32px;
+    height: 32px;
+  }
+
+  .vehicles-grid .vehicle-seller .verified-badge {
+    display: none;
+  }
+}
+
+@media (max-width: 420px) {
+  .vehicles-grid .vehicle-card {
+    height: 206px;
+    min-height: 206px;
+  }
+
+  .vehicles-grid .vehicle-image-container {
+    width: 42% !important;
+    min-width: 132px;
+    max-width: 148px;
+  }
+
+  .vehicles-grid .vehicle-title {
+    font-size: 0.92rem;
+  }
+
+  .vehicles-grid .vehicle-price {
+    font-size: 1.52rem;
+  }
+}

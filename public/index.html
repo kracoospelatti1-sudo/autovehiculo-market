@@ -37,7 +37,7 @@
   <!-- Fuentes: no-render-blocking -->
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" onload="this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"></noscript>
-  <link rel="stylesheet" href="styles.min.css?v=25" fetchpriority="high">
+  <link rel="stylesheet" href="styles.min.css?v=26" fetchpriority="high">
   <!-- Leaflet CSS: non-blocking (solo se necesita cuando se abre el mapa) -->
   <link rel="preload" as="style" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" onload="this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"></noscript>
@@ -1159,7 +1159,7 @@
   <footer class="site-footer">
     <span>© 2026 Autoventa</span>
     <a href="/?section=terms" onclick="showSection('terms');return false;" style="cursor:pointer;">Términos y Condiciones</a>
-    <span style="color:var(--text-3);font-size:0.75rem;">v1.0.0</span>
+    <span style="color:var(--text-3);font-size:0.75rem;">v1.0.1</span>
   </footer>
 
   <!-- Edit Profile Modal -->
@@ -1173,7 +1173,7 @@
     </div>
   </div>
 
-  <script src="app.js?v=29" defer></script>
+  <script src="app.js?v=30" defer></script>
   <script>
     // Lucide es defer — ejecutar cuando el DOM esté listo (los defer corren antes de DOMContentLoaded)
     document.addEventListener('DOMContentLoaded', () => {
