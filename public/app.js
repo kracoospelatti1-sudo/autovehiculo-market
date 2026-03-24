@@ -1962,9 +1962,14 @@ function deleteVehicle(id, e) {
 }
 
 async function openEditModal(id, e) {
-  e.stopPropagation();
+  if (e?.stopPropagation) e.stopPropagation();
   try {
     const v = await request(`/vehicles/${id}`);
+    const canEdit = !!currentUser && (String(currentUser.id) === String(v.user_id) || !!currentUser.profile?.is_admin);
+    if (!canEdit) {
+      showToast('No tenés permisos para editar esta publicación', 'error');
+      return;
+    }
     editUploadedImages = (v.vehicle_images?.length ? v.vehicle_images : (v.image_url ? [{ url: v.image_url }] : []))
       .map(img => ({ url: img.url, preview: img.url }));
     document.getElementById('editVehicleId').value = v.id;
