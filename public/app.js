@@ -20,6 +20,7 @@ let vehicleSearchAbortController = null;
 let dolarRate = null;
 let dolarRateInterval = null;
 let userFavoriteIds = new Set();
+let filtersDirty = false;
 
 function loadLeaflet() {
   return new Promise((resolve) => {
@@ -338,19 +339,46 @@ function setupProvinceCity(provinceId, cityId) {
 }
 
 // CURRENCY HELPERS
+function getPriceBaseUSD(prefix) {
+  const currencyEl = document.getElementById(`${prefix}Currency`);
+  const priceEl = document.getElementById(`${prefix}Price`);
+  if (!currencyEl || !priceEl) return null;
+
+  const stored = parseFloat(priceEl.dataset.usdBase || '');
+  if (!isNaN(stored) && stored > 0) return stored;
+
+  const val = parseFloat(priceEl.value);
+  if (!val || isNaN(val)) return null;
+  if (currencyEl.value === 'ARS' && dolarRate?.venta) return val / dolarRate.venta;
+  return val;
+}
+
+function syncPriceBaseUSD(prefix) {
+  const currencyEl = document.getElementById(`${prefix}Currency`);
+  const priceEl = document.getElementById(`${prefix}Price`);
+  if (!currencyEl || !priceEl) return;
+  const val = parseFloat(priceEl.value);
+  if (!val || isNaN(val)) {
+    delete priceEl.dataset.usdBase;
+    return;
+  }
+  const usd = currencyEl.value === 'ARS' && dolarRate?.venta ? (val / dolarRate.venta) : val;
+  if (usd && !isNaN(usd)) priceEl.dataset.usdBase = String(usd);
+}
+
 function updatePriceHint(prefix) {
   const currencyEl = document.getElementById(`${prefix}Currency`);
   const priceEl = document.getElementById(`${prefix}Price`);
   const hintEl = document.getElementById(`${prefix}PriceHint`);
   if (!currencyEl || !priceEl || !hintEl) return;
   const currency = currencyEl.value;
-  const val = parseFloat(priceEl.value);
-  if (!val || !dolarRate?.venta) { hintEl.textContent = ''; return; }
+  const baseUSD = getPriceBaseUSD(prefix);
+  if (!baseUSD || !dolarRate?.venta) { hintEl.textContent = ''; return; }
   if (currency === 'USD') {
-    const ars = Math.round(val * dolarRate.venta);
+    const ars = Math.round(baseUSD * dolarRate.venta);
     hintEl.textContent = `≈ ARS $${ars.toLocaleString('es-AR')}`;
   } else {
-    const usd = Math.round(val / dolarRate.venta);
+    const usd = Math.round(baseUSD);
     hintEl.textContent = `≈ USD $${usd.toLocaleString('es-AR')}`;
   }
 }
@@ -358,29 +386,28 @@ function updatePriceHint(prefix) {
 function onCurrencyChange(prefix) {
   const currencyEl = document.getElementById(`${prefix}Currency`);
   const priceEl = document.getElementById(`${prefix}Price`);
-  if (!currencyEl || !priceEl || !dolarRate?.venta) return;
-  const val = parseFloat(priceEl.value);
-  if (!val) { updatePriceHint(prefix); return; }
-  // Convert current value to the newly selected currency
-  const prev = currencyEl.dataset.prev || 'USD';
-  if (prev === 'USD' && currencyEl.value === 'ARS') {
-    priceEl.value = Math.round(val * dolarRate.venta);
-  } else if (prev === 'ARS' && currencyEl.value === 'USD') {
-    priceEl.value = Math.round(val / dolarRate.venta);
+  if (!currencyEl || !priceEl) return;
+  const baseUSD = getPriceBaseUSD(prefix);
+  if (!baseUSD || !dolarRate?.venta) {
+    currencyEl.dataset.prev = currencyEl.value;
+    updatePriceHint(prefix);
+    return;
+  }
+  // Always render from the same base (USD) to avoid drift across toggles.
+  if (currencyEl.value === 'ARS') {
+    priceEl.value = Math.round(baseUSD * dolarRate.venta);
+  } else {
+    priceEl.value = Math.round(baseUSD);
   }
   currencyEl.dataset.prev = currencyEl.value;
+  priceEl.dataset.usdBase = String(baseUSD);
   updatePriceHint(prefix);
 }
 
 function getPriceInUSD(prefix) {
-  const currencyEl = document.getElementById(`${prefix}Currency`);
-  const priceEl = document.getElementById(`${prefix}Price`);
-  const val = parseFloat(priceEl.value);
-  if (!val) return val;
-  if (currencyEl?.value === 'ARS' && dolarRate?.venta) {
-    return Math.round(val / dolarRate.venta);
-  }
-  return val;
+  const baseUSD = getPriceBaseUSD(prefix);
+  if (!baseUSD) return baseUSD;
+  return Math.round(baseUSD);
 }
 
 // ===== TEMA DÍA / NOCHE =====
@@ -492,9 +519,14 @@ document.addEventListener('DOMContentLoaded', () => {
       currencyEl.addEventListener('change', () => onCurrencyChange(prefix));
     }
     if (priceEl) {
-      priceEl.addEventListener('input', () => updatePriceHint(prefix));
+      priceEl.addEventListener('input', () => {
+        syncPriceBaseUSD(prefix);
+        updatePriceHint(prefix);
+      });
     }
   });
+  updateMobileFilterApplyButton();
+  window.addEventListener('resize', updateMobileFilterApplyButton);
 });
 
 function toggleEngineCCField(prefix = 'publish') {
@@ -637,6 +669,7 @@ function showSection(sectionId) {
     section.style.display = 'block';
     section.classList.add('fade-in');
   }
+  setBottomNavActive(sectionId);
   if (sectionId === 'home') { loadHomeRecent(); loadPublicStats(); }
   else if (sectionId === 'vehicles') loadVehicles(1);
   else if (sectionId === 'my-vehicles') loadMyVehicles();
@@ -663,6 +696,21 @@ function showSection(sectionId) {
   if (sectionId !== 'messages') currentConversationId = null;
   if (sectionId !== 'vehicle-detail') currentVehicleId = null;
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function setBottomNavActive(sectionId) {
+  const items = document.querySelectorAll('.bottom-nav .bottom-nav-item');
+  if (!items.length) return;
+  items.forEach(el => el.classList.remove('active'));
+  const map = {
+    'home': 0,
+    'vehicles': 1,
+    'vehicle-detail': 1,
+    'messages': 2,
+    'publish': 3,
+  };
+  const idx = map[sectionId];
+  if (idx !== undefined && items[idx]) items[idx].classList.add('active');
 }
 
 function autofillPublishLocationFromProfile() {
@@ -724,6 +772,7 @@ function resetPublishForm() {
     pubCurrencyEl.value = 'ARS';
     pubCurrencyEl.dataset.prev = 'ARS';
   }
+  syncPriceBaseUSD('publish');
 
   const pubHintEl = document.getElementById('publishPriceHint');
   if (pubHintEl) pubHintEl.textContent = '';
@@ -1082,11 +1131,39 @@ function toggleFilters() {
   const panel = document.getElementById('filtersPanel');
   const isHidden = getComputedStyle(panel).display === 'none';
   panel.style.display = isHidden ? 'block' : 'none';
+  if (isHidden) updateMobileFilterApplyButton();
 }
 
-function applyFilters() {
+function isMobileViewport() {
+  return window.matchMedia('(max-width: 768px)').matches;
+}
+
+function updateMobileFilterApplyButton() {
+  const btn = document.getElementById('filterApplyBtn');
+  if (!btn) return;
+  if (!isMobileViewport()) {
+    btn.style.display = 'none';
+    return;
+  }
+  btn.style.display = 'inline-flex';
+  btn.disabled = !filtersDirty;
+  btn.style.opacity = filtersDirty ? '1' : '0.7';
+}
+
+function applyFilters(force = false) {
+  if (isMobileViewport() && !force) {
+    filtersDirty = true;
+    updateMobileFilterApplyButton();
+    return;
+  }
+  filtersDirty = false;
+  updateMobileFilterApplyButton();
   clearTimeout(searchTimeout);
   searchTimeout = setTimeout(() => loadVehicles(1), 300);
+}
+
+function applyFiltersNow() {
+  applyFilters(true);
 }
 
 function clearFilters() {
@@ -1096,14 +1173,13 @@ function clearFilters() {
   });
   const filterModelEl = document.getElementById('filterModel');
   if (filterModelEl) filterModelEl.innerHTML = '<option value="">Todos</option>';
+  filtersDirty = false;
+  updateMobileFilterApplyButton();
   loadVehicles(1);
 }
 
 function formatPesos(usdPrice, vehicle) {
-  // Si el vehículo fue publicado en ARS, usar el precio original exacto
-  if (vehicle?.price_currency === 'ARS' && vehicle?.price_original) {
-    return '$' + Number(vehicle.price_original).toLocaleString('es-AR');
-  }
+  // Mostrar siempre ARS con cotización actual, manteniendo el precio base en USD.
   if (!dolarRate?.venta || !usdPrice) return null;
   const ars = Math.round(Number(usdPrice) * dolarRate.venta);
   return '$' + ars.toLocaleString('es-AR');
@@ -1679,6 +1755,8 @@ async function handlePublish(e) {
       return;
     }
     const urls = await uploadImages();
+    const publishCurrency = document.getElementById('publishCurrency')?.value || 'USD';
+    const publishRawPrice = parseFloat(document.getElementById('publishPrice').value) || null;
     const data = {
       title: document.getElementById('publishTitle').value,
       brand: document.getElementById('publishBrand').value,
@@ -1686,8 +1764,9 @@ async function handlePublish(e) {
       version: document.getElementById('publishVersion')?.value || '',
       year: document.getElementById('publishYear').value,
       price: getPriceInUSD('publish'),
-      price_original: parseFloat(document.getElementById('publishPrice').value) || null,
-      price_currency: document.getElementById('publishCurrency')?.value || 'USD',
+      // Si se publicó en ARS, guardamos el monto ingresado para trazabilidad histórica.
+      price_original: publishCurrency === 'ARS' ? publishRawPrice : null,
+      price_currency: publishCurrency,
       transmission: document.getElementById('publishTransmission').value,
       mileage: document.getElementById('publishMileage').value || 0,
       fuel: document.getElementById('publishFuel').value,
@@ -1801,6 +1880,7 @@ async function openEditModal(id, e) {
     const editCurrencyEl = document.getElementById('editCurrency');
     if (editCurrencyEl) { editCurrencyEl.value = 'USD'; editCurrencyEl.dataset.prev = 'USD'; }
     document.getElementById('editPrice').value = v.price || '';
+    syncPriceBaseUSD('edit');
     updatePriceHint('edit');
     document.getElementById('editMileage').value = v.mileage || '';
     document.getElementById('editFuel').value = v.fuel || '';
@@ -1861,6 +1941,8 @@ async function handleEditVehicle(e) {
     const editYear  = document.getElementById('editYear')?.value || '';
     const editVersion = document.getElementById('editVersion').value;
     const editVehicleType = document.getElementById('editVehicleTypeTop')?.value || 'auto';
+    const editCurrency = document.getElementById('editCurrency')?.value || 'USD';
+    const editRawPrice = parseFloat(document.getElementById('editPrice').value) || null;
     const autoTitle = `${editBrand} ${editModel} ${editVersion} ${editYear}`.replace(/\s+/g, ' ').trim();
     await request(`/vehicles/${id}`, {
       method: 'PUT',
@@ -1871,8 +1953,8 @@ async function handleEditVehicle(e) {
         year: editYear,
         version: editVersion,
         price: getPriceInUSD('edit'),
-        price_original: parseFloat(document.getElementById('editPrice').value) || null,
-        price_currency: document.getElementById('editCurrency')?.value || 'USD',
+        price_original: editCurrency === 'ARS' ? editRawPrice : null,
+        price_currency: editCurrency,
         mileage: document.getElementById('editMileage').value,
         fuel: document.getElementById('editFuel').value,
         transmission: document.getElementById('editTransmission').value,
