@@ -37,7 +37,7 @@
   <!-- Fuentes: no-render-blocking -->
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" onload="this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"></noscript>
-  <link rel="stylesheet" href="styles.min.css?v=17" fetchpriority="high">
+  <link rel="stylesheet" href="styles.min.css?v=18" fetchpriority="high">
   <!-- Leaflet CSS: non-blocking (solo se necesita cuando se abre el mapa) -->
   <link rel="preload" as="style" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" onload="this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"></noscript>
@@ -689,7 +689,7 @@
 
     <!-- MY VEHICLES -->
     <section id="my-vehicles" class="section" style="display:none;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;">
+      <div class="my-vehicles-header">
         <h2 class="section-title">Mis Publicaciones</h2>
         <button class="btn btn-primary" onclick="tryPublish()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
