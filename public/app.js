@@ -712,6 +712,13 @@ function resetPublishForm() {
   toggleEngineCCField('publish');
   updateVehicleTypeOptions('publish');
   initBrandFilters();
+  const publishBrandEl = document.getElementById('publishBrand');
+  if (publishBrandEl) {
+    publishBrandEl.value = '';
+    syncBrandPickerTrigger('publishBrand');
+  }
+  const publishModelEl = document.getElementById('publishModel');
+  if (publishModelEl) publishModelEl.innerHTML = '<option value="">Seleccionar modelo</option>';
 
   const pubCurrencyEl = document.getElementById('publishCurrency');
   if (pubCurrencyEl) {
@@ -1164,6 +1171,7 @@ function initBrandPicker(selectId) {
   `;
   select.parentElement.insertBefore(picker, select);
   buildBrandPickerOptions(selectId);
+  syncBrandPickerTrigger(selectId);
 }
 
 function buildBrandPickerOptions(selectId) {
@@ -1185,6 +1193,22 @@ function buildBrandPickerOptions(selectId) {
     btn.onclick = () => selectBrandPicker(selectId, opt.value, opt.text);
     container.appendChild(btn);
   }
+}
+
+function syncBrandPickerTrigger(selectId) {
+  const select = document.getElementById(selectId);
+  const picker = select?.parentElement.querySelector('.brand-picker');
+  if (!select || !picker) return;
+  const trigger = picker.querySelector('.brand-picker-trigger');
+  const logoEl = trigger.querySelector('.brand-picker-logo');
+  const labelEl = trigger.querySelector('.brand-picker-label');
+  const selectedOpt = select.options[select.selectedIndex];
+  const value = select.value || '';
+  const label = selectedOpt?.text || (select.options[0]?.text || 'Seleccionar');
+  const logo = value ? brandLogoUrl(value) : null;
+  if (logo) { logoEl.src = logo; logoEl.style.display = 'block'; }
+  else { logoEl.style.display = 'none'; }
+  labelEl.textContent = label;
 }
 
 function selectBrandPicker(selectId, value, label) {
