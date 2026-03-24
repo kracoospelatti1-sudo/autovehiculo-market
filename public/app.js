@@ -1138,6 +1138,10 @@ function initBrandPicker(selectId) {
   // Remove old picker if re-initializing
   const old = select.parentElement.querySelector('.brand-picker');
   if (old) old.remove();
+  // Native HTML5 validation can't focus hidden controls.
+  // Persist the original required state and disable native required on the hidden select.
+  if (!select.dataset.wasRequired) select.dataset.wasRequired = String(select.required);
+  select.required = false;
   select.style.display = 'none';
 
   const emptyLabel = select.options[0]?.text || 'Seleccionar';
