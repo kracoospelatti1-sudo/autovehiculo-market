@@ -62,8 +62,12 @@ app.use(compression());
 app.use(cors({ origin: ALLOWED_ORIGINS, credentials: true }));
 // Security headers + cache strategy
 app.use((req, res, next) => {
-  // LiteSpeed CDN: no cache
-  res.setHeader('X-LiteSpeed-Cache-Control', 'no-cache');
+  // Keep dynamic/API responses fresh; allow static assets to be cached below.
+  const isApi = req.path.startsWith('/api/');
+  const isHtml = req.path === '/' || req.path.endsWith('.html');
+  if (isApi || isHtml) {
+    res.setHeader('X-LiteSpeed-Cache-Control', 'no-cache');
+  }
   // Security headers
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -193,15 +197,29 @@ app.get('/sitemap.xml', async (req, res) => {
 });
 
 app.use(express.static('public', {
-  etag: false,
-  lastModified: false,
+  etag: true,
+  lastModified: true,
   setHeaders: (res, filePath) => {
     const reqUrl = res.req?.originalUrl || '';
-    if (/[?&]v=\d+/.test(reqUrl)) {
+    const isVersioned = /[?&]v=\d+/.test(reqUrl);
+    const ext = path.extname(filePath).toLowerCase();
+    const isHtml = ext === '.html';
+    const isStaticAsset = ['.js', '.css', '.svg', '.png', '.jpg', '.jpeg', '.webp', '.json', '.woff', '.woff2', '.ico'].includes(ext);
+
+    if (isVersioned) {
       res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-    } else {
-      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      return;
     }
+    if (isHtml) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      return;
+    }
+    if (isStaticAsset) {
+      // Faster repeat visits while keeping deploy updates reasonably quick.
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      return;
+    }
+    res.setHeader('Cache-Control', 'public, max-age=60');
   }
 }));
 
