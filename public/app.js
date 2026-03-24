@@ -9,6 +9,7 @@ let pollingInterval = null;
 let searchTimeout = null;
 let adminSearchTimeout = null;
 let uploadedImages = [];
+let editUploadedImages = [];
 let reportVehicleId = null;
 let rateConversationId = null;
 let rateRecipientId = null;
@@ -594,16 +595,17 @@ async function initVehicleMap(city, province) {
   try {
     // Limpiar nombre de provincia: quitar paréntesis y su contenido (ej: "Buenos Aires (Prov.)" → "Buenos Aires")
     const cleanProvince = province ? province.replace(/\s*\(.*?\)/g, '').trim() : '';
-    const params = new URLSearchParams({ format: 'json', limit: '1', countrycodes: 'ar', addressdetails: '1' });
+    const byCity = new URLSearchParams({ format: 'json', limit: '1', countrycodes: 'ar', addressdetails: '1' });
     if (cleanProvince) {
-      params.set('city', city);
-      params.set('state', cleanProvince);
-      params.set('country', 'Argentina');
+      byCity.set('city', city);
+      byCity.set('state', cleanProvince);
+      byCity.set('country', 'Argentina');
     } else {
-      params.set('q', `${city}, Argentina`);
+      byCity.set('q', `${city}, Argentina`);
     }
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?${params}`);
-    const data = await res.json();
+    const byCityRes = await fetch(`https://nominatim.openstreetmap.org/search?${byCity}`);
+    const data = await byCityRes.json();
+
     if (!data?.length) { el.parentElement.style.display = 'none'; return; }
     const { lat, lon, display_name } = data[0];
     vehicleMapInstance = L.map('vehicleMap', {
@@ -786,6 +788,10 @@ function resetPublishForm() {
   // Mostrar campo de teléfono de contacto solo para admins
   const phoneGroup = document.getElementById('publishContactPhoneGroup');
   if (phoneGroup) phoneGroup.style.display = currentUser?.profile?.is_admin ? 'block' : 'none';
+  const addressGroup = document.getElementById('publishContactAddressGroup');
+  if (addressGroup) addressGroup.style.display = currentUser?.profile?.is_admin ? 'block' : 'none';
+  const addressEl = document.getElementById('publishContactAddress');
+  if (addressEl) addressEl.value = '';
 
   autofillPublishLocationFromProfile();
 }
@@ -1434,17 +1440,36 @@ async function viewVehicle(id) {
   try {
     const vehicle = await request(`/vehicles/${id}`);
     const isOwner = currentUser?.id === vehicle.seller_id || currentUser?.profile?.is_admin;
+    const isAdminView = !!currentUser?.profile?.is_admin;
     const isLoggedIn = !!localStorage.getItem('token');
     let isFavorite = false;
     if (isLoggedIn) {
       try { const r = await request(`/favorites/${id}/check`); isFavorite = r.favorited; } catch {}
     }
 
-    const images = vehicle.vehicle_images?.length ? vehicle.vehicle_images : [{ url: vehicle.image_url || PLACEHOLDER_IMG }];
-    const mainImgUrl = images[0].url;
+    const sortedVehicleImages = (vehicle.vehicle_images || [])
+      .filter(img => img?.url)
+      .sort((a, b) => {
+        const aPrimary = a.is_primary ? 0 : 1;
+        const bPrimary = b.is_primary ? 0 : 1;
+        if (aPrimary !== bPrimary) return aPrimary - bPrimary;
+        const aOrder = Number.isFinite(Number(a.order_index)) ? Number(a.order_index) : Number.MAX_SAFE_INTEGER;
+        const bOrder = Number.isFinite(Number(b.order_index)) ? Number(b.order_index) : Number.MAX_SAFE_INTEGER;
+        if (aOrder !== bOrder) return aOrder - bOrder;
+        return (a.id || 0) - (b.id || 0);
+      });
+    const images = sortedVehicleImages.length ? sortedVehicleImages : [{ url: vehicle.image_url || PLACEHOLDER_IMG }];
+    const mainImgUrl = (images.find(img => img.is_primary)?.url || images[0].url);
     updateSEOMeta(vehicle, mainImgUrl);
     const ownerWhatsapp = (vehicle.contact_phone || '').replace(/[\s\-\(\)]/g, '').replace(/^\+/, '');
+    const ownerLocationAddress = (vehicle.contact_address || '').trim();
+    const ownerLocationProvince = (vehicle.province || '').replace(/\s*\(.*?\)/g, '').trim();
+    const ownerLocationCity = (vehicle.city || '').trim();
+    const ownerLocationQuery = [ownerLocationAddress, ownerLocationCity, ownerLocationProvince].filter(Boolean).join(', ');
+    const ownerLocationUrl = ownerLocationQuery ? googleMapsSearchUrl(ownerLocationQuery) : '';
+    const showDealershipLocationButton = !!ownerLocationAddress;
     const profileWhatsapp = (vehicle.seller_profile?.phone || '').replace(/[\s\-\(\)]/g, '').replace(/^\+/, '');
+    const sellerMapsUrl = vehicle.seller_profile?.dealership_address ? googleMapsSearchUrl(vehicle.seller_profile.dealership_address) : '';
     const whatsappText = encodeURIComponent(`Hola, te contacto desde AutoVenta.online por el siguiente anuncio: https://autoventa.online/?vehicle=${vehicle.id}`);
 
     // Price history
@@ -1497,6 +1522,12 @@ async function viewVehicle(id) {
                 Contactar al dueño
               </a>
             ` : ''}
+            ${showDealershipLocationButton ? `
+              <a href="${escapeHtml(ownerLocationUrl)}" target="_blank" rel="noopener" class="btn btn-primary" style="background:#2563eb;border:none;width:100%;margin-top:0.6rem;">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:0.4rem;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                Ubicacion de la concesionaria
+              </a>
+            ` : ''}
           </div>
           <div class="detail-specs">
             <div class="spec-card"><div class="label">Año</div><div class="value">${escapeHtml(String(vehicle.year))}</div></div>
@@ -1513,7 +1544,7 @@ async function viewVehicle(id) {
             <div class="detail-map-section">
               <h4 style="margin-bottom:0.75rem;font-size:0.9rem;color:var(--text-2);display:flex;align-items:center;gap:0.4rem;">
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-                  Ubicación: ${escapeHtml(vehicle.city)}
+                  Ubicación: ${escapeHtml(ownerLocationAddress || vehicle.city)}
                 </h4>
                 <div id="vehicleMap" class="vehicle-map"></div>
               </div>
@@ -1534,10 +1565,10 @@ async function viewVehicle(id) {
             ${(vehicle.seller_verified && (vehicle.seller_profile?.dealership_address || vehicle.seller_profile?.instagram)) || vehicle.seller_profile?.phone ? `
               <div class="seller-contact-actions">
                 ${vehicle.seller_verified && vehicle.seller_profile?.dealership_address ? `
-                  <span class="seller-contact-link">
+                  <a href="${escapeHtml(sellerMapsUrl)}" target="_blank" rel="noopener" class="seller-contact-link">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
                     ${escapeHtml(vehicle.seller_profile.dealership_address)}
-                  </span>
+                  </a>
                 ` : ''}
                 ${vehicle.seller_profile?.instagram ? `
                   <a href="${escapeHtml(instagramUrl(vehicle.seller_profile.instagram))}" target="_blank" rel="noopener" class="seller-contact-link instagram">
@@ -1587,6 +1618,11 @@ async function viewVehicle(id) {
           ` : ''}
 
           <div class="detail-actions" style="margin-top:1.5rem;display:flex;gap:1rem;flex-direction:column;">
+            ${isAdminView ? `
+              <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                <button class="btn btn-sm btn-secondary" onclick="openEditModal(${vehicle.id}, event)">Editar</button>
+              </div>
+            ` : ''}
             <button class="btn btn-secondary share-btn" onclick="shareVehicle(${vehicle.id}, '${escapeHtml(vehicle.title).replace(/'/g, '&#39;')}', ${vehicle.price})"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="margin-right:0.5rem;"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>Compartir</button>
             ${isLoggedIn && (vehicle.status !== 'sold' || isFavorite) ? `<button id="detailFavBtn" class="btn ${isFavorite ? 'btn-primary' : 'btn-secondary'}" onclick="toggleFavorite(${vehicle.id}, event)"><svg width="18" height="18" viewBox="0 0 24 24" fill="${isFavorite ? 'currentColor' : 'none'}" stroke="currentColor" style="margin-right:0.5rem;"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>${isFavorite ? 'Quitar de favoritos' : 'Guardar en favoritos'}</button>` : ''}
             ${isLoggedIn && !isOwner ? `<button class="btn btn-ghost" onclick="openReportModal(${vehicle.id})" style="color:var(--text-3);">Reportar esta publicación</button>` : ''}
@@ -1603,7 +1639,7 @@ async function viewVehicle(id) {
     `;
     window._detailImages = images.map(img => img.url);
     if (currentVehicleId !== id) return;
-    if (vehicle.city) initVehicleMap(vehicle.city, vehicle.province);
+    if (vehicle.city || ownerLocationAddress) initVehicleMap(vehicle.city, vehicle.province);
     loadSimilarVehicles(vehicle.id);
 
     // Check if user already has a conversation for this vehicle
@@ -1694,6 +1730,73 @@ async function uploadImages() {
     urls.push(data.url);
   }
   return urls;
+}
+
+async function handleEditImageSelect(e) {
+  const files = Array.from(e.target.files).slice(0, 12 - editUploadedImages.length);
+  for (const file of files) {
+    if (!file.type.startsWith('image/')) continue;
+    try {
+      const compressed = await compressImage(file, 1920, 1080, 0.8);
+      editUploadedImages.push({ file: compressed.file, preview: compressed.preview });
+      renderEditImagePreviews();
+    } catch {
+      showToast('Error al procesar la imagen', 'error');
+    }
+  }
+  e.target.value = '';
+}
+
+async function uploadEditImages() {
+  const urls = [];
+  for (let i = 0; i < editUploadedImages.length; i++) {
+    const img = editUploadedImages[i];
+    if (img.url) { urls.push(img.url); continue; }
+    const formData = new FormData();
+    formData.append('image', img.file);
+    const res = await fetch('/api/upload', { method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }, body: formData });
+    if (!res.ok) throw new Error(`Error al subir la imagen ${i + 1}`);
+    const data = await res.json();
+    urls.push(data.url);
+  }
+  return urls;
+}
+
+function renderEditImagePreviews() {
+  const container = document.getElementById('editImagePreview');
+  if (!container) return;
+  container.innerHTML = editUploadedImages.map((img, i) => `
+    <div class="preview-item ${i === 0 ? 'primary' : ''}">
+      <img src="${escapeHtml(img.preview || img.url || '')}" alt="" loading="lazy">
+      <span class="preview-order-badge">${i + 1}</span>
+      <button class="preview-remove" type="button" onclick="removeEditImage(${i})">&times;</button>
+      <div class="preview-controls">
+        <button class="preview-move" type="button" onclick="moveEditImage(${i}, -1)" ${i === 0 ? 'disabled' : ''} title="Mover antes" aria-label="Mover foto antes">&#8593;</button>
+        <button class="preview-move" type="button" onclick="moveEditImage(${i}, 1)" ${i === editUploadedImages.length - 1 ? 'disabled' : ''} title="Mover después" aria-label="Mover foto después">&#8595;</button>
+        <button class="preview-cover ${i === 0 ? 'active' : ''}" type="button" onclick="setEditCoverImage(${i})">Portada</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function moveEditImage(index, direction) {
+  const newIndex = index + direction;
+  if (newIndex < 0 || newIndex >= editUploadedImages.length) return;
+  const item = editUploadedImages.splice(index, 1)[0];
+  editUploadedImages.splice(newIndex, 0, item);
+  renderEditImagePreviews();
+}
+
+function setEditCoverImage(index) {
+  if (index === 0) return;
+  const item = editUploadedImages.splice(index, 1)[0];
+  editUploadedImages.unshift(item);
+  renderEditImagePreviews();
+}
+
+function removeEditImage(index) {
+  editUploadedImages.splice(index, 1);
+  renderEditImagePreviews();
 }
 
 function renderImagePreviews() {
@@ -1790,6 +1893,7 @@ async function handlePublish(e) {
       vehicle_type: document.getElementById('publishVehicleType')?.value || 'auto',
       engine_cc: document.getElementById('publishEngineCC')?.value ? parseInt(document.getElementById('publishEngineCC').value) : null,
       contact_phone: document.getElementById('publishContactPhone')?.value?.trim() || null,
+      contact_address: document.getElementById('publishContactAddress')?.value?.trim() || null,
       images: urls
     };
     await request('/vehicles', { method: 'POST', body: JSON.stringify(data) });
@@ -1861,6 +1965,8 @@ async function openEditModal(id, e) {
   e.stopPropagation();
   try {
     const v = await request(`/vehicles/${id}`);
+    editUploadedImages = (v.vehicle_images?.length ? v.vehicle_images : (v.image_url ? [{ url: v.image_url }] : []))
+      .map(img => ({ url: img.url, preview: img.url }));
     document.getElementById('editVehicleId').value = v.id;
     document.getElementById('editTitle').value = v.title || '';
     // Vehicle type (top)
@@ -1918,8 +2024,15 @@ async function openEditModal(id, e) {
     toggleEngineCCField('edit');
     const editPhoneGroup = document.getElementById('editContactPhoneGroup');
     if (editPhoneGroup) editPhoneGroup.style.display = currentUser?.profile?.is_admin ? 'block' : 'none';
+    const editAddressGroup = document.getElementById('editContactAddressGroup');
+    if (editAddressGroup) editAddressGroup.style.display = currentUser?.profile?.is_admin ? 'block' : 'none';
     const editPhoneEl = document.getElementById('editContactPhone');
     if (editPhoneEl) editPhoneEl.value = v.contact_phone || '';
+    const editAddressEl = document.getElementById('editContactAddress');
+    if (editAddressEl) editAddressEl.value = v.contact_address || '';
+    const editImageInput = document.getElementById('editImageInput');
+    if (editImageInput) editImageInput.value = '';
+    renderEditImagePreviews();
     document.getElementById('editVehicleModal').style.display = 'block';
     document.getElementById('modalOverlay').style.display = 'block';
   } catch (err) { showToast(err.message, 'error'); }
@@ -1932,6 +2045,11 @@ function closeEditModal() {
   if (editCur) { editCur.value = 'USD'; editCur.dataset.prev = 'USD'; }
   const editHint = document.getElementById('editPriceHint');
   if (editHint) editHint.textContent = '';
+  editUploadedImages = [];
+  const editImageInput = document.getElementById('editImageInput');
+  if (editImageInput) editImageInput.value = '';
+  const editPreview = document.getElementById('editImagePreview');
+  if (editPreview) editPreview.innerHTML = '';
 }
 
 async function handleEditVehicle(e) {
@@ -1956,6 +2074,13 @@ async function handleEditVehicle(e) {
     const editVehicleType = document.getElementById('editVehicleTypeTop')?.value || 'auto';
     const editCurrency = document.getElementById('editCurrency')?.value || 'USD';
     const editRawPrice = parseFloat(document.getElementById('editPrice').value) || null;
+    if (!editUploadedImages.length) {
+      showToast('Debe quedar al menos una foto', 'error');
+      btn.disabled = false;
+      btn.textContent = 'Guardar cambios';
+      return;
+    }
+    const editImageUrls = await uploadEditImages();
     const autoTitle = `${editBrand} ${editModel} ${editVersion} ${editYear}`.replace(/\s+/g, ' ').trim();
     await request(`/vehicles/${id}`, {
       method: 'PUT',
@@ -1978,11 +2103,16 @@ async function handleEditVehicle(e) {
         accepts_trade: document.getElementById('editAcceptsTrade').checked,
         vehicle_type: editVehicleType,
         engine_cc: document.getElementById('editEngineCC')?.value ? parseInt(document.getElementById('editEngineCC').value) : null,
-        contact_phone: document.getElementById('editContactPhone')?.value?.trim() || null
+        contact_phone: document.getElementById('editContactPhone')?.value?.trim() || null,
+        contact_address: document.getElementById('editContactAddress')?.value?.trim() || null,
+        images: editImageUrls
       })
     });
     showToast('¡Publicación actualizada!', 'success');
     closeEditModal();
+    if (String(currentVehicleId) === String(id)) {
+      viewVehicle(Number(id));
+    }
     loadMyVehicles();
   } catch (err) { showToast(err.message, 'error'); }
   btn.disabled = false;
@@ -2819,6 +2949,7 @@ async function viewProfile(id) {
       }
     }
     const canFollow = !isOwn && !!localStorage.getItem('token');
+    const profileMapsUrl = profile.is_verified && profile.dealership_address ? googleMapsSearchUrl(profile.dealership_address) : '';
     
     // Header content
     let headerHtml = `
@@ -2851,6 +2982,12 @@ async function viewProfile(id) {
         ${profile.bio ? `<p class="profile-bio">${escapeHtml(profile.bio)}</p>` : ''}
         
         <div class="profile-actions-grid">
+          ${profileMapsUrl ? `
+            <a href="${escapeHtml(profileMapsUrl)}" target="_blank" rel="noopener" class="profile-action-btn location">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+              Ubicacion
+            </a>
+          ` : ''}
           ${profile.instagram ? `
             <a href="${escapeHtml(instagramUrl(profile.instagram))}" target="_blank" rel="noopener" class="profile-action-btn instagram">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg> 
@@ -3667,6 +3804,11 @@ function instagramLabel(val) {
     try { return '@' + new URL(v).pathname.replace(/\//g, '').replace(/^@/, ''); } catch { return v; }
   }
   return '@' + v.replace(/^@/, '');
+}
+
+function googleMapsSearchUrl(address) {
+  if (!address) return '';
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(address).trim())}`;
 }
 
 function shareVehicle(id, title, price) {

@@ -109,6 +109,14 @@ const escapeHtml = (value = '') => String(value)
   .replace(/"/g, '&quot;')
   .replace(/'/g, '&#39;');
 
+function isLikelyRealAddress(address = '') {
+  const clean = String(address).trim();
+  if (clean.length < 8) return false;
+  const hasLetter = /[A-Za-zÀ-ÿ]/.test(clean);
+  const hasNumber = /\d/.test(clean);
+  return hasLetter && hasNumber;
+}
+
 app.get('/', async (req, res, next) => {
   const vehicleId = parseInt(req.query.vehicle);
   if (!vehicleId || isNaN(vehicleId) || !BOT_UA.test(req.headers['user-agent'] || '')) return next();
@@ -951,7 +959,7 @@ app.get('/api/vehicles/:id', optionalAuth, async (req, res) => {
 
     const [userRes, imagesRes, profileRes, sellerVehiclesRes, sellerRatingsRes, followersRes] = await Promise.all([
       supabase.from('users').select('id, username').eq('id', vehicle.user_id).maybeSingle(), // BUG-08
-      supabase.from('vehicle_images').select('*').eq('vehicle_id', vehicle.id),
+      supabase.from('vehicle_images').select('*').eq('vehicle_id', vehicle.id).order('order_index', { ascending: true }),
       supabase.from('profiles').select('*').eq('user_id', vehicle.user_id).maybeSingle(),
       supabase.from('vehicles').select('id').eq('user_id', vehicle.user_id).eq('status', 'active'),
       supabase.from('ratings').select('stars').eq('to_user_id', vehicle.user_id),
@@ -1049,14 +1057,25 @@ app.post('/api/vehicles', authenticateToken, async (req, res) => {
     if (req.user.is_banned === true || (req.user.is_banned === undefined && await isBanned(req.user.id))) {
       return res.status(403).json({ error: 'Tu cuenta ha sido restringida. No podés publicar contenido.' });
     }
+    const admin = req.user.is_admin === true || await isAdmin(req.user.id);
 
-    let { title, brand, model, year, price, price_original, price_currency, mileage, fuel, transmission, description, city, province, images, accepts_trade, vehicle_type, engine_cc, version, contact_phone } = req.body;
+    let { title, brand, model, year, price, price_original, price_currency, mileage, fuel, transmission, description, city, province, images, accepts_trade, vehicle_type, engine_cc, version, contact_phone, contact_address } = req.body;
+    if (!admin && (contact_phone || contact_address)) {
+      return res.status(403).json({ error: 'Solo administradores pueden definir telefono o direccion personalizada.' });
+    }
+    if (!admin) {
+      contact_phone = null;
+      contact_address = null;
+    }
 
     if (!brand || !model || !year || !price) {
       return res.status(400).json({ error: 'Campos requeridos faltantes' });
     }
     if (!city || !city.trim()) return res.status(400).json({ error: 'La ciudad es obligatoria' });
     if (!province || !province.trim()) return res.status(400).json({ error: 'La provincia es obligatoria' });
+    if (contact_address && !isLikelyRealAddress(contact_address)) {
+      return res.status(400).json({ error: 'Direccion invalida. Ingresa calle y numero.' });
+    }
 
     // Auto-generate title on the server
     title = `${brand} ${model} ${version || ''} ${year}`.replace(/\s+/g, ' ').trim();
@@ -1064,33 +1083,45 @@ app.post('/api/vehicles', authenticateToken, async (req, res) => {
     const validTypes = ['auto', 'moto'];
     const vehicleType = validTypes.includes(vehicle_type) ? vehicle_type : 'auto';
 
-    const { data, error } = await supabase
+    const insertPayload = {
+      user_id: req.user.id,
+      title,
+      brand,
+      model,
+      year: parseInt(year),
+      price: parseFloat(price),
+      mileage: parseInt(mileage) || 0,
+      fuel: fuel || '',
+      transmission: transmission || '',
+      description: description || '',
+      city: city.trim(),
+      province: province.trim(),
+      status: 'active',
+      view_count: 0,
+      accepts_trade: !!accepts_trade,
+      vehicle_type: vehicleType,
+      engine_cc: vehicleType === 'moto' && engine_cc ? parseInt(engine_cc) : null,
+      version: version || null,
+      price_original: price_original ? parseFloat(price_original) : null,
+      price_currency: price_currency || 'USD',
+      contact_phone: contact_phone ? contact_phone.trim() : null,
+      contact_address: contact_address ? contact_address.trim() : null,
+    };
+
+    let { data, error } = await supabase
       .from('vehicles')
-      .insert({
-        user_id: req.user.id,
-        title,
-        brand,
-        model,
-        year: parseInt(year),
-        price: parseFloat(price),
-        mileage: parseInt(mileage) || 0,
-        fuel: fuel || '',
-        transmission: transmission || '',
-        description: description || '',
-        city: city.trim(),
-        province: province.trim(),
-        status: 'active',
-        view_count: 0,
-        accepts_trade: !!accepts_trade,
-        vehicle_type: vehicleType,
-        engine_cc: vehicleType === 'moto' && engine_cc ? parseInt(engine_cc) : null,
-        version: version || null,
-        price_original: price_original ? parseFloat(price_original) : null,
-        price_currency: price_currency || 'USD',
-        contact_phone: contact_phone ? contact_phone.trim() : null,
-      })
+      .insert(insertPayload)
       .select()
       .single();
+
+    // If a column doesn't exist yet in DB schema, extract column name and retry without it
+    if (error?.code === 'PGRST204') {
+      const missingCol = error.message.match(/'([^']+)' column/)?.[1];
+      if (missingCol && insertPayload[missingCol] !== undefined) delete insertPayload[missingCol];
+      const retry = await supabase.from('vehicles').insert(insertPayload).select().single();
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) throw error;
 
@@ -1143,12 +1174,12 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Vehículo no encontrado' });
     }
 
-    const admin = req.user.is_admin === true || (req.user.is_admin === undefined && await isAdmin(req.user.id));
+    const admin = req.user.is_admin === true || await isAdmin(req.user.id);
     if (vehicle.user_id !== req.user.id && !admin) {
       return res.status(403).json({ error: 'No tienes permiso' });
     }
 
-    const { title, brand, model, year, price, price_original, price_currency, mileage, fuel, transmission, description, city, province, status, vehicle_type, engine_cc, version, contact_phone } = req.body;
+    const { title, brand, model, year, price, price_original, price_currency, mileage, fuel, transmission, description, city, province, status, vehicle_type, engine_cc, version, contact_phone, contact_address, images } = req.body;
 
     let updates = { updated_at: new Date().toISOString() };
     if (brand !== undefined) updates.brand = brand;
@@ -1200,7 +1231,24 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
       updates.vehicle_type = vehicle_type;
     }
     if (engine_cc !== undefined) updates.engine_cc = engine_cc ? parseInt(engine_cc) : null;
-    if (contact_phone !== undefined) updates.contact_phone = contact_phone ? contact_phone.trim() : null;
+    if (!admin && (contact_phone !== undefined || contact_address !== undefined)) {
+      return res.status(403).json({ error: 'Solo administradores pueden modificar telefono o direccion personalizada.' });
+    }
+    if (admin && contact_phone !== undefined) updates.contact_phone = contact_phone ? contact_phone.trim() : null;
+    if (admin && contact_address !== undefined) {
+      const cleanAddress = contact_address ? contact_address.trim() : null;
+      if (cleanAddress && !isLikelyRealAddress(cleanAddress)) {
+        return res.status(400).json({ error: 'Direccion invalida. Ingresa calle y numero.' });
+      }
+      updates.contact_address = cleanAddress;
+    }
+    let imageUrls = null;
+    if (images !== undefined) {
+      if (!Array.isArray(images)) return res.status(400).json({ error: 'Formato de imagenes invalido' });
+      imageUrls = images.map(u => String(u || '').trim()).filter(Boolean);
+      if (!imageUrls.length) return res.status(400).json({ error: 'Debe quedar al menos una foto' });
+      updates.image_url = imageUrls[0];
+    }
 
     let { data, error } = await supabase
       .from('vehicles')
@@ -1226,6 +1274,17 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
         vehicle_id: vid,
         price: newPrice
       });
+    }
+
+    if (imageUrls) {
+      await supabase.from('vehicle_images').delete().eq('vehicle_id', vid);
+      const imageRecords = imageUrls.map((url, index) => ({
+        vehicle_id: vid,
+        url,
+        is_primary: index === 0,
+        order_index: index
+      }));
+      await supabase.from('vehicle_images').insert(imageRecords);
     }
 
     // Notify users who favorited this vehicle when it's sold
@@ -3118,3 +3177,5 @@ function emailResetTemplate(username, resetUrl) {
 httpServer.listen(PORT, () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`)
 })
+
+

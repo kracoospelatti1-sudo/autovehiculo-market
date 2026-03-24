@@ -37,7 +37,7 @@
   <!-- Fuentes: no-render-blocking -->
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" onload="this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"></noscript>
-  <link rel="stylesheet" href="styles.min.css?v=18" fetchpriority="high">
+  <link rel="stylesheet" href="styles.min.css?v=21" fetchpriority="high">
   <!-- Leaflet CSS: non-blocking (solo se necesita cuando se abre el mapa) -->
   <link rel="preload" as="style" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" onload="this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"></noscript>
@@ -666,10 +666,16 @@
             <textarea id="publishDescription" rows="4"
               placeholder="Describí el estado del vehículo, extras, historial de servicio..."></textarea>
           </div>
+          
           <div class="form-group" id="publishContactPhoneGroup" style="display:none;">
-            <label for="publishContactPhone">📱 Número de contacto (WhatsApp)</label>
+            <label for="publishContactPhone">Numero de contacto (WhatsApp)</label>
             <input type="tel" id="publishContactPhone" placeholder="+549..." autocomplete="off">
-            <p style="font-size:0.78rem;color:var(--text-2);margin:0.25rem 0 0;">Opcional. Si lo completás, este número reemplaza el del perfil en el botón de WhatsApp.</p>
+            <p style="font-size:0.78rem;color:var(--text-2);margin:0.25rem 0 0;">Opcional. Si lo completas, este numero reemplaza el del perfil en el boton de WhatsApp.</p>
+          </div>
+          <div class="form-group" id="publishContactAddressGroup" style="display:none;">
+            <label for="publishContactAddress">Direccion personalizada</label>
+            <input type="text" id="publishContactAddress" placeholder="Ej: Av. Corrientes 1234, CABA" autocomplete="off" maxlength="160">
+            <p style="font-size:0.78rem;color:var(--text-2);margin:0.25rem 0 0;">Opcional. Debe incluir calle y numero. Al tocarla en el detalle abre Google Maps.</p>
           </div>
           <div class="form-group"
             style="display:flex;align-items:center;gap:0.75rem;background:var(--dark-2);padding:1rem;border-radius:var(--radius-md);border:1px solid var(--border);">
@@ -909,6 +915,19 @@
             <label>Descripción</label>
             <textarea id="editDescription" rows="4"></textarea>
           </div>
+          <div class="form-group">
+            <label>Fotos (máx. 12)</label>
+            <div class="image-upload-area">
+              <div class="upload-placeholder" onclick="document.getElementById('editImageInput').click()">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="var(--text-3)">
+                  <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" />
+                </svg>
+                <p>Tocá para agregar fotos</p>
+              </div>
+              <input type="file" id="editImageInput" multiple accept="image/*" onchange="handleEditImageSelect(event)" style="display:none;">
+            </div>
+            <div id="editImagePreview" class="image-preview-grid"></div>
+          </div>
           <div class="form-group"
             style="display:flex;align-items:center;gap:0.75rem;background:var(--dark-3);padding:0.75rem 1rem;border-radius:var(--radius-md);border:1px solid var(--border);">
             <input type="checkbox" id="editAcceptsTrade"
@@ -919,10 +938,16 @@
             <label for="editEngineCC">Cilindrada (cc)</label>
             <input type="number" id="editEngineCC" placeholder="Ej: 250" min="50" max="2500">
           </div>
+          
           <div class="form-group" id="editContactPhoneGroup" style="display:none;">
-            <label for="editContactPhone">📱 Número de contacto (WhatsApp)</label>
+            <label for="editContactPhone">Numero de contacto (WhatsApp)</label>
             <input type="tel" id="editContactPhone" placeholder="+549..." autocomplete="off">
-            <p style="font-size:0.78rem;color:var(--text-2);margin:0.25rem 0 0;">Opcional. Si lo completás, este número reemplaza el del perfil en el botón de WhatsApp.</p>
+            <p style="font-size:0.78rem;color:var(--text-2);margin:0.25rem 0 0;">Opcional. Si lo completas, este numero reemplaza el del perfil en el boton de WhatsApp.</p>
+          </div>
+          <div class="form-group" id="editContactAddressGroup" style="display:none;">
+            <label for="editContactAddress">Direccion personalizada</label>
+            <input type="text" id="editContactAddress" placeholder="Ej: Av. Corrientes 1234, CABA" autocomplete="off" maxlength="160">
+            <p style="font-size:0.78rem;color:var(--text-2);margin:0.25rem 0 0;">Opcional. Debe incluir calle y numero. Al tocarla en el detalle abre Google Maps.</p>
           </div>
           <div style="display:flex;gap:0.75rem;">
             <button type="submit" class="btn btn-primary" style="flex:1" id="editVehicleBtn">Guardar cambios</button>
@@ -1135,7 +1160,7 @@
     </div>
   </div>
 
-  <script src="app.js?v=22" defer></script>
+  <script src="app.js?v=28" defer></script>
   <script>
     // Lucide es defer — ejecutar cuando el DOM esté listo (los defer corren antes de DOMContentLoaded)
     document.addEventListener('DOMContentLoaded', () => {
@@ -1145,3 +1170,6 @@
 </body>
 
 </html>
+
+
+
