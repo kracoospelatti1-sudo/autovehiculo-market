@@ -636,6 +636,16 @@ function verifiedBadge() {
   return `<span class="verified-badge"><svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>Verificado</span>`;
 }
 
+function verifiedCheckIcon(extraClass = '') {
+  const cls = extraClass ? `verified-check-icon ${extraClass}` : 'verified-check-icon';
+  return `<span class="${cls}" title="Verificado" aria-label="Verificado"><img src="/icons/verificar.png" alt="" loading="lazy"></span>`;
+}
+
+function verifiedImageBadge(extraClass = '') {
+  const cls = extraClass ? `verified-image-badge ${extraClass}` : 'verified-image-badge';
+  return `<span class="${cls}" title="Verificado" aria-label="Verificado"><img src="/icons/verificar.png" alt="" loading="lazy"><span>Verificado</span></span>`;
+}
+
 async function request(endpoint, options = {}) {
   const token = localStorage.getItem('token');
   const headers = { 'Content-Type': 'application/json', ...options.headers };
@@ -1078,8 +1088,10 @@ async function loadVehicles(page = 1, scrollToResults = false) {
             <div class="vehicle-seller">
               <div class="avatar-tiny">${(v.seller_verified ? v.seller_dealership : (v.seller_first_name || v.seller_name))?.charAt(0)?.toUpperCase()}</div>
               <div class="vehicle-seller-info">
+                <div class="vehicle-seller-name-row">
                 <span>${escapeHtml(v.seller_verified && v.seller_dealership ? v.seller_dealership : (v.seller_first_name && v.seller_last_name ? `${v.seller_first_name} ${v.seller_last_name}` : (v.seller_name || 'Anónimo')))}</span>
-                ${v.seller_verified ? verifiedBadge() : ''}
+                ${v.seller_verified ? verifiedCheckIcon() : ''}
+                </div>
               </div>
             </div>
             <div class="vehicle-views">
@@ -1598,12 +1610,24 @@ async function viewVehicle(id) {
             ` : ''}
           </div>
           <div class="detail-specs">
-            <div class="spec-card"><div class="label">Año</div><div class="value">${escapeHtml(String(vehicle.year))}</div></div>
-            <div class="spec-card"><div class="label">Kilometraje</div><div class="value">${vehicle.mileage === 0 ? '<span class="badge-nuevo">NUEVO</span>' : formatNumber(vehicle.mileage) + ' km'}</div></div>
-            ${vehicle.version ? `<div class="spec-card"><div class="label">Versión</div><div class="value">${escapeHtml(vehicle.version)}</div></div>` : ''}
-            <div class="spec-card"><div class="label">Combustible</div><div class="value">${escapeHtml(vehicle.fuel || 'N/A')}</div></div>
-            <div class="spec-card"><div class="label">Transmisión</div><div class="value">${escapeHtml(vehicle.transmission || 'N/A')}</div></div>
-            ${vehicle.vehicle_type === 'moto' && vehicle.engine_cc ? `<div class="spec-card"><div class="label">Cilindrada</div><div class="value">${vehicle.engine_cc} cc</div></div>` : ''}
+            <div class="spec-card">
+              <div class="spec-head"><img class="spec-icon" src="/icons/spec-year.svg" alt="" loading="lazy"><div class="label">Año</div></div>
+              <div class="value">${escapeHtml(String(vehicle.year))}</div>
+            </div>
+            <div class="spec-card">
+              <div class="spec-head"><img class="spec-icon" src="/icons/spec-mileage.svg" alt="" loading="lazy"><div class="label">Kilometraje</div></div>
+              <div class="value">${vehicle.mileage === 0 ? '<span class="badge-nuevo">NUEVO</span>' : formatNumber(vehicle.mileage) + ' km'}</div>
+            </div>
+            ${vehicle.version ? `<div class="spec-card"><div class="spec-head"><img class="spec-icon" src="/icons/spec-version.svg" alt="" loading="lazy"><div class="label">Versión</div></div><div class="value">${escapeHtml(vehicle.version)}</div></div>` : ''}
+            <div class="spec-card">
+              <div class="spec-head"><img class="spec-icon" src="/icons/spec-fuel.svg" alt="" loading="lazy"><div class="label">Combustible</div></div>
+              <div class="value">${escapeHtml(vehicle.fuel || 'N/A')}</div>
+            </div>
+            <div class="spec-card">
+              <div class="spec-head"><img class="spec-icon" src="/icons/spec-transmission.svg" alt="" loading="lazy"><div class="label">Transmisión</div></div>
+              <div class="value">${escapeHtml(vehicle.transmission || 'N/A')}</div>
+            </div>
+            ${vehicle.vehicle_type === 'moto' && vehicle.engine_cc ? `<div class="spec-card"><div class="spec-head"><img class="spec-icon" src="/icons/spec-transmission.svg" alt="" loading="lazy"><div class="label">Cilindrada</div></div><div class="value">${vehicle.engine_cc} cc</div></div>` : ''}
           </div>
         </div>
         <div class="detail-secondary-grid">
@@ -1621,7 +1645,7 @@ async function viewVehicle(id) {
             <div class="seller-avatar">${vehicle.seller_profile?.avatar_url ? `<img src="${escapeHtml(vehicle.seller_profile.avatar_url || '')}" alt="" loading="lazy">` : (vehicle.seller_name?.charAt(0)?.toUpperCase() || '?')}</div>
             <div class="seller-info">
               <h4 onclick="viewProfile(${vehicle.seller_id})">${vehicle.seller_verified && vehicle.seller_profile?.dealership_name ? escapeHtml(vehicle.seller_profile.dealership_name) : (vehicle.seller_profile?.first_name && vehicle.seller_profile?.last_name ? escapeHtml(`${vehicle.seller_profile.first_name} ${vehicle.seller_profile.last_name}`) : escapeHtml(vehicle.seller_name))}</h4>
-              ${vehicle.seller_verified ? `<div style="margin-bottom:0.5rem;">${verifiedBadge()}</div>` : ''}
+              ${vehicle.seller_verified ? `<div style="margin-bottom:0.5rem;">${verifiedImageBadge('verified-image-badge-detail')}</div>` : ''}
               ${vehicle.seller_rating ? `<div class="rating">${'★'.repeat(Math.round(vehicle.seller_rating))}${'☆'.repeat(5-Math.round(vehicle.seller_rating))} <span>(${vehicle.seller_ratings_count} reseñas)</span></div>` : '<div class="rating"><span style="color:var(--text-secondary)">Sin reseñas aún</span></div>'}
               <div class="seller-stats">
                 <span><strong>${vehicle.seller_vehicles_count}</strong> vehículos</span>
@@ -2505,7 +2529,7 @@ function appendMessageToDOM(message, readAt) {
             <div class="trade-card-title">${escapeHtml(v.title)}</div>
             <div class="trade-card-sub">${escapeHtml(v.brand)} ${escapeHtml(v.model)} · ${escapeHtml(String(v.year))}</div>
             <div class="trade-card-price">$${formatNumber(v.price)}</div>
-            ${v.city ? `<div class="trade-card-location">📍 ${escapeHtml(v.city)}${v.province ? ', ' + escapeHtml(v.province.replace(/\s*\(.*?\)/g,'').trim()) : ''}</div>` : ''}
+            ${v.city ? `<div class="trade-card-location"> ${escapeHtml(v.city)}${v.province ? ', ' + escapeHtml(v.province.replace(/\s*\(.*?\)/g,'').trim()) : ''}</div>` : ''}
             ${isOwner && offerId ? `
             <div class="trade-card-actions" id="trade-actions-${offerId}">
               <button class="btn btn-primary btn-sm" style="margin-right:0.4rem;" onclick="respondToTradeInChat(${offerId}, 'accepted')">✅ Aceptar</button>
@@ -3065,7 +3089,7 @@ async function viewProfile(id) {
 
         <h2>${escapeHtml(profile.is_verified && profile.dealership_name ? profile.dealership_name : (profile.first_name && profile.last_name) ? `${profile.first_name} ${profile.last_name}` : profile.username)}</h2>
         <p style="color:var(--text-3);font-size:0.9rem;margin-top:0.1rem;">@${escapeHtml(profile.username)}</p>
-        ${profile.is_verified ? verifiedBadge() : ''}
+        ${profile.is_verified ? verifiedImageBadge('verified-image-badge-profile') : ''}
         
         ${profile.rating ? `
           <div class="rating">
@@ -4408,8 +4432,10 @@ async function loadFollowingFeed(page = 1, reset = false) {
             <div class="vehicle-seller">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" style="flex-shrink:0;"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
               <div class="vehicle-seller-info">
+                <div class="vehicle-seller-name-row">
                 <span>${escapeHtml(v.seller_verified && v.seller_dealership ? v.seller_dealership : (v.seller_first_name && v.seller_last_name ? `${v.seller_first_name} ${v.seller_last_name}` : (v.seller_name || 'Anónimo')))}</span>
-                ${v.seller_verified ? verifiedBadge() : ''}
+                ${v.seller_verified ? verifiedCheckIcon() : ''}
+                </div>
               </div>
             </div>
           </div>
@@ -4557,6 +4583,14 @@ async function loadSimilarVehicles(vehicleId) {
     document.getElementById('similarVehiclesSection')?.remove();
   }
 }
+
+
+
+
+
+
+
+
 
 
 

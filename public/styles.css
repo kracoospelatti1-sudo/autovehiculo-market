@@ -291,15 +291,10 @@ body::before {
 }
 
 .nav-brand {
-  font-family: inherit;
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #fff;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0;
   cursor: pointer;
-  letter-spacing: -0.03em;
   transition: transform 0.2s ease;
 }
 
@@ -307,17 +302,18 @@ body::before {
   transform: scale(1.02);
 }
 
-.nav-brand svg {
-  color: var(--primary);
-  filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.3));
+.nav-logo {
+  width: 188px;
+  height: auto;
+  max-height: 44px;
+  filter: drop-shadow(0 4px 14px rgba(245, 158, 11, 0.22));
 }
 
-.nav-brand span {
-  color: var(--primary);
-  background: linear-gradient(135deg, var(--primary) 0%, #fbbf24 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+@media (max-width: 768px) {
+  .nav-logo {
+    width: 160px;
+    max-height: 38px;
+  }
 }
 
 .nav-links {
@@ -1433,6 +1429,20 @@ select {
   min-width: 0;
 }
 
+.vehicle-seller-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.vehicle-seller-name-row span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
 .vehicle-seller .avatar-tiny {
   width: 20px;
   height: 20px;
@@ -1447,7 +1457,7 @@ select {
   flex-shrink: 0;
 }
 
-.vehicle-seller span {
+.vehicle-seller-info > span {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2482,8 +2492,12 @@ select {
 
 .profile-actions-grid {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: center;
+  align-items: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
   gap: 0.6rem;
   margin-top: 1rem;
 }
@@ -2506,6 +2520,7 @@ select {
   transition: var(--transition);
   border: 1px solid var(--border);
   vertical-align: middle;
+  flex: 0 0 auto;
 }
 
 .profile-action-btn svg {
@@ -4292,6 +4307,24 @@ select {
   color: var(--text);
 }
 
+.detail-specs .spec-head {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.28rem;
+}
+
+.detail-specs .spec-head .label {
+  margin-bottom: 0;
+}
+
+.detail-specs .spec-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  opacity: 0.92;
+}
+
 .spec-card {
   transition: var(--transition);
   background: rgba(255, 255, 255, 0.02);
@@ -4444,6 +4477,63 @@ select {
   pointer-events: none;
   z-index: 100;
 }
+
+.verified-check-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+}
+
+.verified-check-icon img {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  display: block;
+}
+
+.verified-check-icon-profile {
+  margin-top: 0.3rem;
+}
+
+.verified-check-icon-profile img {
+  width: 16px;
+  height: 16px;
+}
+
+.verified-image-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: #facc15;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.verified-image-badge img {
+  width: 14px;
+  height: 14px;
+  display: block;
+  flex-shrink: 0;
+  filter: sepia(1) saturate(5) hue-rotate(340deg) brightness(1.12);
+}
+
+.verified-image-badge-profile {
+  margin-top: 0.35rem;
+  font-size: 0.82rem;
+}
+
+.verified-image-badge-profile img {
+  width: 16px;
+  height: 16px;
+}
+
+.verified-image-badge-detail {
+  font-size: 0.8rem;
+}
+
 
 .seller-name-row {
   display: flex;
@@ -5563,7 +5653,10 @@ select {
   }
 
   .vehicles-grid .vehicle-seller .verified-badge {
-    display: none;
+    display: inline-flex;
+    margin-left: 0;
+    font-size: 0.62rem;
+    padding: 1px 4px;
   }
 }
 
