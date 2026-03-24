@@ -638,8 +638,22 @@ app.get('/api/auth/verify-email', async (req, res) => {
       return res.status(400).json({ error: 'El link de verificación expiró. Pedí uno nuevo.' });
     }
 
-    await supabase.from('users').update({ email_verified: true }).eq('id', record.user_id);
-    await supabase.from('email_verification_tokens').delete().eq('token', token);
+    const { error: verifyUpdateError } = await supabase
+      .from('users')
+      .update({ email_verified: true })
+      .eq('id', record.user_id);
+    if (verifyUpdateError) {
+      console.error('[verify-email] update error:', verifyUpdateError);
+      return res.status(500).json({ error: 'No se pudo verificar el email. Intentá nuevamente.' });
+    }
+
+    const { error: verifyTokenDeleteError } = await supabase
+      .from('email_verification_tokens')
+      .delete()
+      .eq('token', token);
+    if (verifyTokenDeleteError) {
+      console.error('[verify-email] token delete error:', verifyTokenDeleteError);
+    }
 
     res.json({ success: true, message: '¡Email verificado! Ya podés iniciar sesión.' });
   } catch (err) {
@@ -741,8 +755,22 @@ app.post('/api/auth/reset-password', async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    await supabase.from('users').update({ password: hashedPassword }).eq('id', record.user_id);
-    await supabase.from('password_reset_tokens').update({ used: true }).eq('token', token);
+    const { error: passUpdateError } = await supabase
+      .from('users')
+      .update({ password: hashedPassword })
+      .eq('id', record.user_id);
+    if (passUpdateError) {
+      console.error('[reset-password] password update error:', passUpdateError);
+      return res.status(500).json({ error: 'No se pudo actualizar la contraseña. Intentá nuevamente.' });
+    }
+
+    const { error: markUsedError } = await supabase
+      .from('password_reset_tokens')
+      .update({ used: true })
+      .eq('token', token);
+    if (markUsedError) {
+      console.error('[reset-password] mark used error:', markUsedError);
+    }
 
     res.json({ success: true, message: 'Contraseña actualizada correctamente. Ya podés iniciar sesión.' });
   } catch (err) {

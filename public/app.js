@@ -414,7 +414,7 @@ async function handleEmailLinks() {
   const params = new URLSearchParams(window.location.search);
   const token = params.get('token');
   const type = params.get('type');
-  if (!token || !type) return;
+  if (!token || !type) return false;
 
   // Limpiar URL para que no quede el token visible
   window.history.replaceState({}, '', window.location.pathname);
@@ -428,10 +428,13 @@ async function handleEmailLinks() {
       showToast(err.message || 'El link de verificación es inválido o expiró', 'error');
       showSection('login');
     }
+    return true;
   } else if (type === 'reset') {
     document.getElementById('resetToken').value = token;
     showSection('reset-password');
+    return true;
   }
+  return false;
 }
 
 // Botón atrás del navegador
@@ -453,10 +456,6 @@ document.addEventListener('DOMContentLoaded', () => {
   setupProvinceCity('editProvince', 'editCity');
   const publishForm = document.querySelector('#publish form');
   if (publishForm) publishForm.noValidate = true;
-
-  // Manejar links de verificación y reseteo desde emails
-  handleEmailLinks();
-
 
   const pwdInput = document.getElementById('registerPassword');
   if (pwdInput) {
@@ -3912,7 +3911,12 @@ async function checkAuth() {
   updateNav();
 }
 
-checkAuth().then(() => {
+checkAuth().then(async () => {
+  // Los links de email tienen prioridad de routing en el arranque.
+  // Si fueron procesados, no sobrescribir la sección con home/section/vehicle.
+  const emailLinkHandled = await handleEmailLinks();
+  if (emailLinkHandled) return;
+
   const params = new URLSearchParams(window.location.search);
   const vehicleId = params.get('vehicle');
   const section = params.get('section');
