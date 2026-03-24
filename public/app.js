@@ -752,9 +752,12 @@ function suggestUsername() {
   usernameEl.value = suggestion;
 }
 
-function updatePasswordStrength(password) {
-  const fill = document.getElementById('passwordStrengthFill');
-  const label = document.getElementById('passwordStrengthLabel');
+function updatePasswordStrength(password, scope = 'register') {
+  const ids = scope === 'reset'
+    ? { fill: 'resetPasswordStrengthFill', label: 'resetPasswordStrengthLabel' }
+    : { fill: 'registerPasswordStrengthFill', label: 'registerPasswordStrengthLabel' };
+  const fill = document.getElementById(ids.fill);
+  const label = document.getElementById(ids.label);
   if (!fill || !label) return;
 
   const len = password.length;

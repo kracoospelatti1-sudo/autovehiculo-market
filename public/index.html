@@ -262,12 +262,12 @@
           <div class="input-icon-wrap">
             <i data-lucide="lock"></i>
             <input type="password" id="registerPassword" placeholder="Contraseña (mín. 8 caracteres)" required
-              autocomplete="new-password" oninput="updatePasswordStrength(this.value)">
+              autocomplete="new-password" oninput="updatePasswordStrength(this.value, 'register')">
           </div>
-          <div class="password-strength-bar" id="passwordStrengthBar">
-            <div class="password-strength-fill" id="passwordStrengthFill"></div>
+          <div class="password-strength-bar" id="registerPasswordStrengthBar">
+            <div class="password-strength-fill" id="registerPasswordStrengthFill"></div>
           </div>
-          <span id="passwordStrengthLabel" class="password-strength-label"></span>
+          <span id="registerPasswordStrengthLabel" class="password-strength-label"></span>
           <!-- Captcha -->
           <div class="h-captcha" data-sitekey="d28a3f78-282e-428e-b27c-e2c66ef65ab8" data-size="normal" style="margin-top:1.25rem;"></div>
           <button type="submit" class="btn btn-primary" style="width:100%;margin-top:1rem;padding:0.9rem;font-size:1rem;" id="registerBtn">
@@ -309,11 +309,11 @@
           <input type="hidden" id="resetToken">
           <div class="form-group">
             <label for="resetPassword">Nueva contraseña</label>
-            <input type="password" id="resetPassword" placeholder="Mínimo 8 caracteres" required autocomplete="new-password" minlength="6" oninput="updatePasswordStrength(this.value)">
-            <div class="password-strength-bar" id="passwordStrengthBar">
-              <div class="password-strength-fill" id="passwordStrengthFill"></div>
+            <input type="password" id="resetPassword" placeholder="Mínimo 8 caracteres" required autocomplete="new-password" minlength="6" oninput="updatePasswordStrength(this.value, 'reset')">
+            <div class="password-strength-bar" id="resetPasswordStrengthBar">
+              <div class="password-strength-fill" id="resetPasswordStrengthFill"></div>
             </div>
-            <span id="passwordStrengthLabel" class="password-strength-label"></span>
+            <span id="resetPasswordStrengthLabel" class="password-strength-label"></span>
           </div>
           <div class="form-group">
             <label for="resetPasswordConfirm">Confirmar contraseña</label>
