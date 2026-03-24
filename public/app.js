@@ -136,7 +136,7 @@ const API_URL = '/api';
 let carBrands = {};
 let motoBrands = {};
 
-fetch('/brands-data.json').then(r => r.json()).then(d => {
+fetch('/brands-data.json?v=2').then(r => r.json()).then(d => {
   carBrands = d.carBrands || {};
   motoBrands = d.motoBrands || {};
   // Re-populate brand selects now that data is loaded

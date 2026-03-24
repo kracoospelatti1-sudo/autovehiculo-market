@@ -248,7 +248,9 @@
       "Cronos",
       "Doblo",
       "Ducato",
+      "Fastback",
       "Fiorino",
+      "Grand Siena",
       "Idea",
       "Linea",
       "Marea",
@@ -256,11 +258,14 @@
       "Palio",
       "Palio Weekend",
       "Panda",
+      "Pulse",
       "Punto",
       "Qubo",
       "Siena",
+      "Strada",
       "Tipo",
-      "Toro"
+      "Toro",
+      "Uno"
     ],
     "Ford": [
       "Bronco",
