@@ -729,7 +729,9 @@ function showSection(sectionId) {
   const section = document.getElementById(sectionId);
   if (section) {
     section.style.display = 'block';
-    section.classList.add('fade-in');
+    // Avoid animating home to reduce CLS on first paint and route transitions.
+    if (sectionId === 'home') section.classList.remove('fade-in');
+    else section.classList.add('fade-in');
   }
   setBottomNavActive(sectionId);
   if (sectionId === 'home') { loadHomeRecent(); }
@@ -758,6 +760,20 @@ function showSection(sectionId) {
   if (sectionId !== 'messages') currentConversationId = null;
   if (sectionId !== 'vehicle-detail') currentVehicleId = null;
   window.scrollTo({ top: 0, behavior: 'auto' });
+}
+
+function initHomeWithoutShift() {
+  setRobotsMetaForSection('home');
+  setBottomNavActive('home');
+  const home = document.getElementById('home');
+  if (home) {
+    home.style.display = 'block';
+    home.classList.remove('fade-in');
+  }
+  document.querySelectorAll('.section').forEach(s => {
+    if (s.id !== 'home') s.style.display = 'none';
+  });
+  loadHomeRecent();
 }
 
 function setBottomNavActive(sectionId) {
@@ -4346,7 +4362,8 @@ checkAuth().then(async () => {
     window.history.replaceState({}, '', window.location.pathname);
     showSection(section);
   } else {
-    showSection('home');
+    // Home is already visible by CSS; keep it stable to prevent layout shift.
+    initHomeWithoutShift();
   }
 });
 
