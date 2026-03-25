@@ -93,6 +93,16 @@ function setRobotsMetaForSection(sectionId) {
   const robotsValue = indexableSections.has(sectionId) ? 'index, follow' : 'noindex, nofollow';
   setMeta('name', 'robots', robotsValue);
 }
+function makeCacheToken(value = '') {
+  // Small deterministic hash for cache-busting URLs.
+  let h = 2166136261;
+  const s = String(value || '');
+  for (let i = 0; i < s.length; i += 1) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(36);
+}
 
 function updateSEOMeta(vehicle, imageUrl) {
   const price = Number(vehicle.price).toLocaleString('es-AR');
@@ -101,7 +111,8 @@ function updateSEOMeta(vehicle, imageUrl) {
   const title = `${vehicle.title} — $${price} | Autoventa`;
   const desc = `${vehicle.brand} ${vehicle.model} ${vehicle.year}, ${mileage}km, ${vehicle.fuel}, ${vehicle.transmission}. En ${location}.`;
   const url = `https://autoventa.online/?vehicle=${vehicle.id}`;
-  const ogImage = `https://autoventa.online/og/vehicle/${vehicle.id}.svg?v=${encodeURIComponent(String(vehicle.updated_at || ''))}`;
+  const ogVersion = makeCacheToken(`${vehicle.updated_at || ''}|${imageUrl || ''}`);
+  const ogImage = `https://autoventa.online/og/vehicle/${vehicle.id}.svg?v=${ogVersion}`;
   document.title = title;
   setMeta('name', 'description', desc);
   setMeta('property', 'og:title', title);

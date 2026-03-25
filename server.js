@@ -123,6 +123,16 @@ const trimEllipsis = (value = '', max = 80) => {
   if (v.length <= max) return v;
   return `${v.slice(0, Math.max(0, max - 1)).trim()}…`;
 };
+const makeCacheToken = (value = '') => {
+  // Small deterministic hash for cache-busting URLs.
+  let h = 2166136261;
+  const s = String(value || '');
+  for (let i = 0; i < s.length; i += 1) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(36);
+};
 function buildVehicleOgSvg({ title, price, city, province, year, fuel, transmission, imageUrl }) {
   const safeTitle = escapeXml(trimEllipsis(title || 'Vehiculo destacado', 78));
   const safeLocation = escapeXml([city, province].filter(Boolean).join(', ') || 'Argentina');
@@ -194,8 +204,10 @@ app.get('/', async (req, res, next) => {
       .order('is_primary', { ascending: false })
       .order('order_index', { ascending: true })
       .limit(1);
-    const imageUrl = `https://autoventa.online/og/vehicle/${vehicle.id}.svg?v=${encodeURIComponent((vehicle.updated_at || '').toString())}`;
-    const twitterImageUrl = imgs?.[0]?.url || 'https://autoventa.online/og-default.png';
+    const primaryImageUrl = imgs?.[0]?.url || 'https://autoventa.online/og-default.png';
+    const ogVersion = makeCacheToken(`${vehicle.updated_at || ''}|${primaryImageUrl}`);
+    const imageUrl = `https://autoventa.online/og/vehicle/${vehicle.id}.svg?v=${ogVersion}`;
+    const twitterImageUrl = primaryImageUrl;
     const title = `${vehicle.title} — $${Number(vehicle.price).toLocaleString('es-AR')} | Autoventa`;
     const desc = `${vehicle.brand} ${vehicle.model} ${vehicle.year}, ${Number(vehicle.mileage).toLocaleString('es-AR')}km, ${vehicle.fuel}. En ${vehicle.city}${vehicle.province ? ', ' + vehicle.province : ''}.`;
     const url = `https://autoventa.online/?vehicle=${vehicle.id}`;
