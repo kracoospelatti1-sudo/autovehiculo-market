@@ -31,6 +31,7 @@ let myVehiclesHasMore = false;
 let profileVehiclesPage = 1;
 let profileVehiclesHasMore = false;
 let profileVehiclesUserId = null;
+let bodyTypeLookupSeq = 0;
 
 function ensureLeafletCss() {
   if (leafletCssLoaded || document.querySelector('link[data-leaflet-css="1"]')) {
@@ -1556,8 +1557,83 @@ function updatePublishModels() {
   const type = document.getElementById('publishVehicleType')?.value || 'auto';
   const brands = getBrandsForType(type);
   if (brand && brands[brand]) brands[brand].forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = m; modelSelect.appendChild(o); });
+  setBodyTypeHint('publish', '', null);
 }
 
+function mapBodyTypeToVehicleType(bodyType = '') {
+  const v = String(bodyType || '').toLowerCase();
+  if (!v) return '';
+  if (v.includes('moto')) return 'moto';
+  return 'auto';
+}
+
+function setBodyTypeHint(scope, bodyType, confidence) {
+  const hintEl = document.getElementById(scope === 'edit' ? 'editBodyTypeHint' : 'publishBodyTypeHint');
+  if (!hintEl) return;
+  if (!bodyType) {
+    hintEl.textContent = 'Tipo de carroceria: completa marca y modelo para detectar automaticamente.';
+    hintEl.style.opacity = '0.82';
+    return;
+  }
+  const pct = Number.isFinite(Number(confidence)) ? ' (' + Math.round(Number(confidence) * 100) + '%)' : '';
+  hintEl.textContent = 'Tipo detectado: ' + bodyType + pct;
+  hintEl.style.opacity = '1';
+}
+
+function setBodyTypeStatus(scope, message) {
+  const hintEl = document.getElementById(scope === 'edit' ? 'editBodyTypeHint' : 'publishBodyTypeHint');
+  if (!hintEl) return;
+  hintEl.textContent = message || 'Tipo de carroceria: completa marca y modelo para detectar automaticamente.';
+  hintEl.style.opacity = '0.9';
+}
+
+async function handleBodyTypeLookup(scope = 'publish') {
+  try {
+    const brandEl = document.getElementById(scope === 'edit' ? 'editBrand' : 'publishBrand');
+    const modelEl = document.getElementById(scope === 'edit' ? 'editModel' : 'publishModel');
+    const typeEl = document.getElementById(scope === 'edit' ? 'editVehicleTypeTop' : 'publishVehicleType');
+    const brand = brandEl?.value?.trim() || '';
+    const model = modelEl?.value?.trim() || '';
+
+    if (!brand || !model) {
+      setBodyTypeHint(scope, '', null);
+      return;
+    }
+
+    const seq = ++bodyTypeLookupSeq;
+    let cache = null;
+    let lastError = '';
+    try {
+      cache = await request(`/body-type-cache?brand=${encodeURIComponent(brand)}&model=${encodeURIComponent(model)}`);
+    } catch (err) {
+      try {
+        cache = await request('/body-type-cache/sync', {
+          method: 'POST',
+          body: JSON.stringify({ brand, model, force: false })
+        });
+      } catch (syncErr) {
+        lastError = syncErr?.message || '';
+        cache = null;
+      }
+    }
+
+    if (seq !== bodyTypeLookupSeq || !cache) {
+      setBodyTypeStatus(scope, lastError || 'No se pudo detectar');
+      return;
+    }
+
+    setBodyTypeHint(scope, cache.body_type || '', cache.confidence);
+
+    const mappedType = mapBodyTypeToVehicleType(cache.body_type);
+    if (typeEl && mappedType && typeEl.value !== mappedType) {
+      typeEl.value = mappedType;
+      if (scope === 'edit') toggleEngineCCField('edit');
+      else toggleEngineCCField('publish');
+    }
+  } catch {
+    setBodyTypeStatus(scope, 'Error al consultar tipo');
+  }
+}
 // VEHICLE DETAIL
 async function viewVehicle(id) {
   currentVehicleId = id;
@@ -2234,6 +2310,7 @@ async function openEditModal(id, e) {
     updateEditModels();
     const editModelEl = document.getElementById('editModel');
     if (editModelEl) editModelEl.value = v.model || '';
+    handleBodyTypeLookup('edit');
     document.getElementById('editYear').value = v.year || '';
     document.getElementById('editVersion').value = v.version || '';
     updateEditTitle();
@@ -3965,7 +4042,6 @@ async function submitRating() {
     closeRateModal();
   } catch (err) { showToast(err.message, 'error'); }
 }
-
 function closeAllModals() {
   document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
   document.getElementById('modalOverlay').style.display = 'none';
@@ -4145,6 +4221,8 @@ function shareHomepage() {
     .then(() => showToast('Link de Autoventa copiado', 'success'))
     .catch(() => showToast('No se pudo copiar el link', 'error'));
 }
+window.shareHomepage = shareHomepage;
+
 function shareVehicle(id, title, price) {
   const url = `${window.location.origin}${window.location.pathname}?vehicle=${id}`;
   const text = `${title}\nUSD ${Number(price).toLocaleString('es-AR')}\n${url}`;
@@ -4433,6 +4511,7 @@ function updateEditModels() {
     });
   }
   modelSelect.value = prev || '';
+  setBodyTypeHint('edit', '', null);
 }
 
 function updateEditTitle() {
@@ -4588,6 +4667,8 @@ function tryPublish() {
 initBrandFilters();
 updateVehicleTypeOptions('publish');
 updateVehicleTypeOptions('filter');
+setBodyTypeHint('publish', '', null);
+setBodyTypeHint('edit', '', null);
 
 function autoFillTitle() {
   const brand = document.getElementById('publishBrand')?.value || '';

@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const rateLimit = require('express-rate-limit');
 const http = require('http');
 const { WebSocketServer } = require('ws');
@@ -402,6 +403,138 @@ function formatNumber(num) {
   if (num == null) return '0';
   return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
+
+function normalizeLookupText(value = '') {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+function canonicalBodyType(value = '') {
+  const v = normalizeLookupText(value);
+  if (!v) return '';
+  if (v.includes('suv')) return 'SUV';
+  if (v.includes('hatch')) return 'Hatchback';
+  if (v.includes('sedan')) return 'Sedan';
+  if (v.includes('pickup') || v.includes('pick up') || v.includes('camioneta')) return 'Camioneta';
+  if (v.includes('coupe') || v.includes('coup')) return 'Coupe';
+  if (v.includes('rural') || v.includes('wagon') || v.includes('familiar')) return 'Rural';
+  if (v.includes('van') || v.includes('furgon')) return 'Van';
+  return String(value || '').trim();
+}
+
+function extractBodyTypeFromAttributes(attrs = []) {
+  if (!Array.isArray(attrs) || attrs.length === 0) return '';
+  const valid = attrs.filter(Boolean);
+  const preferredIds = new Set([
+    'BODY_TYPE',
+    'VEHICLE_BODY_TYPE',
+    'BODY_STYLE',
+    'CAR_BODY_TYPE',
+    'VEHICLE_STYLE'
+  ]);
+
+  const byId = valid.find(a => preferredIds.has(String(a.id || '').toUpperCase()) && (a.value_name || a.value_id));
+  if (byId) return canonicalBodyType(byId.value_name || byId.value_id || '');
+
+  const byName = valid.find((a) => {
+    const n = normalizeLookupText(a.name || a.id || '');
+    return (n.includes('carroceria') || (n.includes('body') && n.includes('type'))) && (a.value_name || a.value_id);
+  });
+  if (byName) return canonicalBodyType(byName.value_name || byName.value_id || '');
+
+  return '';
+}
+
+function inferBodyTypeFromModelName(model = '') {
+  const m = normalizeLookupText(model);
+  if (!m) return '';
+  const pickupTokens = ['hilux', 'ranger', 'amarok', 's10', 'frontier', 'l200', 'maverick', 'f 100', 'f100', 'ram', 'saveiro', 'strada'];
+  const suvTokens = ['ecosport', 'tracker', 'kuga', 'tiguan', 'nivus', 'taos', 'sw4', 'rav4', 'crv', 'cr v', 'duster', 'captur', 'renegade', 'compass', 'cherokee', 'territory', 'sorento', 'sportage', 'cx 5', 'cx5', 'koleos', 'x trail', 'xtrail'];
+  const hatchTokens = ['gol', 'polo', '208', '207', '206', 'fiesta', 'yaris', 'onix', 'etios', 'sandero', 'ka', 'up', 'c3', 'a1', 'a3 sportback'];
+  const sedanTokens = ['vento', 'corolla', 'civic', 'city', 'fluence', 'logan', 'sentra', 'cruze', 'focus sedan', 'prisma', 'virtus'];
+
+  if (pickupTokens.some(t => m.includes(t))) return 'Camioneta';
+  if (suvTokens.some(t => m.includes(t))) return 'SUV';
+  if (hatchTokens.some(t => m.includes(t))) return 'Hatchback';
+  if (sedanTokens.some(t => m.includes(t))) return 'Sedan';
+  return '';
+}
+
+const LOCAL_BODY_TYPE_SEED = [
+  { brand: 'Volkswagen', model: 'Golf', body_type: 'Hatchback' },
+  { brand: 'Volkswagen', model: 'Vento', body_type: 'Sedan' },
+  { brand: 'Volkswagen', model: 'Amarok', body_type: 'Camioneta' },
+  { brand: 'Toyota', model: 'Hilux', body_type: 'Camioneta' },
+  { brand: 'Toyota', model: 'Corolla', body_type: 'Sedan' },
+  { brand: 'Toyota', model: 'RAV4', body_type: 'SUV' },
+  { brand: 'Ford', model: 'Ranger', body_type: 'Camioneta' },
+  { brand: 'Ford', model: 'EcoSport', body_type: 'SUV' },
+  { brand: 'Ford', model: 'Focus', body_type: 'Hatchback' },
+  { brand: 'Chevrolet', model: 'Tracker', body_type: 'SUV' },
+  { brand: 'Chevrolet', model: 'Onix', body_type: 'Hatchback' },
+  { brand: 'Chevrolet', model: 'S10', body_type: 'Camioneta' },
+  { brand: 'Renault', model: 'Duster', body_type: 'SUV' },
+  { brand: 'Renault', model: 'Sandero', body_type: 'Hatchback' },
+  { brand: 'Peugeot', model: '208', body_type: 'Hatchback' },
+  { brand: 'Jeep', model: 'Renegade', body_type: 'SUV' },
+  { brand: 'Jeep', model: 'Compass', body_type: 'SUV' },
+  { brand: 'Honda', model: 'Civic', body_type: 'Sedan' },
+  { brand: 'Honda', model: 'CR-V', body_type: 'SUV' },
+  { brand: 'Nissan', model: 'Frontier', body_type: 'Camioneta' }
+];
+
+function lookupBodyTypeFromLocalSeed(brand = '', model = '') {
+  const nb = normalizeLookupText(brand);
+  const nm = normalizeLookupText(model);
+  if (!nb || !nm) return '';
+  const direct = LOCAL_BODY_TYPE_LOOKUP_MAP.get(`${nb}||${nm}`);
+  if (direct) return direct;
+  for (const row of LOCAL_BODY_TYPE_SEED) {
+    if (normalizeLookupText(row.brand) !== nb) continue;
+    const seedModel = normalizeLookupText(row.model);
+    if (!seedModel) continue;
+    if (nm.includes(seedModel) || seedModel.includes(nm)) return row.body_type;
+  }
+  return '';
+}
+
+const LOCAL_BODY_TYPE_LOOKUP_MAP = (() => {
+  const map = new Map();
+  for (const row of LOCAL_BODY_TYPE_SEED) {
+    const k = `${normalizeLookupText(row.brand)}||${normalizeLookupText(row.model)}`;
+    if (!map.has(k)) map.set(k, row.body_type);
+  }
+  try {
+    const brandsPath = path.join(__dirname, 'public', 'brands-data.json');
+    if (fs.existsSync(brandsPath)) {
+      const brandsData = JSON.parse(fs.readFileSync(brandsPath, 'utf8'));
+      const carBrands = brandsData?.carBrands || {};
+      const motoBrands = brandsData?.motoBrands || {};
+      for (const [brand, models] of Object.entries(carBrands)) {
+        for (const model of (models || [])) {
+          const k = `${normalizeLookupText(brand)}||${normalizeLookupText(model)}`;
+          if (map.has(k)) continue;
+          map.set(k, inferBodyTypeFromModelName(model) || 'Sedan');
+        }
+      }
+      for (const [brand, models] of Object.entries(motoBrands)) {
+        for (const model of (models || [])) {
+          const k = `${normalizeLookupText(brand)}||${normalizeLookupText(model)}`;
+          if (map.has(k)) continue;
+          map.set(k, 'Moto');
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[body-type-cache] local seed load warning:', err?.message || err);
+  }
+  return map;
+})();
 
 // ─── WebSocket helpers ────────────────────────────────────────────────────────
 function broadcastToRoom(conversationId, event, excludeUserId = null) {
@@ -3170,6 +3303,89 @@ app.get('/api/admin/stats', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ error: 'Error' });
+  }
+});
+
+// Cached body type lookup (brand + model)
+app.get('/api/body-type-cache', async (req, res) => {
+  try {
+    const brand = String(req.query.brand || '').trim();
+    const model = String(req.query.model || '').trim();
+    if (!brand || !model) return res.status(400).json({ error: 'brand y model son requeridos' });
+
+    const normalizedBrand = normalizeLookupText(brand);
+    const normalizedModel = normalizeLookupText(model);
+    const { data, error } = await supabase
+      .from('vehicle_body_type_cache')
+      .select('brand, model, body_type, confidence, sample_size, source, source_item_id, updated_at')
+      .eq('normalized_brand', normalizedBrand)
+      .eq('normalized_model', normalizedModel)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'No encontrado en cache' });
+    res.json(data);
+  } catch (error) {
+    console.error('[body-type-cache] get error:', error?.message || error);
+    res.status(500).json({ error: 'Error al consultar cache de carroceria' });
+  }
+});
+
+// Sync from Mercado Libre and store local cache (available to all users)
+app.post('/api/body-type-cache/sync', async (req, res) => {
+  try {
+    const brand = String(req.body?.brand || '').trim();
+    const model = String(req.body?.model || '').trim();
+    const force = req.body?.force === true;
+    if (!brand || !model) return res.status(400).json({ error: 'brand y model son requeridos' });
+
+    const normalizedBrand = normalizeLookupText(brand);
+    const normalizedModel = normalizeLookupText(model);
+
+    if (!force) {
+      const { data: existing } = await supabase
+        .from('vehicle_body_type_cache')
+        .select('brand, model, body_type, confidence, sample_size, source, source_item_id, updated_at')
+        .eq('normalized_brand', normalizedBrand)
+        .eq('normalized_model', normalizedModel)
+        .maybeSingle();
+      if (existing) return res.json({ ...existing, cached: true });
+    }
+
+    const seedType = lookupBodyTypeFromLocalSeed(brand, model);
+    const heuristicType = inferBodyTypeFromModelName(model);
+    const bodyType = seedType || heuristicType;
+    if (!bodyType) {
+      return res.status(404).json({ error: 'Sin coincidencia local para ese modelo' });
+    }
+    const confidence = seedType ? 0.95 : 0.35;
+    const sampleSize = 1;
+
+    const payload = {
+      brand,
+      model,
+      normalized_brand: normalizedBrand,
+      normalized_model: normalizedModel,
+      body_type: bodyType,
+      confidence,
+      sample_size: sampleSize,
+      source: seedType ? 'local_seed' : 'heuristic',
+      source_item_id: null,
+      updated_at: new Date().toISOString()
+    };
+
+    const { data: upserted, error: upsertErr } = await supabase
+      .from('vehicle_body_type_cache')
+      .upsert(payload, { onConflict: 'normalized_brand,normalized_model' })
+      .select('brand, model, body_type, confidence, sample_size, source, source_item_id, updated_at')
+      .single();
+
+    if (upsertErr) throw upsertErr;
+
+    res.json({ ...upserted, cached: false });
+  } catch (error) {
+    console.error('[body-type-cache] sync error:', error?.message || error);
+    res.status(500).json({ error: 'Error al sincronizar body type desde Mercado Libre' });
   }
 });
 
