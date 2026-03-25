@@ -757,7 +757,7 @@ function showSection(sectionId) {
   if (sectionId !== 'messages') stopPolling();
   if (sectionId !== 'messages') currentConversationId = null;
   if (sectionId !== 'vehicle-detail') currentVehicleId = null;
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  window.scrollTo({ top: 0, behavior: 'auto' });
 }
 
 function setBottomNavActive(sectionId) {
@@ -3946,7 +3946,7 @@ function thumbUrl(url) {
   if (m) {
     const base = m[1];
     const objectPath = m[2];
-    return `${base}/storage/v1/render/image/public/${objectPath}?width=640&height=400&resize=cover&quality=62`;
+    return `${base}/storage/v1/render/image/public/${objectPath}?width=520&height=325&resize=cover&quality=52`;
   }
   return url;
 }

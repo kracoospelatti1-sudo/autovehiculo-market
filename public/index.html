@@ -40,8 +40,8 @@
   <!-- Fuentes: no-render-blocking -->
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=optional" onload="this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=optional"></noscript>
-  <link rel="preload" as="style" href="styles.min.css?v=32" onload="this.rel='stylesheet'" fetchpriority="high">
-  <noscript><link rel="stylesheet" href="styles.min.css?v=32"></noscript>
+  <link rel="preload" as="style" href="styles.min.css?v=33" onload="this.rel='stylesheet'" fetchpriority="high">
+  <noscript><link rel="stylesheet" href="styles.min.css?v=33"></noscript>
   <!-- JSON-LD: WebSite + Organization -->
   <script type="application/ld+json">
   {
@@ -167,7 +167,29 @@
           </div>
           <button class="btn btn-ghost" onclick="showSection('vehicles')">Ver todos</button>
         </div>
-        <div id="homeRecentVehicles" class="vehicles-grid home-recent-grid"></div>
+        <div id="homeRecentVehicles" class="vehicles-grid home-recent-grid">
+          <div class="vehicle-card" style="padding:1rem;">
+            <div class="skeleton skeleton-img"></div>
+            <div style="padding:1rem 0;">
+              <div class="skeleton skeleton-text" style="width:70%;margin-bottom:0.5rem;"></div>
+              <div class="skeleton skeleton-text" style="width:40%;"></div>
+            </div>
+          </div>
+          <div class="vehicle-card" style="padding:1rem;">
+            <div class="skeleton skeleton-img"></div>
+            <div style="padding:1rem 0;">
+              <div class="skeleton skeleton-text" style="width:70%;margin-bottom:0.5rem;"></div>
+              <div class="skeleton skeleton-text" style="width:40%;"></div>
+            </div>
+          </div>
+          <div class="vehicle-card" style="padding:1rem;">
+            <div class="skeleton skeleton-img"></div>
+            <div style="padding:1rem 0;">
+              <div class="skeleton skeleton-text" style="width:70%;margin-bottom:0.5rem;"></div>
+              <div class="skeleton skeleton-text" style="width:40%;"></div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="home-shell home-benefits-wrap">
@@ -1155,7 +1177,7 @@
   <footer class="site-footer">
     <span>© 2026 Autoventa</span>
     <a href="/?section=terms" onclick="showSection('terms');return false;" style="cursor:pointer;">Términos y Condiciones</a>
-    <span style="color:var(--text-3);font-size:0.75rem;">v1.0.7</span>
+    <span style="color:var(--text-3);font-size:0.75rem;">v1.0.8</span>
   </footer>
 
   <!-- Edit Profile Modal -->
@@ -1169,7 +1191,7 @@
     </div>
   </div>
 
-  <script src="app.js?v=36" defer></script>
+  <script src="app.js?v=37" defer></script>
   <script>
     // AdSense: cargar únicamente tras interacción real para mejorar score mobile inicial
     (function () {

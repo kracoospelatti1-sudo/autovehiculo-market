@@ -215,13 +215,15 @@ app.use(express.static('public', {
   etag: true,
   lastModified: true,
   setHeaders: (res, filePath) => {
-    const reqUrl = res.req?.originalUrl || '';
+    const reqUrl = (res.req?.originalUrl || '') + (res.req?.url || '') + (res.req?._parsedUrl?.search || '');
     const isVersioned = /[?&]v=\d+/.test(reqUrl);
     const ext = path.extname(filePath).toLowerCase();
+    const fileName = path.basename(filePath).toLowerCase();
     const isHtml = ext === '.html';
     const isStaticAsset = ['.js', '.css', '.svg', '.png', '.jpg', '.jpeg', '.webp', '.json', '.woff', '.woff2', '.ico'].includes(ext);
+    const isCoreAsset = ['app.js', 'styles.min.css', 'logo.svg', 'favicon.svg'].includes(fileName);
 
-    if (isVersioned) {
+    if (isVersioned || isCoreAsset) {
       res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
       return;
     }
