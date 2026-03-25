@@ -1623,6 +1623,7 @@ async function handleBodyTypeLookup(scope = 'publish') {
     }
 
     setBodyTypeHint(scope, cache.body_type || '', cache.confidence);
+    if (modelEl) modelEl.dataset.detectedBodyType = cache.body_type || ''; 
 
     const mappedType = mapBodyTypeToVehicleType(cache.body_type);
     if (typeEl && mappedType && typeEl.value !== mappedType) {
@@ -2173,6 +2174,7 @@ async function handlePublish(e) {
       description: document.getElementById('publishDescription').value,
       accepts_trade: document.getElementById('publishAcceptsTrade').checked,
       vehicle_type: document.getElementById('publishVehicleType')?.value || 'auto',
+      body_type: document.getElementById('publishModel')?.dataset?.detectedBodyType || null,
       engine_cc: document.getElementById('publishEngineCC')?.value ? parseInt(document.getElementById('publishEngineCC').value) : null,
       contact_phone: document.getElementById('publishContactPhone')?.value?.trim() || null,
       contact_address: document.getElementById('publishContactAddress')?.value?.trim() || null,
@@ -2309,7 +2311,10 @@ async function openEditModal(id, e) {
     // Populate models for this brand then set value
     updateEditModels();
     const editModelEl = document.getElementById('editModel');
-    if (editModelEl) editModelEl.value = v.model || '';
+    if (editModelEl) {
+      editModelEl.value = v.model || '';
+      if (v.body_type) editModelEl.dataset.detectedBodyType = v.body_type;
+    }
     handleBodyTypeLookup('edit');
     document.getElementById('editYear').value = v.year || '';
     document.getElementById('editVersion').value = v.version || '';
@@ -2420,6 +2425,7 @@ async function handleEditVehicle(e) {
         description: document.getElementById('editDescription').value,
         accepts_trade: document.getElementById('editAcceptsTrade').checked,
         vehicle_type: editVehicleType,
+        body_type: document.getElementById('editModel')?.dataset?.detectedBodyType || null,
         engine_cc: document.getElementById('editEngineCC')?.value ? parseInt(document.getElementById('editEngineCC').value) : null,
         contact_phone: document.getElementById('editContactPhone')?.value?.trim() || null,
         contact_address: document.getElementById('editContactAddress')?.value?.trim() || null,

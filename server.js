@@ -503,6 +503,46 @@ function lookupBodyTypeFromLocalSeed(brand = '', model = '') {
   return '';
 }
 
+async function resolveBodyTypeForListing(brand = '', model = '') {
+  const normalizedBrand = normalizeLookupText(brand);
+  const normalizedModel = normalizeLookupText(model);
+  if (!normalizedBrand || !normalizedModel) return '';
+
+  try {
+    const { data: existing } = await supabase
+      .from('vehicle_body_type_cache')
+      .select('body_type')
+      .eq('normalized_brand', normalizedBrand)
+      .eq('normalized_model', normalizedModel)
+      .maybeSingle();
+    if (existing?.body_type) return existing.body_type;
+  } catch {}
+
+  const seedType = lookupBodyTypeFromLocalSeed(brand, model);
+  const heuristicType = inferBodyTypeFromModelName(model);
+  const bodyType = seedType || heuristicType;
+  if (!bodyType) return '';
+
+  try {
+    await supabase
+      .from('vehicle_body_type_cache')
+      .upsert({
+        brand,
+        model,
+        normalized_brand: normalizedBrand,
+        normalized_model: normalizedModel,
+        body_type: bodyType,
+        confidence: seedType ? 0.95 : 0.35,
+        sample_size: 1,
+        source: seedType ? 'local_seed' : 'heuristic',
+        source_item_id: null,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'normalized_brand,normalized_model' });
+  } catch {}
+
+  return bodyType;
+}
+
 const LOCAL_BODY_TYPE_LOOKUP_MAP = (() => {
   const map = new Map();
   for (const row of LOCAL_BODY_TYPE_SEED) {
@@ -1370,7 +1410,7 @@ app.post('/api/vehicles', authenticateToken, async (req, res) => {
     }
     const admin = req.user.is_admin === true || await isAdmin(req.user.id);
 
-    let { title, brand, model, year, price, price_original, price_currency, mileage, fuel, transmission, description, city, province, images, accepts_trade, vehicle_type, engine_cc, version, contact_phone, contact_address } = req.body;
+    let { title, brand, model, year, price, price_original, price_currency, mileage, fuel, transmission, description, city, province, images, accepts_trade, vehicle_type, body_type, engine_cc, version, contact_phone, contact_address } = req.body;
     if (!admin && (contact_phone || contact_address)) {
       return res.status(403).json({ error: 'Solo administradores pueden definir telefono o direccion personalizada.' });
     }
@@ -1390,6 +1430,7 @@ app.post('/api/vehicles', authenticateToken, async (req, res) => {
 
     // Auto-generate title on the server
     title = `${brand} ${model} ${version || ''} ${year}`.replace(/\s+/g, ' ').trim();
+    const resolvedBodyType = canonicalBodyType(body_type || '') || await resolveBodyTypeForListing(brand, model) || null;
 
     const validTypes = ['auto', 'moto'];
     const vehicleType = validTypes.includes(vehicle_type) ? vehicle_type : 'auto';
@@ -1411,6 +1452,7 @@ app.post('/api/vehicles', authenticateToken, async (req, res) => {
       view_count: 0,
       accepts_trade: !!accepts_trade,
       vehicle_type: vehicleType,
+      body_type: resolvedBodyType,
       engine_cc: vehicleType === 'moto' && engine_cc ? parseInt(engine_cc) : null,
       version: version || null,
       price_original: price_original ? parseFloat(price_original) : null,
@@ -1490,7 +1532,7 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'No tienes permiso' });
     }
 
-    const { title, brand, model, year, price, price_original, price_currency, mileage, fuel, transmission, description, city, province, status, vehicle_type, engine_cc, version, contact_phone, contact_address, images } = req.body;
+    const { title, brand, model, year, price, price_original, price_currency, mileage, fuel, transmission, description, city, province, status, vehicle_type, body_type, engine_cc, version, contact_phone, contact_address, images } = req.body;
 
     let updates = { updated_at: new Date().toISOString() };
     if (brand !== undefined) updates.brand = brand;
@@ -1540,6 +1582,13 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
       const validTypes = ['auto', 'moto'];
       if (!validTypes.includes(vehicle_type)) return res.status(400).json({ error: 'Tipo inválido' });
       updates.vehicle_type = vehicle_type;
+    }
+    if (body_type !== undefined) updates.body_type = canonicalBodyType(body_type || '') || null;
+    if ((brand !== undefined || model !== undefined) && body_type === undefined) {
+      const { data: curBody } = await supabase.from('vehicles').select('brand, model').eq('id', vid).maybeSingle();
+      const b = brand ?? curBody?.brand ?? '';
+      const m = model ?? curBody?.model ?? '';
+      updates.body_type = await resolveBodyTypeForListing(b, m) || null;
     }
     if (engine_cc !== undefined) updates.engine_cc = engine_cc ? parseInt(engine_cc) : null;
     if (!admin && (contact_phone !== undefined || contact_address !== undefined)) {
