@@ -1582,15 +1582,22 @@ app.get('/api/vehicles/:id/price-history', optionalAuth, async (req, res) => {
 
 app.get('/api/my-vehicles', authenticateToken, async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const hasPaging = typeof req.query.page !== 'undefined' || typeof req.query.limit !== 'undefined';
+    const page = Math.max(1, parseInt(req.query.page || '1', 10) || 1);
+    const limit = Math.min(24, Math.max(1, parseInt(req.query.limit || '12', 10) || 12));
+    const offset = (page - 1) * limit;
+
+    const { data, error, count } = await supabase
       .from('vehicles')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('user_id', req.user.id)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(hasPaging ? offset : 0, hasPaging ? (offset + limit - 1) : 9999);
 
     if (error) throw error;
     
-    const myIds = data.map(v => v.id);
+    const rows = data || [];
+    const myIds = rows.map(v => v.id);
     let myImagesMap = {};
     if (myIds.length > 0) {
       const { data: imgs } = await supabase.from('vehicle_images').select('*').in('vehicle_id', myIds);
@@ -1600,7 +1607,12 @@ app.get('/api/my-vehicles', authenticateToken, async (req, res) => {
         return acc;
       }, {});
     }
-    res.json(data.map(v => ({ ...v, images: myImagesMap[v.id] || [] })));
+    const vehicles = rows.map(v => ({ ...v, images: myImagesMap[v.id] || [] }));
+    if (!hasPaging) return res.json(vehicles);
+
+    const resolvedTotal = typeof count === 'number' ? count : (offset + rows.length + (rows.length === limit ? 1 : 0));
+    const hasMore = offset + vehicles.length < resolvedTotal;
+    res.json({ vehicles, total: resolvedTotal, page, has_more: hasMore });
   } catch (error) {
     res.status(500).json({ error: 'Error en el servidor' });
   }

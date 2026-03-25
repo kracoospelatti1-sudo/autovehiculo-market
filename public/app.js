@@ -26,6 +26,11 @@ let leafletCssLoaded = false;
 let homeRecentLoadedAt = 0;
 let publicStatsLoadedAt = 0;
 let lucideLoadPromise = null;
+let myVehiclesPage = 1;
+let myVehiclesHasMore = false;
+let profileVehiclesPage = 1;
+let profileVehiclesHasMore = false;
+let profileVehiclesUserId = null;
 
 function ensureLeafletCss() {
   if (leafletCssLoaded || document.querySelector('link[data-leaflet-css="1"]')) {
@@ -1605,7 +1610,7 @@ async function viewVehicle(id) {
     const showDealershipLocationButton = !!ownerLocationAddress;
     const profileWhatsapp = (vehicle.seller_profile?.phone || '').replace(/[\s\-\(\)]/g, '').replace(/^\+/, '');
     const sellerMapsUrl = vehicle.seller_profile?.dealership_address ? googleMapsSearchUrl(vehicle.seller_profile.dealership_address) : '';
-    const whatsappText = encodeURIComponent(`Hola, te contacto desde AutoVenta.online por el siguiente anuncio: https://autoventa.online/?vehicle=${vehicle.id}`);
+    const whatsappText = encodeURIComponent(`Hola, te contacto desde la pagina *Autoventa* por el siguiente anuncio: https://autoventa.online/?vehicle=${vehicle.id}`);
     const descriptionParagraphs = String(vehicle.description || '')
       .split(/\n\s*\n/)
       .map(p => p.trim())
@@ -2110,22 +2115,38 @@ async function handlePublish(e) {
 }
 
 // MY VEHICLES
-async function loadMyVehicles() {
+async function loadMyVehicles(page = 1) {
   try {
-    const vehicles = await request('/my-vehicles');
+    const response = await request(`/my-vehicles?page=${page}&limit=12`);
+    const vehicles = Array.isArray(response) ? response : (response.vehicles || []);
+    myVehiclesHasMore = Array.isArray(response) ? false : !!response.has_more;
+    myVehiclesPage = page;
+
     const vehicleStats = await request('/my-vehicles/stats').catch(() => []);
     const statsMap = Object.fromEntries((vehicleStats || []).map(s => [String(s.id), s]));
-    const stats = await request('/stats').catch(() => null);
-    const dashboard = document.getElementById('statsDashboard');
-    dashboard.innerHTML = stats ? `
+    const container = document.getElementById('myVehiclesList');
+    const moreWrap = document.getElementById('myVehiclesMoreWrap');
+    const moreBtn = document.getElementById('myVehiclesMoreBtn');
+    if (!container) return;
+
+    if (page === 1) {
+      const stats = await request('/stats').catch(() => null);
+      const dashboard = document.getElementById('statsDashboard');
+      if (dashboard) dashboard.innerHTML = stats ? `
       <div class="stat-card"><div class="icon"><svg viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99z"/></svg></div><div class="stat-meta"><div class="number">${stats.vehicles_count}</div><div class="label">Vehículos</div></div></div>
       <div class="stat-card"><div class="icon"><svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z"/></svg></div><div class="stat-meta"><div class="number">${stats.total_views}</div><div class="label">Vistas totales</div></div></div>
       <div class="stat-card"><div class="icon"><svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg></div><div class="stat-meta"><div class="number">${stats.conversations_count}</div><div class="label">Conversaciones</div></div></div>
       <div class="stat-card"><div class="icon"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></div><div class="stat-meta"><div class="number">${stats.favorites_count}</div><div class="label">Favoritos</div></div></div>
     ` : '';
-    const container = document.getElementById('myVehiclesList');
-    if (!vehicles?.length) { container.innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg><h3>Sin publicaciones</h3><p>Publica tu primer vehículo</p></div>'; return; }
-    container.innerHTML = vehicles.map(v => `
+
+      if (!vehicles?.length) {
+        container.innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg><h3>Sin publicaciones</h3><p>Publica tu primer vehículo</p></div>';
+        if (moreWrap) moreWrap.style.display = 'none';
+        return;
+      }
+    }
+
+    const html = vehicles.map(v => `
       <div class="vehicle-card" onclick="viewVehicle(${v.id})">
         <div class="vehicle-image-container">
           <img src="${thumbUrl(v.images?.find(i => i.is_primary)?.url || v.images?.[0]?.url || v.image_url)}" class="vehicle-image" alt="${escapeHtml(v.title)}" loading="lazy" onerror="this.src=PLACEHOLDER_IMG">
@@ -2139,22 +2160,36 @@ async function loadMyVehicles() {
             ${formatPesos(v.price, v) ? `<p class="vehicle-price-ars">${formatPesos(v.price, v)}</p>` : ''}
           </div>
           <div class="vehicle-mini-stats">
-  <span title="Vistas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>${(statsMap[String(v.id)]?.view_count || v.view_count || 0)}</span>
-  <span title="Guardados"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>${(statsMap[String(v.id)]?.favorites_count || 0)}</span>
-  <span title="Consultas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>${(statsMap[String(v.id)]?.messages_count || 0)}</span>
-</div>
-          <div style="display:flex;gap:0.5rem;margin-top:0.75rem;">
-            <button class="btn btn-secondary" style="flex:1;" onclick="openEditModal(${v.id}, event)">✏️ Editar</button>
+            <span title="Vistas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>${(statsMap[String(v.id)]?.view_count || v.view_count || 0)}</span>
+            <span title="Guardados"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>${(statsMap[String(v.id)]?.favorites_count || 0)}</span>
+            <span title="Consultas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>${(statsMap[String(v.id)]?.messages_count || 0)}</span>
+          </div>
+          <div class="my-vehicle-actions">
+            <button class="btn btn-secondary" style="flex:1;" onclick="openEditModal(${v.id}, event)">?? Editar</button>
             <button class="btn btn-danger" style="flex:1;" onclick="deleteVehicle(${v.id}, event)">Eliminar</button>
           </div>
         </div>
       </div>
     `).join('');
+
+    if (page === 1) container.innerHTML = html;
+    else container.insertAdjacentHTML('beforeend', html);
+
     applyCardCascade(container);
-    loadTradeOffers();
+    if (page === 1) loadTradeOffers();
+
+    if (moreWrap && moreBtn) {
+      moreWrap.style.display = myVehiclesHasMore ? 'block' : 'none';
+      moreBtn.disabled = false;
+      moreBtn.textContent = 'Cargar m�s';
+      moreBtn.onclick = () => {
+        moreBtn.disabled = true;
+        moreBtn.textContent = 'Cargando...';
+        loadMyVehicles(myVehiclesPage + 1);
+      };
+    }
   } catch (err) { showToast(err.message, 'error'); }
 }
-
 function deleteVehicle(id, e) {
   e.stopPropagation();
   showConfirmModal('Eliminar vehículo', 'Esta acción no se puede deshacer. Se eliminarán todas las imágenes, conversaciones y favoritos asociados.', 'Eliminar', async () => {
@@ -3238,15 +3273,22 @@ async function viewProfile(id) {
     
     document.getElementById('profileHeader').innerHTML = headerHtml;
     const isViewerAdmin = !!currentUser?.profile?.is_admin;
-    const vehicles = await request(`/vehicles?user_id=${id}`).catch(() => ({ vehicles: [] }));
-    document.getElementById('profileVehiclesList').innerHTML = vehicles.vehicles?.length ? vehicles.vehicles.map(v => `
+    const profileVehiclesList = document.getElementById('profileVehiclesList');
+    const profileVehiclesMoreWrap = document.getElementById('profileVehiclesMoreWrap');
+    const profileVehiclesMoreBtn = document.getElementById('profileVehiclesMoreBtn');
+    profileVehiclesPage = 1;
+    profileVehiclesHasMore = false;
+    profileVehiclesUserId = String(id);
+
+    const renderProfileVehicles = (list, append = false) => {
+      const html = list.map(v => `
       <div class="vehicle-card" onclick="viewVehicle(${v.id})">
         <div class="vehicle-image-container">
           <img src="${thumbUrl(v.images?.find(i => i.is_primary)?.url || v.images?.[0]?.url || v.image_url)}" class="vehicle-image" alt="${escapeHtml(v.title)}" loading="lazy" onerror="this.src=PLACEHOLDER_IMG">
           <div class="vehicle-img-overlay"></div>
           <span class="vehicle-badge">${escapeHtml(String(v.year))}</span>
           ${v.status === 'sold' ? '<span class="vehicle-badge badge-sold">VENDIDO</span>' : ''}
-          ${v.status !== 'sold' ? `<span class="vehicle-trade-badge ${v.accepts_trade ? 'trade-yes' : 'trade-no'}">${v.accepts_trade ? '🔄 Permuta' : 'Sin permuta'}</span>` : ''}
+          ${v.status !== 'sold' ? `<span class="vehicle-trade-badge ${v.accepts_trade ? 'trade-yes' : 'trade-no'}">${v.accepts_trade ? 'Permuta' : 'Sin permuta'}</span>` : ''}
           ${v.status !== 'sold' ? `<button class="favorite-btn ${userFavoriteIds.has(v.id) ? 'active' : ''}" data-vehicle-id="${v.id}" onclick="toggleFavorite(${v.id}, event)" aria-label="Agregar a favoritos"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>` : ''}
         </div>
         <div class="vehicle-info">
@@ -3257,10 +3299,47 @@ async function viewProfile(id) {
             ${formatPesos(v.price, v) ? `<p class="vehicle-price-ars">${formatPesos(v.price, v)}</p>` : ''}
           </div>
           ${buildVehicleMetaHtml(v)}
-          ${isViewerAdmin && !isOwn ? `<button class="btn btn-sm btn-danger" style="margin-top:0.5rem;width:100%;" data-vid="${v.id}" data-title="${escapeHtml(v.title)}" onclick="event.stopPropagation(); adminDeleteVehicle(+this.dataset.vid, this.dataset.title)">🗑 Eliminar</button>` : ''}
+          ${isViewerAdmin && !isOwn ? `<button class="btn btn-sm btn-danger" style="margin-top:0.5rem;width:100%;" data-vid="${v.id}" data-title="${escapeHtml(v.title)}" onclick="event.stopPropagation(); adminDeleteVehicle(+this.dataset.vid, this.dataset.title)">Eliminar</button>` : ''}
         </div>
       </div>
-    `).join('') : '<p style="color:var(--text-secondary)">Sin vehículos publicados</p>';
+    `).join('');
+
+      if (!append) profileVehiclesList.innerHTML = html;
+      else profileVehiclesList.insertAdjacentHTML('beforeend', html);
+      applyCardCascade(profileVehiclesList);
+    };
+
+    const loadProfileVehiclesPage = async (page = 1) => {
+      const resp = await request(`/vehicles?user_id=${id}&page=${page}&limit=12`).catch(() => ({ vehicles: [], total: 0 }));
+      if (profileVehiclesUserId !== String(id)) return;
+
+      const list = resp?.vehicles || [];
+      const total = Number(resp?.total || 0);
+      profileVehiclesPage = page;
+      profileVehiclesHasMore = (page * 12) < total;
+
+      if (page === 1 && !list.length) {
+        profileVehiclesList.innerHTML = '<p style="color:var(--text-secondary)">Sin vehículos publicados</p>';
+      } else if (list.length) {
+        renderProfileVehicles(list, page > 1);
+      }
+
+      if (profileVehiclesMoreWrap && profileVehiclesMoreBtn) {
+        profileVehiclesMoreWrap.style.display = profileVehiclesHasMore ? 'block' : 'none';
+        profileVehiclesMoreBtn.disabled = false;
+        profileVehiclesMoreBtn.textContent = 'Cargar más publicaciones';
+      }
+    };
+
+    await loadProfileVehiclesPage(1);
+    if (profileVehiclesMoreBtn) {
+      profileVehiclesMoreBtn.onclick = async () => {
+        if (!profileVehiclesHasMore || profileVehiclesUserId !== String(id)) return;
+        profileVehiclesMoreBtn.disabled = true;
+        profileVehiclesMoreBtn.textContent = 'Cargando...';
+        await loadProfileVehiclesPage(profileVehiclesPage + 1);
+      };
+    }
     document.getElementById('profileReviewsList').innerHTML = ratings?.length ? ratings.map(r => `
       <div class="review-item"><div class="stars">${'★'.repeat(r.stars)}${'☆'.repeat(5-r.stars)}</div><div class="author">${escapeHtml(r.from_user?.username)} - ${formatRelTime(r.created_at)}</div>${r.review ? `<div class="text">${escapeHtml(r.review)}</div>` : ''}</div>
     `).join('') : '<p style="color:var(--text-secondary)">Sin reseñas</p>';
@@ -3897,11 +3976,44 @@ function closeAllModals() {
 // Lightbox
 let lightboxImages = [];
 let lightboxIndex = 0;
+let lightboxTouchStartX = 0;
+let lightboxTouchStartY = 0;
+let lightboxTouchActive = false;
+
+function lightboxOnTouchStart(e) {
+  if (!e.touches || !e.touches.length) return;
+  const t = e.touches[0];
+  lightboxTouchStartX = t.clientX;
+  lightboxTouchStartY = t.clientY;
+  lightboxTouchActive = true;
+}
+
+function lightboxOnTouchEnd(e) {
+  if (!lightboxTouchActive || lightboxImages.length <= 1) return;
+  const t = e.changedTouches && e.changedTouches[0];
+  if (!t) return;
+  const dx = t.clientX - lightboxTouchStartX;
+  const dy = t.clientY - lightboxTouchStartY;
+  lightboxTouchActive = false;
+  if (Math.abs(dx) < 45 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+  if (dx < 0) lightboxNav(1);
+  else lightboxNav(-1);
+}
+
+function initLightboxSwipe() {
+  const img = document.getElementById('lightboxImage');
+  if (!img || img.dataset.swipeBound === '1') return;
+  img.addEventListener('touchstart', lightboxOnTouchStart, { passive: true });
+  img.addEventListener('touchend', lightboxOnTouchEnd, { passive: true });
+  img.dataset.swipeBound = '1';
+}
+
 function openLightbox(images, startIndex) {
   if (!images?.length) return;
   lightboxImages = images;
   lightboxIndex = typeof startIndex === 'number' ? startIndex : 0;
   const modal = document.getElementById('lightboxModal');
+  initLightboxSwipe();
   // Render thumbnail strip
   const thumbsEl = document.getElementById('lightboxThumbs');
   if (thumbsEl) {
@@ -4019,6 +4131,20 @@ function googleMapsSearchUrl(address) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(address).trim())}`;
 }
 
+function shareHomepage() {
+  const url = `${window.location.origin}/`;
+  const title = 'Autoventa - Compra, venta y permuta de vehiculos';
+  const text = 'Te comparto Autoventa: publica tu vehiculo gratis, recibe consultas directas por WhatsApp y encontra autos con vendedores verificados. ' + url;
+
+  if (navigator.share) {
+    navigator.share({ title, text, url }).catch(() => {});
+    return;
+  }
+
+  navigator.clipboard.writeText(url)
+    .then(() => showToast('Link de Autoventa copiado', 'success'))
+    .catch(() => showToast('No se pudo copiar el link', 'error'));
+}
 function shareVehicle(id, title, price) {
   const url = `${window.location.origin}${window.location.pathname}?vehicle=${id}`;
   const text = `${title}\nUSD ${Number(price).toLocaleString('es-AR')}\n${url}`;
@@ -4711,6 +4837,7 @@ async function loadSimilarVehicles(vehicleId) {
     document.getElementById('similarVehiclesSection')?.remove();
   }
 }
+
 
 
 
