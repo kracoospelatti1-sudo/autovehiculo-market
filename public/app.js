@@ -1,5 +1,6 @@
-const PLACEHOLDER_IMG = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"><rect width="400" height="300" fill="#1a1a2e"/><text x="200" y="140" text-anchor="middle" fill="#444" font-size="48">&#x1F697;</text><text x="200" y="185" text-anchor="middle" fill="#555" font-size="16">Sin imagen</text></svg>')}`;
+﻿const PLACEHOLDER_IMG = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"><rect width="400" height="300" fill="#1a1a2e"/><text x="200" y="140" text-anchor="middle" fill="#444" font-size="48">&#x1F697;</text><text x="200" y="185" text-anchor="middle" fill="#555" font-size="16">Sin imagen</text></svg>')}`;
 
+const MAX_VEHICLE_IMAGES = 15;
 let currentUser = null;
 let currentVehicleId = null;
 let vehicleMapInstance = null;
@@ -32,6 +33,7 @@ let profileVehiclesPage = 1;
 let profileVehiclesHasMore = false;
 let profileVehiclesUserId = null;
 let bodyTypeLookupSeq = 0;
+let editProfileTarget = null;
 
 function ensureLeafletCss() {
   if (leafletCssLoaded || document.querySelector('link[data-leaflet-css="1"]')) {
@@ -416,7 +418,10 @@ function getPriceBaseUSD(prefix) {
 
   const val = parseFloat(priceEl.value);
   if (!val || isNaN(val)) return null;
-  if (currencyEl.value === 'ARS' && dolarRate?.venta) return val / dolarRate.venta;
+  if (currencyEl.value === 'ARS') {
+    if (!dolarRate?.venta) return null;
+    return val / dolarRate.venta;
+  }
   return val;
 }
 
@@ -429,7 +434,11 @@ function syncPriceBaseUSD(prefix) {
     delete priceEl.dataset.usdBase;
     return;
   }
-  const usd = currencyEl.value === 'ARS' && dolarRate?.venta ? (val / dolarRate.venta) : val;
+  if (currencyEl.value === 'ARS' && !dolarRate?.venta) {
+    delete priceEl.dataset.usdBase;
+    return;
+  }
+  const usd = currencyEl.value === 'ARS' ? (val / dolarRate.venta) : val;
   if (usd && !isNaN(usd)) priceEl.dataset.usdBase = String(usd);
 }
 
@@ -1157,17 +1166,6 @@ async function loadVehicles(page = 1, scrollToResults = false) {
           <div class="vehicle-price-block">
             <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
             ${formatPesos(v.price, v) ? `<p class="vehicle-price-ars">${formatPesos(v.price, v)}</p>` : ''}
-            ${(() => {
-              const ph = v.price_history;
-              if (ph && ph.length >= 2) {
-                const oldest = ph[0].price;
-                const latest = ph[ph.length - 1].price;
-                const diff = latest - oldest;
-                const pct = Math.round(Math.abs(diff) / oldest * 100);
-                if (diff < 0 && pct > 0) return `<span class="price-drop-badge"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg> ${pct}%</span>`;
-              }
-              return '';
-            })()}
           </div>
           ${buildVehicleMetaHtml(v)}
           <div class="vehicle-card-footer">
@@ -1286,10 +1284,9 @@ function clearFilters() {
 }
 
 function formatPesos(usdPrice, vehicle) {
-  // Mostrar siempre ARS con cotización actual, manteniendo el precio base en USD.
-  if (!dolarRate?.venta || !usdPrice) return null;
-  const ars = Math.round(Number(usdPrice) * dolarRate.venta);
-  return '$' + ars.toLocaleString('es-AR');
+  const fixedArs = Number(vehicle?.price_original || 0);
+  if (fixedArs > 0) return '$' + Math.round(fixedArs).toLocaleString('es-AR');
+  return null;
 }
 
 function isCompactVehicleCardsMobile() {
@@ -1682,11 +1679,18 @@ async function viewVehicle(id) {
     const ownerLocationProvince = (vehicle.province || '').replace(/\s*\(.*?\)/g, '').trim();
     const ownerLocationCity = (vehicle.city || '').trim();
     const ownerLocationSummary = [ownerLocationCity, ownerLocationProvince].filter(Boolean).join(', ');
+    const ownerLocationDisplay = [ownerLocationAddress, ownerLocationCity, ownerLocationProvince].filter(Boolean).join(', ') || ownerLocationSummary;
     const ownerLocationQuery = [ownerLocationAddress, ownerLocationCity, ownerLocationProvince].filter(Boolean).join(', ');
     const ownerLocationUrl = ownerLocationQuery ? googleMapsSearchUrl(ownerLocationQuery) : '';
     const showDealershipLocationButton = !!ownerLocationAddress;
     const profileWhatsapp = (vehicle.seller_profile?.phone || '').replace(/[\s\-\(\)]/g, '').replace(/^\+/, '');
-    const sellerMapsUrl = vehicle.seller_profile?.dealership_address ? googleMapsSearchUrl(vehicle.seller_profile.dealership_address) : '';
+    const sellerAddress = String(vehicle.seller_profile?.dealership_address || '').trim();
+    const sellerCityMatch = AR_CITIES.find(c => c.city === vehicle.seller_profile?.city);
+    const sellerCity = sellerCityMatch ? String(vehicle.seller_profile?.city || '').trim() : '';
+    const sellerProvince = sellerCityMatch ? String(sellerCityMatch.prov || '').replace(/\s*\(.*?\)/g, '').trim() : '';
+    const sellerLocationDisplay = [sellerAddress, sellerCity, sellerProvince].filter(Boolean).join(', ') || sellerAddress;
+    const sellerLocationQuery = [sellerAddress, sellerCity, sellerProvince].filter(Boolean).join(', ');
+    const sellerMapsUrl = sellerLocationQuery ? googleMapsSearchUrl(sellerLocationQuery) : '';
     const whatsappText = encodeURIComponent(`Hola, te contacto desde la pagina *Autoventa* por el siguiente anuncio: https://autoventa.online/?vehicle=${vehicle.id}`);
     const descriptionParagraphs = String(vehicle.description || '')
       .split(/\n\s*\n/)
@@ -1707,27 +1711,6 @@ async function viewVehicle(id) {
       ? normalizedDescriptionParagraphs.map(p => `<p>${escapeHtml(p)}</p>`).join('')
       : '';
     const pickupLocationLabel = [ownerLocationCity, ownerLocationProvince].filter(Boolean).join(', ');
-
-    // Price history
-    let priceChangeHtml = '';
-    try {
-      const priceHistoryRes = await request(`/vehicles/${id}/price-history`);
-      // BUG-07: guard against race condition — user may have navigated away
-      if (currentVehicleId !== id) return;
-      const history = priceHistoryRes?.history || [];
-      if (history.length >= 2) {
-        const oldest = history[0].price;
-        const latest = history[history.length - 1].price;
-        const diff = latest - oldest;
-        const pct = Math.round(Math.abs(diff) / oldest * 100);
-        const days = Math.round((new Date() - new Date(history[0].created_at)) / 86400000);
-        if (diff < 0 && pct > 0) {
-          priceChangeHtml = `<span class="price-change price-down">&#9660; Bajó ${pct}% (hace ${days} días)</span>`;
-        } else if (diff > 0 && pct > 0) {
-          priceChangeHtml = `<span class="price-change price-up">&#9650; Subió ${pct}% (hace ${days} días)</span>`;
-        }
-      }
-    } catch {}
 
     const content = document.getElementById('vehicleDetailContent');
     content.innerHTML = `
@@ -1750,12 +1733,12 @@ async function viewVehicle(id) {
           <h1>${escapeHtml(vehicle.title)}</h1>
           <p class="detail-subtitle">${escapeHtml(vehicle.brand)} ${escapeHtml(vehicle.model)}</p>
           <div class="detail-price-block">
-            <div class="detail-price">USD ${formatNumber(vehicle.price)}${priceChangeHtml}</div>
+            <div class="detail-price">USD ${formatNumber(vehicle.price)}</div>
             ${formatPesos(vehicle.price, vehicle) ? `<div class="detail-price-ars">${formatPesos(vehicle.price, vehicle)}</div>` : ''}
-            ${ownerLocationSummary ? `
+            ${ownerLocationDisplay ? `
               <div class="detail-price-location">
                 <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-                ${escapeHtml(ownerLocationSummary)}
+                ${escapeHtml(ownerLocationDisplay)}
               </div>
             ` : ''}
             ${vehicle.contact_phone && vehicle.status !== 'sold' ? `
@@ -1817,10 +1800,10 @@ async function viewVehicle(id) {
             
             ${(vehicle.seller_verified && (vehicle.seller_profile?.dealership_address || vehicle.seller_profile?.instagram)) || vehicle.seller_profile?.phone ? `
               <div class="seller-contact-actions">
-                ${vehicle.seller_verified && vehicle.seller_profile?.dealership_address ? `
-                  <a href="${escapeHtml(sellerMapsUrl)}" target="_blank" rel="noopener" class="seller-contact-link">
+                ${vehicle.seller_verified && sellerMapsUrl ? `
+                  <a href="${escapeHtml(sellerMapsUrl)}" target="_blank" rel="noopener" class="seller-contact-link location" title="${escapeHtml(sellerLocationDisplay || '')}">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-                    ${escapeHtml(vehicle.seller_profile.dealership_address)}
+                    Ver ubicación concesionaria
                   </a>
                 ` : ''}
                 ${vehicle.seller_profile?.instagram ? `
@@ -1830,8 +1813,8 @@ async function viewVehicle(id) {
                   </a>
                 ` : ''}
                 ${(vehicle.seller_profile?.phone && vehicle.seller_profile?.show_phone !== false) && vehicle.status !== 'sold' ? `
-                  <a href="https://wa.me/${escapeHtml(profileWhatsapp)}?text=${whatsappText}" target="_blank" rel="noopener" class="btn btn-primary" style="background:#25D366;border:none;width:100%;margin-top:0.5rem;">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="margin-right:0.4rem;"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                  <a href="https://wa.me/${escapeHtml(profileWhatsapp)}?text=${whatsappText}" target="_blank" rel="noopener" class="seller-contact-link whatsapp">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                     Contactar por WhatsApp
                   </a>
                 ` : ''}
@@ -1840,11 +1823,11 @@ async function viewVehicle(id) {
           </div>
           
           
-          ${vehicle.city ? `
+          ${ownerLocationDisplay ? `
             <div class="detail-map-section">
               <h4 style="margin-bottom:0.75rem;font-size:0.9rem;color:var(--text-2);display:flex;align-items:center;gap:0.4rem;">
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-                  Ubicacion: ${escapeHtml(ownerLocationSummary || vehicle.city)}
+                  Ubicacion: ${escapeHtml(ownerLocationDisplay)}
                 </h4>
                 <div id="vehicleMap" class="vehicle-map"></div>
               </div>
@@ -1900,12 +1883,12 @@ ${vehicle.accepts_trade && isLoggedIn && !isOwner && vehicle.status === 'active'
             </div>
           ` : ''}
           </div>
-          ${vehicle.city ? `
+          ${ownerLocationDisplay ? `
             <div class="detail-secondary-map">
               <div class="detail-map-section detail-map-section-secondary">
                 <h4 style="margin-bottom:0.75rem;font-size:0.9rem;color:var(--text-2);display:flex;align-items:center;gap:0.4rem;">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-                    Ubicacion: ${escapeHtml(ownerLocationSummary || vehicle.city)}
+                    Ubicacion: ${escapeHtml(ownerLocationDisplay)}
                   </h4>
                   <div id="vehicleMapSecondary" class="vehicle-map"></div>
                 </div>
@@ -1986,7 +1969,7 @@ async function compressImage(file, maxWidth = 1920, maxHeight = 1080, quality = 
 }
 
 async function handleImageSelect(e) {
-  const files = Array.from(e.target.files).slice(0, 12 - uploadedImages.length);
+  const files = Array.from(e.target.files).slice(0, Math.max(0, MAX_VEHICLE_IMAGES - uploadedImages.length));
   for (const file of files) {
     if (!file.type.startsWith('image/')) continue;
     try {
@@ -2000,6 +1983,18 @@ async function handleImageSelect(e) {
   e.target.value = '';
 }
 
+async function getUploadErrorMessage(res, fallback) {
+  try {
+    const data = await res.clone().json();
+    if (data?.error) return data.error;
+  } catch {}
+  try {
+    const text = (await res.text()).trim();
+    if (text) return text;
+  } catch {}
+  return fallback;
+}
+
 async function uploadImages() {
   const urls = [];
   for (let i = 0; i < uploadedImages.length; i++) {
@@ -2008,7 +2003,7 @@ async function uploadImages() {
     const formData = new FormData();
     formData.append('image', img.file);
     const res = await fetch('/api/upload', { method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }, body: formData });
-    if (!res.ok) throw new Error(`Error al subir la imagen ${i + 1}`);
+    if (!res.ok) throw new Error(await getUploadErrorMessage(res, `Error al subir la imagen ${i + 1}`));
     const data = await res.json();
     urls.push(data.url);
   }
@@ -2016,7 +2011,7 @@ async function uploadImages() {
 }
 
 async function handleEditImageSelect(e) {
-  const files = Array.from(e.target.files).slice(0, 12 - editUploadedImages.length);
+  const files = Array.from(e.target.files).slice(0, Math.max(0, MAX_VEHICLE_IMAGES - editUploadedImages.length));
   for (const file of files) {
     if (!file.type.startsWith('image/')) continue;
     try {
@@ -2038,7 +2033,7 @@ async function uploadEditImages() {
     const formData = new FormData();
     formData.append('image', img.file);
     const res = await fetch('/api/upload', { method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }, body: formData });
-    if (!res.ok) throw new Error(`Error al subir la imagen ${i + 1}`);
+    if (!res.ok) throw new Error(await getUploadErrorMessage(res, `Error al subir la imagen ${i + 1}`));
     const data = await res.json();
     urls.push(data.url);
   }
@@ -2141,6 +2136,7 @@ async function handlePublish(e) {
     if (!model) missing.push('modelo');
     if (!year) missing.push('año');
     if (!price || isNaN(price) || price <= 0) missing.push('precio');
+    if ((document.getElementById('publishCurrency')?.value || 'USD') === 'ARS' && !dolarRate?.venta) missing.push('cotizacion del dolar');
     if (!fuel) missing.push('combustible');
     if (!transmission) missing.push('transmisión');
     if (!province || !city) missing.push('ubicación');
@@ -2156,15 +2152,17 @@ async function handlePublish(e) {
     const urls = await uploadImages();
     const publishCurrency = document.getElementById('publishCurrency')?.value || 'USD';
     const publishRawPrice = parseFloat(document.getElementById('publishPrice').value) || null;
+    const publishPriceUSD = getPriceInUSD('publish');
+    const publishFrozenArs = publishCurrency === 'ARS' ? publishRawPrice : (dolarRate?.venta ? Math.round(publishPriceUSD * dolarRate.venta) : null);
     const data = {
       title: document.getElementById('publishTitle').value,
       brand: document.getElementById('publishBrand').value,
       model: document.getElementById('publishModel').value,
       version: document.getElementById('publishVersion')?.value || '',
       year: document.getElementById('publishYear').value,
-      price: getPriceInUSD('publish'),
+      price: publishPriceUSD,
       // Si se publicó en ARS, guardamos el monto ingresado para trazabilidad histórica.
-      price_original: publishCurrency === 'ARS' ? publishRawPrice : null,
+      price_original: publishFrozenArs,
       price_currency: publishCurrency,
       transmission: document.getElementById('publishTransmission').value,
       mileage: document.getElementById('publishMileage').value || 0,
@@ -2243,7 +2241,7 @@ async function loadMyVehicles(page = 1) {
             <span title="Consultas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>${(statsMap[String(v.id)]?.messages_count || 0)}</span>
           </div>
           <div class="my-vehicle-actions">
-            <button class="btn btn-secondary" style="flex:1;" onclick="openEditModal(${v.id}, event)">?? Editar</button>
+            <button class="btn btn-secondary" style="flex:1;" onclick="openEditModal(${v.id}, event)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path></svg>Editar</button>
             <button class="btn btn-danger" style="flex:1;" onclick="deleteVehicle(${v.id}, event)">Eliminar</button>
           </div>
         </div>
@@ -2259,7 +2257,7 @@ async function loadMyVehicles(page = 1) {
     if (moreWrap && moreBtn) {
       moreWrap.style.display = myVehiclesHasMore ? 'block' : 'none';
       moreBtn.disabled = false;
-      moreBtn.textContent = 'Cargar m�s';
+      moreBtn.textContent = 'Cargar más';
       moreBtn.onclick = () => {
         moreBtn.disabled = true;
         moreBtn.textContent = 'Cargando...';
@@ -2320,10 +2318,19 @@ async function openEditModal(id, e) {
     document.getElementById('editVersion').value = v.version || '';
     updateEditTitle();
     const editCurrencyEl = document.getElementById('editCurrency');
-    if (editCurrencyEl) { editCurrencyEl.value = 'USD'; editCurrencyEl.dataset.prev = 'USD'; }
-    document.getElementById('editPrice').value = v.price || '';
-    syncPriceBaseUSD('edit');
-    updatePriceHint('edit');
+    const editPriceEl = document.getElementById('editPrice');
+    if (editCurrencyEl && editPriceEl) {
+      const vehicleCurrency = v.price_currency || 'USD';
+      editCurrencyEl.value = vehicleCurrency;
+      editCurrencyEl.dataset.prev = vehicleCurrency;
+      if (vehicleCurrency === 'ARS' && v.price_original) {
+        editPriceEl.value = v.price_original;
+      } else {
+        editPriceEl.value = v.price || '';
+      }
+      syncPriceBaseUSD('edit');
+      updatePriceHint('edit');
+    }
     document.getElementById('editMileage').value = v.mileage || '';
     document.getElementById('editFuel').value = v.fuel || '';
     document.getElementById('editTransmission').value = v.transmission || '';
@@ -2390,6 +2397,12 @@ async function handleEditVehicle(e) {
       btn.textContent = 'Guardar cambios';
       return;
     }
+    if ((document.getElementById('editCurrency')?.value || 'USD') === 'ARS' && !dolarRate?.venta) {
+      showToast('No se pudo obtener la cotizacion del dolar para convertir ARS a USD', 'error');
+      btn.disabled = false;
+      btn.textContent = 'Guardar cambios';
+      return;
+    }
     const editBrand = document.getElementById('editBrand')?.value || '';
     const editModel = document.getElementById('editModel')?.value || '';
     const editYear  = document.getElementById('editYear')?.value || '';
@@ -2397,6 +2410,8 @@ async function handleEditVehicle(e) {
     const editVehicleType = document.getElementById('editVehicleTypeTop')?.value || 'auto';
     const editCurrency = document.getElementById('editCurrency')?.value || 'USD';
     const editRawPrice = parseFloat(document.getElementById('editPrice').value) || null;
+    const editPriceUSD = getPriceInUSD('edit');
+    const editFrozenArs = editCurrency === 'ARS' ? editRawPrice : (dolarRate?.venta ? Math.round(editPriceUSD * dolarRate.venta) : null);
     if (!editUploadedImages.length) {
       showToast('Debe quedar al menos una foto', 'error');
       btn.disabled = false;
@@ -2413,8 +2428,8 @@ async function handleEditVehicle(e) {
         model: editModel,
         year: editYear,
         version: editVersion,
-        price: getPriceInUSD('edit'),
-        price_original: editCurrency === 'ARS' ? editRawPrice : null,
+        price: editPriceUSD,
+        price_original: editFrozenArs,
         price_currency: editCurrency,
         mileage: document.getElementById('editMileage').value,
         fuel: document.getElementById('editFuel').value,
@@ -3273,7 +3288,23 @@ async function viewProfile(id) {
       }
     }
     const canFollow = !isOwn && !!localStorage.getItem('token');
-    const profileMapsUrl = profile.is_verified && profile.dealership_address ? googleMapsSearchUrl(profile.dealership_address) : '';
+    const canEditProfile = isOwn || !!currentUser?.profile?.is_admin;
+    const cityMeta = AR_CITIES.find(c => c.city === profile.city);
+    const profileProvince = cityMeta ? String(cityMeta.prov || '').replace(/\s*\(.*?\)/g, '').trim() : '';
+    const profileCity = cityMeta ? String(profile.city || '').trim() : '';
+    const profileStreet = String(
+      profile.dealership_address || (!cityMeta ? (profile.city || '') : '')
+    ).trim();
+    const profileLocationText = [profileStreet, profileCity, profileProvince].filter(Boolean).join(', ');
+    const profileLocationDisplay = profileLocationText || String(profile.city || '').trim();
+    const profileMapsQuery = profileLocationText || [profileCity, profileProvince].filter(Boolean).join(', ');
+    const profileMapsUrl = profile.is_verified && profileMapsQuery ? googleMapsSearchUrl(profileMapsQuery) : '';
+    const fullName = [profile.first_name, profile.last_name]
+      .map(v => String(v || '').trim())
+      .filter(Boolean)
+      .join(' ');
+    const showDealershipName = !!(profile.is_verified && profile.dealership_name);
+    const profileTitle = showDealershipName ? profile.dealership_name : (fullName || profile.username);
     
     // Header content
     let headerHtml = `
@@ -3285,8 +3316,8 @@ async function viewProfile(id) {
           </div>
         </div>
 
-        <h2>${escapeHtml(profile.is_verified && profile.dealership_name ? profile.dealership_name : (profile.first_name && profile.last_name) ? `${profile.first_name} ${profile.last_name}` : profile.username)}</h2>
-        <p style="color:var(--text-3);font-size:0.9rem;margin-top:0.1rem;">@${escapeHtml(profile.username)}</p>
+        <h2>${escapeHtml(profileTitle)}</h2>
+        ${showDealershipName && fullName ? `<p class="profile-owner-name">${escapeHtml(fullName)}</p>` : ''}
         ${profile.is_verified ? verifiedImageBadge('verified-image-badge-profile') : ''}
         
         ${profile.rating ? `
@@ -3296,10 +3327,10 @@ async function viewProfile(id) {
           </div>
         ` : '<p style="color:var(--text-3); margin-top:0.5rem;">Sin reseñas aún</p>'}
         
-        ${profile.city ? `
-          <div class="location">
+        ${profileLocationDisplay ? `
+          <div class="profile-location">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-            ${escapeHtml(profile.city)}${(() => { const m = AR_CITIES.find(c => c.city === profile.city); return m ? ', ' + escapeHtml(m.prov.replace(/\s*\(.*?\)/g,'').trim()) : ''; })()}
+            <span class="profile-location-text">${escapeHtml(profileLocationDisplay)}</span>
           </div>
         ` : ''}
         
@@ -3309,7 +3340,7 @@ async function viewProfile(id) {
           ${profileMapsUrl ? `
             <a href="${escapeHtml(profileMapsUrl)}" target="_blank" rel="noopener" class="profile-action-btn location">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-              Ubicacion
+              Ver ubicación
             </a>
           ` : ''}
           ${profile.instagram ? `
@@ -3324,8 +3355,8 @@ async function viewProfile(id) {
               WhatsApp
             </a>
           ` : ''}
-          ${isOwn ? `
-            <button class="profile-action-btn" onclick="showSection('profile'); editProfile()">
+          ${canEditProfile ? `
+            <button class="profile-action-btn" onclick="showSection('profile'); editProfile(${id})">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
               Editar perfil
             </button>
@@ -3430,37 +3461,66 @@ async function viewProfile(id) {
   } catch (err) { showToast(err.message, 'error'); }
 }
 
-function editProfile() {
+async function editProfile(targetUserId = null) {
   if (!currentUser) return;
   pendingAvatarFile = null;
+
+  const normalizedTarget = targetUserId ? parseInt(targetUserId, 10) : currentUser.id;
+  const isAdminEditingOther = !!currentUser?.profile?.is_admin && normalizedTarget && String(normalizedTarget) !== String(currentUser.id);
+
+  let sourceUser = { ...currentUser };
+  let sourceProfile = { ...(currentUser.profile || {}) };
+
+  if (isAdminEditingOther) {
+    const data = await request(`/admin/users/${normalizedTarget}/profile`);
+    sourceUser = {
+      id: data.id,
+      username: data.username,
+      email: data.email
+    };
+    sourceProfile = { ...(data.profile || {}) };
+  }
+
+  editProfileTarget = {
+    userId: sourceUser.id,
+    isAdminEditingOther
+  };
+
+  const titleEl = document.querySelector('#editProfileModal .modal-header h3');
+  if (titleEl) {
+    titleEl.textContent = isAdminEditingOther
+      ? `Editar perfil de @${sourceUser.username || sourceUser.id}`
+      : 'Editar perfil';
+  }
+
   document.getElementById('editProfileModalBody').innerHTML = `
     <form onsubmit="saveProfile(event)" style="padding:0.25rem 0;">
       <div class="form-group" style="margin-bottom:1rem;">
         <label>Foto de perfil</label>
         <div style="display:flex;align-items:center;gap:1rem;">
-          <div class="profile-avatar" style="width:60px;height:60px;margin:0;" id="editAvatarPreview">${currentUser.profile?.avatar_url ? `<img src="${currentUser.profile.avatar_url}" loading="lazy">` : currentUser.username.charAt(0).toUpperCase()}</div>
+          <div class="profile-avatar" style="width:60px;height:60px;margin:0;" id="editAvatarPreview">${sourceProfile?.avatar_url ? `<img src="${sourceProfile.avatar_url}" loading="lazy">` : (sourceUser.username || '').charAt(0).toUpperCase()}</div>
           <input type="file" id="editAvatarFile" accept="image/*" onchange="previewProfileImage(event)" style="flex:1;">
         </div>
-        <input type="hidden" id="editAvatarBase64" value="${currentUser.profile?.avatar_url || ''}">
+        <input type="hidden" id="editAvatarBase64" value="${sourceProfile?.avatar_url || ''}">
       </div>
-      <div class="form-group"><label for="editUsername">Nombre de usuario</label><input type="text" id="editUsername" value="${escapeHtml(currentUser.username || '')}" placeholder="tunombre" minlength="3"></div>
+      <div class="form-group"><label for="editUsername">Nombre de usuario</label><input type="text" id="editUsername" value="${escapeHtml(sourceUser.username || '')}" placeholder="tunombre" minlength="3"></div>
       <div class="form-group">
         <label for="editPhone">Teléfono / WhatsApp</label>
-        <input type="tel" id="editPhone" value="${escapeHtml(currentUser.profile?.phone || '')}" placeholder="+54...">
+        <input type="tel" id="editPhone" value="${escapeHtml(sourceProfile?.phone || '')}" placeholder="+54...">
         <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.5rem;">
-          <input type="checkbox" id="editShowPhone" ${currentUser.profile?.show_phone !== false ? 'checked' : ''} style="width:auto;margin:0;">
-          <label for="editShowPhone" style="margin:0;font-size:0.88rem;color:var(--text-secondary);cursor:pointer;">Mostrar botón de WhatsApp en mi perfil y publicaciones</label>
+          <input type="checkbox" id="editShowPhone" ${sourceProfile?.show_phone !== false ? 'checked' : ''} style="width:auto;margin:0;">
+          <label for="editShowPhone" style="margin:0;font-size:0.88rem;color:var(--text-secondary);cursor:pointer;">Mostrar botón de WhatsApp en perfil y publicaciones</label>
         </div>
       </div>
       <div class="form-group"><label for="editProfileProvince">Provincia</label><select id="editProfileProvince" onchange="onEditProfileProvinceChange()"><option value="">Seleccioná una provincia</option>${AR_PROVINCES.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('')}</select></div>
       <div class="form-group"><label for="editProfileCity">Ciudad</label><select id="editProfileCity"><option value="">Seleccioná una ciudad</option></select></div>
-      <div class="form-group"><label for="editBio">Bio</label><textarea id="editBio" rows="3" placeholder="Cuéntanos sobre ti...">${escapeHtml(currentUser.profile?.bio || '')}</textarea></div>
-      ${currentUser.profile?.is_verified ? `
+      <div class="form-group"><label for="editBio">Bio</label><textarea id="editBio" rows="3" placeholder="Cuéntanos sobre ti...">${escapeHtml(sourceProfile?.bio || '')}</textarea></div>
+      ${sourceProfile?.is_verified ? `
         <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);">
           <h4 style="font-size:0.95rem;margin-bottom:0.75rem;color:var(--primary);">Datos de concesionaria (verificado)</h4>
-          <div class="form-group"><label>Nombre de la concesionaria</label><input type="text" id="editDealershipName" value="${escapeHtml(currentUser.profile?.dealership_name || '')}" placeholder="Ej: Autos Premium SRL"></div>
-          <div class="form-group"><label>Dirección de la concesionaria</label><input type="text" id="editDealershipAddress" value="${escapeHtml(currentUser.profile?.dealership_address || '')}" placeholder="Ej: Av. Libertador 1234, CABA"></div>
-          <div class="form-group"><label>Instagram</label><input type="text" id="editInstagram" value="${escapeHtml(currentUser.profile?.instagram || '')}" placeholder="https://instagram.com/tuconcesionaria"><small style="color:var(--text-secondary);font-size:0.78rem;">Pegá el enlace completo de tu perfil de Instagram</small></div>
+          <div class="form-group"><label>Nombre de la concesionaria</label><input type="text" id="editDealershipName" value="${escapeHtml(sourceProfile?.dealership_name || '')}" placeholder="Ej: Autos Premium SRL"></div>
+          <div class="form-group"><label>Dirección de la concesionaria</label><input type="text" id="editDealershipAddress" value="${escapeHtml(sourceProfile?.dealership_address || '')}" placeholder="Ej: Av. Libertador 1234, CABA"></div>
+          <div class="form-group"><label>Instagram</label><input type="text" id="editInstagram" value="${escapeHtml(sourceProfile?.instagram || '')}" placeholder="https://instagram.com/tuconcesionaria"><small style="color:var(--text-secondary);font-size:0.78rem;">Pegá el enlace completo de Instagram</small></div>
         </div>
       ` : ''}
       <div style="display:flex;gap:0.75rem;margin-top:1.25rem;">
@@ -3471,12 +3531,15 @@ function editProfile() {
   `;
   document.getElementById('editProfileModal').style.display = 'flex';
   document.getElementById('modalOverlay').style.display = 'block';
-  setTimeout(initEditProfileCity, 0);
+  setTimeout(() => initEditProfileCity(sourceProfile?.city || ''), 0);
 }
 
 function closeEditProfileModal() {
   document.getElementById('editProfileModal').style.display = 'none';
   document.getElementById('modalOverlay').style.display = 'none';
+  const titleEl = document.querySelector('#editProfileModal .modal-header h3');
+  if (titleEl) titleEl.textContent = 'Editar perfil';
+  editProfileTarget = null;
 }
 
 function onEditProfileProvinceChange() {
@@ -3488,8 +3551,7 @@ function onEditProfileProvinceChange() {
     cities.map(c => `<option value="${escapeHtml(c.city)}">${escapeHtml(c.city)}</option>`).join('');
 }
 
-function initEditProfileCity() {
-  const savedCity = currentUser.profile?.city || '';
+function initEditProfileCity(savedCity = '') {
   if (!savedCity) return;
   const match = AR_CITIES.find(c => c.city === savedCity);
   if (!match) return;
@@ -3520,6 +3582,13 @@ async function saveProfile(e) {
   if (btn) btn.disabled = true;
 
   try {
+    const targetId = editProfileTarget?.userId || currentUser?.id;
+    const adminEditingOther = !!editProfileTarget?.isAdminEditingOther && String(targetId) !== String(currentUser?.id);
+    const endpoint = adminEditingOther ? `/admin/users/${targetId}/profile` : '/profile';
+    const fallbackUsername = adminEditingOther
+      ? (document.getElementById('editUsername')?.defaultValue || currentUser?.username || '')
+      : currentUser?.username;
+
     let avatarUrl = document.getElementById('editAvatarBase64').value; // valor previo (si existe)
 
     if (pendingAvatarFile) {
@@ -3532,14 +3601,14 @@ async function saveProfile(e) {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
         body: formData
       });
-      if (!res.ok) throw new Error('Error al subir la imagen de perfil a Supabase');
+      if (!res.ok) throw new Error(await getUploadErrorMessage(res, 'Error al subir la imagen de perfil'));
       const data = await res.json();
       avatarUrl = data.url;
       pendingAvatarFile = null;
     }
 
-    await request('/profile', { method: 'PUT', body: JSON.stringify({
-      username: document.getElementById('editUsername')?.value?.trim() || currentUser.username,
+    await request(endpoint, { method: 'PUT', body: JSON.stringify({
+      username: document.getElementById('editUsername')?.value?.trim() || fallbackUsername,
       phone: document.getElementById('editPhone').value,
       show_phone: document.getElementById('editShowPhone')?.checked ?? true,
       city: document.getElementById('editProfileCity')?.value || '',
@@ -3549,11 +3618,22 @@ async function saveProfile(e) {
       dealership_address: document.getElementById('editDealershipAddress')?.value ?? '',
       instagram: document.getElementById('editInstagram')?.value ?? '',
     }) });
-    showToast('Perfil actualizado', 'success');
+
+    showToast(adminEditingOther ? 'Perfil actualizado (admin)' : 'Perfil actualizado', 'success');
     closeEditProfileModal();
-    currentUser = await request('/user');
-    updateNav();
-    if (currentProfileId) viewProfile(currentProfileId);
+    if (adminEditingOther) {
+      if (currentProfileId && String(currentProfileId) === String(targetId)) {
+        viewProfile(currentProfileId);
+      }
+      const adminSection = document.getElementById('admin');
+      if (adminSection && adminSection.style.display !== 'none') {
+        loadAdminUsers();
+      }
+    } else {
+      currentUser = await request('/user');
+      updateNav();
+      if (currentProfileId) viewProfile(currentProfileId);
+    }
   } catch (err) {
     showToast(err.message, 'error');
   } finally {
@@ -3602,7 +3682,7 @@ async function loadAdminReports() {
                   <button class="btn btn-sm btn-ghost" onclick="resolveReport(${r.id}, 'dismissed')">Descartar</button>
                 ` : ''}
                 ${r.vehicle?.id ? `
-                  <button class="btn btn-sm btn-secondary" onclick="openEditModal(${r.vehicle.id}, event)">✏️ Editar pub.</button>
+                  <button class="btn btn-sm btn-secondary" onclick="openEditModal(${r.vehicle.id}, event)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path></svg>Editar pub.</button>
                   <button class="btn btn-sm btn-danger" data-vid="${r.vehicle.id}" data-title="${escapeHtml(r.vehicle.title || '')}" onclick="adminDeleteVehicle(+this.dataset.vid, this.dataset.title)">🗑 Eliminar pub.</button>
                 ` : ''}
               </td>
@@ -3677,7 +3757,7 @@ async function loadAdminVehicles(page = 1) {
                   <td style="text-align:center;font-size:0.82rem;">${v.view_count || 0}</td>
                   <td style="font-size:0.78rem;color:var(--text-3);">${formatRelTime(v.created_at)}</td>
                   <td style="display:flex;gap:0.4rem;flex-wrap:wrap;">
-                    <button class="btn btn-sm btn-secondary" onclick="openEditModal(${v.id}, event)">✏️ Editar</button>
+                    <button class="btn btn-sm btn-secondary" onclick="openEditModal(${v.id}, event)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path></svg>Editar</button>
                     <button class="btn btn-sm btn-danger" data-vid="${v.id}" data-title="${escapeHtml(v.title)}"
                       onclick="adminDeleteVehicle(+this.dataset.vid, this.dataset.title)">Eliminar</button>
                   </td>
@@ -3726,6 +3806,10 @@ async function loadAdminUsers() {
                     }
                   </td>
                   <td style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                    <button class="btn btn-sm btn-secondary" onclick="editProfile('${u.id}')">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path></svg>
+                      Editar perfil
+                    </button>
                     <button class="btn btn-sm ${isBanned ? 'btn-secondary' : 'btn-danger'}" onclick="toggleBan('${u.id}')">
                       ${isBanned ? 'Reactivar' : 'Suspender'}
                     </button>
@@ -3753,8 +3837,8 @@ async function toggleFollow(id) {
     if (btn) {
       btn.disabled = false;
       btn.textContent = res.following ? 'Dejar de seguir' : '+ Seguir';
-      btn.className = `btn ${res.following ? 'btn-secondary' : 'btn-primary'}`;
-      btn.style.minWidth = '140px';
+      btn.className = `profile-action-btn ${res.following ? 'btn-secondary' : 'btn-primary'}`;
+      btn.style.removeProperty('min-width');
     }
     showToast(res.following ? 'Ahora seguís a este vendedor' : 'Dejaste de seguir', 'success');
   } catch (err) {
@@ -4752,17 +4836,6 @@ async function loadFollowingFeed(page = 1, reset = false) {
           <div class="vehicle-price-block">
             <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
             ${formatPesos(v.price, v) ? `<p class="vehicle-price-ars">${formatPesos(v.price, v)}</p>` : ''}
-            ${(() => {
-              const ph = v.price_history;
-              if (ph && ph.length >= 2) {
-                const oldest = ph[0].price;
-                const latest = ph[ph.length - 1].price;
-                const diff = latest - oldest;
-                const pct = Math.round(Math.abs(diff) / oldest * 100);
-                if (diff < 0 && pct > 0) return `<span class="price-drop-badge">↓ ${pct}%</span>`;
-              }
-              return '';
-            })()}
           </div>
           <div class="vehicle-card-footer">
             <div class="vehicle-seller">

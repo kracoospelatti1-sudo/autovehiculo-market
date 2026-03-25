@@ -53,8 +53,8 @@
   <!-- Fuentes: no-render-blocking -->
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=optional" onload="this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=optional"></noscript>
-  <link rel="preload" as="style" href="styles.min.css?v=37" onload="this.rel='stylesheet'" fetchpriority="high">
-  <noscript><link rel="stylesheet" href="styles.min.css?v=37"></noscript>
+  <link rel="preload" as="style" href="styles.min.css?v=38" onload="this.rel='stylesheet'" fetchpriority="high">
+  <noscript><link rel="stylesheet" href="styles.min.css?v=38"></noscript>
   <!-- JSON-LD: WebSite + Organization -->
   <script type="application/ld+json">
   {
@@ -572,7 +572,7 @@
           <span id="vehiclesCount" class="count-badge"></span>
           <div class="sort-wrapper">
             <i data-lucide="arrow-down-narrow-wide"></i>
-            <select id="filterSort" onchange="applyFilters()" class="sort-select">
+            <select id="filterSort" onchange="applyFiltersNow()" class="sort-select">
               <option value="">Más recientes</option>
               <option value="oldest">Más antiguos</option>
               <option value="price_asc">Precio: menor a mayor</option>
@@ -698,7 +698,7 @@
             </div>
           </div>
           <div class="form-group">
-            <label>Imágenes (hasta 12)</label>
+            <label>Imágenes (hasta 15)</label>
             <div class="image-upload-area" id="imageUploadArea">
               <div class="upload-placeholder" onclick="document.getElementById('imageInput').click()">
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="var(--text-3)">
@@ -974,7 +974,7 @@
             <textarea id="editDescription" rows="4"></textarea>
           </div>
           <div class="form-group">
-            <label>Fotos (máx. 12)</label>
+            <label>Fotos (máx. 15)</label>
             <div class="image-upload-area">
               <div class="upload-placeholder" onclick="document.getElementById('editImageInput').click()">
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="var(--text-3)">
@@ -1232,7 +1232,7 @@
       if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
     };
   </script>
-  <script src="app.js?v=47" defer></script>
+  <script src="app.js?v=48" defer></script>
   <script>
     // AdSense: cargar únicamente tras interacción real para mejorar score mobile inicial
     (function () {

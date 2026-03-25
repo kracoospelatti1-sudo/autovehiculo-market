@@ -92,14 +92,20 @@ app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ limit: '100kb', extended: true }));
 
 const storage = multer.memoryStorage();
+const normalizeMimeType = (value = '') => String(value || '').toLowerCase().trim();
+const MAX_UPLOAD_IMAGE_MB = 15;
+const MAX_UPLOAD_IMAGE_BYTES = MAX_UPLOAD_IMAGE_MB * 1024 * 1024;
+const MAX_VEHICLE_IMAGES = 15;
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: MAX_UPLOAD_IMAGE_BYTES },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|webp/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
-    if (extname && mimetype) {
+    const allowedExt = /\.(jpeg|jpg|png|webp)$/i;
+    const extname = allowedExt.test(path.extname(file.originalname || '').toLowerCase());
+    const mimetype = normalizeMimeType(file.mimetype);
+    const mimeAllowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(mimetype);
+    const mimeMissingButTrustedExt = extname && (!mimetype || mimetype === 'application/octet-stream');
+    if (mimeAllowed || mimeMissingButTrustedExt) {
       return cb(null, true);
     }
     cb(new Error('Solo se permiten imágenes (jpeg, jpg, png, webp)'));
@@ -1427,6 +1433,15 @@ app.post('/api/vehicles', authenticateToken, async (req, res) => {
     if (contact_address && !isLikelyRealAddress(contact_address)) {
       return res.status(400).json({ error: 'Direccion invalida. Ingresa calle y numero.' });
     }
+    if (images !== undefined && !Array.isArray(images)) {
+      return res.status(400).json({ error: 'Formato de imagenes invalido' });
+    }
+    const imageUrls = Array.isArray(images)
+      ? images.map(u => String(u || '').trim()).filter(Boolean)
+      : [];
+    if (imageUrls.length > MAX_VEHICLE_IMAGES) {
+      return res.status(400).json({ error: `Máximo ${MAX_VEHICLE_IMAGES} fotos por publicación` });
+    }
 
     // Auto-generate title on the server
     title = `${brand} ${model} ${version || ''} ${year}`.replace(/\s+/g, ' ').trim();
@@ -1483,8 +1498,8 @@ app.post('/api/vehicles', authenticateToken, async (req, res) => {
       price: parseFloat(price)
     });
 
-    if (images && images.length > 0) {
-      const imageRecords = images.map((url, index) => ({
+    if (imageUrls.length > 0) {
+      const imageRecords = imageUrls.map((url, index) => ({
         vehicle_id: data.id,
         url,
         is_primary: index === 0,
@@ -1607,6 +1622,7 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
       if (!Array.isArray(images)) return res.status(400).json({ error: 'Formato de imagenes invalido' });
       imageUrls = images.map(u => String(u || '').trim()).filter(Boolean);
       if (!imageUrls.length) return res.status(400).json({ error: 'Debe quedar al menos una foto' });
+      if (imageUrls.length > MAX_VEHICLE_IMAGES) return res.status(400).json({ error: `Máximo ${MAX_VEHICLE_IMAGES} fotos por publicación` });
       updates.image_url = imageUrls[0];
     }
 
@@ -1836,20 +1852,44 @@ app.get('/api/my-vehicles/stats', authenticateToken, async (req, res) => {
 });
 
 // UPLOAD IMAGE
-app.post('/api/upload', authenticateToken, upload.single('image'), async (req, res) => {
+app.post('/api/upload', authenticateToken, (req, res, next) => {
+  upload.single('image')(req, res, (err) => {
+    if (!err) return next();
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: `La imagen excede el máximo permitido (${MAX_UPLOAD_IMAGE_MB}MB)` });
+      }
+      return res.status(400).json({ error: `Error de carga: ${err.message}` });
+    }
+    if (err?.message) return res.status(400).json({ error: err.message });
+    return res.status(500).json({ error: 'Error al procesar la imagen' });
+  });
+}, async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No se proporcionó imagen' });
     }
 
-    // El cliente siempre comprime a JPEG — forzar extensión consistente
-    const fileExt = req.file.mimetype === 'image/png' ? 'png' : 'jpg';
+    const mimeType = normalizeMimeType(req.file.mimetype);
+    const originalExt = path.extname(req.file.originalname || '').toLowerCase();
+    const fileExt = mimeType === 'image/png' ? 'png'
+      : mimeType === 'image/webp' ? 'webp'
+      : originalExt === '.png' ? 'png'
+      : originalExt === '.webp' ? 'webp'
+      : 'jpg';
+    const contentType = mimeType && mimeType !== 'application/octet-stream'
+      ? mimeType
+      : fileExt === 'png'
+        ? 'image/png'
+        : fileExt === 'webp'
+          ? 'image/webp'
+          : 'image/jpeg';
     const fileName = `${req.user.id}_${Date.now()}.${fileExt}`;
 
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from('vehicle-images')
       .upload(fileName, req.file.buffer, {
-        contentType: req.file.mimetype,
+        contentType,
         upsert: false
       });
 
@@ -1900,9 +1940,10 @@ app.get('/api/profile/:id', optionalAuth, async (req, res) => {
       ? (ratingsRes.data.reduce((a, b) => a + b.stars, 0) / ratingsRes.data.length).toFixed(1)
       : null;
 
-    // BUG-02: only expose phone to the profile owner
+    // Expose phone to the owner or when the profile owner opted in.
     const profileData = profileRes.data ? { ...profileRes.data } : {};
-    if (viewerId !== targetId) {
+    const canExposePhone = viewerId === targetId || profileData.show_phone !== false;
+    if (!canExposePhone) {
       delete profileData.phone;
     }
 
@@ -3310,6 +3351,119 @@ app.get('/api/admin/users', authenticateToken, async (req, res) => {
   }
 });
 
+app.get('/api/admin/users/:id/profile', authenticateToken, async (req, res) => {
+  try {
+    const admin = req.user.is_admin === true || (req.user.is_admin === undefined && await isAdmin(req.user.id));
+    if (!admin) return res.status(403).json({ error: 'Acceso denegado' });
+
+    const targetUser = parseInt(req.params.id, 10);
+    if (isNaN(targetUser)) return res.status(400).json({ error: 'ID inválido' });
+
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id, username, email')
+      .eq('id', targetUser)
+      .maybeSingle();
+    if (userError) throw userError;
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', targetUser)
+      .maybeSingle();
+    if (profileError) throw profileError;
+
+    res.json({
+      ...user,
+      profile: profile || {}
+    });
+  } catch (error) {
+    console.error('[/api/admin/users/:id/profile][GET]', error.message);
+    res.status(500).json({ error: 'Error al cargar perfil' });
+  }
+});
+
+app.put('/api/admin/users/:id/profile', authenticateToken, async (req, res) => {
+  try {
+    const admin = req.user.is_admin === true || (req.user.is_admin === undefined && await isAdmin(req.user.id));
+    if (!admin) return res.status(403).json({ error: 'Acceso denegado' });
+
+    const targetUser = parseInt(req.params.id, 10);
+    if (isNaN(targetUser)) return res.status(400).json({ error: 'ID inválido' });
+
+    const { username } = req.body;
+
+    const { data: target, error: targetError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('id', targetUser)
+      .maybeSingle();
+    if (targetError) throw targetError;
+    if (!target) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    if (username !== undefined) {
+      if (typeof username !== 'string' || username.trim().length < 3) {
+        return res.status(400).json({ error: 'El username debe tener al menos 3 caracteres' });
+      }
+      const { error: usernameError } = await supabase
+        .from('users')
+        .update({ username: username.trim() })
+        .eq('id', targetUser);
+      if (usernameError) {
+        return res.status(400).json({ error: 'No se pudo actualizar el username. Es posible que ya esté en uso.' });
+      }
+    }
+
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', targetUser)
+      .maybeSingle();
+
+    const fields = { updated_at: new Date().toISOString() };
+    if (req.body.phone !== undefined) fields.phone = req.body.phone?.trim() || existingProfile?.phone || '';
+    if (req.body.city !== undefined) fields.city = req.body.city?.trim() || existingProfile?.city || '';
+    if (req.body.bio !== undefined) fields.bio = req.body.bio?.trim() || existingProfile?.bio || '';
+    if (req.body.avatar_url !== undefined) fields.avatar_url = req.body.avatar_url || existingProfile?.avatar_url || '';
+    if (req.body.show_phone !== undefined) fields.show_phone = req.body.show_phone === true || req.body.show_phone === 'true';
+    if (req.body.dealership_name !== undefined) fields.dealership_name = req.body.dealership_name?.trim() ?? '';
+    if (req.body.dealership_address !== undefined) fields.dealership_address = req.body.dealership_address?.trim() ?? '';
+    if (req.body.instagram !== undefined) {
+      const igRaw = req.body.instagram?.trim() ?? '';
+      if (igRaw !== '' && !/^(@[\w.]{1,30}|https?:\/\/.+)$/.test(igRaw)) {
+        return res.status(400).json({ error: 'El campo Instagram debe ser un @usuario o una URL válida (http/https).' });
+      }
+      fields.instagram = igRaw;
+    }
+
+    let savedProfile;
+    if (existingProfile) {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update(fields)
+        .eq('user_id', targetUser)
+        .select('*')
+        .maybeSingle();
+      if (error) throw error;
+      savedProfile = data || { ...existingProfile, ...fields };
+    } else {
+      const { data, error } = await supabase
+        .from('profiles')
+        .insert({ user_id: targetUser, ...fields })
+        .select('*')
+        .single();
+      if (error) throw error;
+      savedProfile = data;
+    }
+
+    res.json(savedProfile);
+  } catch (error) {
+    console.error('[/api/admin/users/:id/profile][PUT]', error.message);
+    res.status(500).json({ error: 'Error al actualizar perfil' });
+  }
+});
+
 app.put('/api/admin/users/:id/admin', authenticateToken, async (req, res) => {
   try {
     const admin = req.user.is_admin === true || (req.user.is_admin === undefined && await isAdmin(req.user.id));
@@ -3632,5 +3786,4 @@ function emailResetTemplate(username, resetUrl) {
 httpServer.listen(PORT, () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`)
 })
-
 

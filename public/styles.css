@@ -1368,21 +1368,6 @@ select {
   font-weight: 500;
 }
 
-.price-drop-badge {
-  position: absolute;
-  top: 0;
-  right: 0;
-  background: rgba(34, 197, 94, 0.15);
-  color: #4ade80;
-  padding: 0.2rem 0.5rem;
-  border-radius: 6px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 0.2rem;
-}
-
 .vehicle-meta {
   display: flex;
   gap: 0.5rem;
@@ -1880,7 +1865,7 @@ select {
   padding-top: 0.95rem;
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.55rem;
   align-items: center;
 }
 
@@ -1907,13 +1892,48 @@ select {
   border-radius: var(--radius-md);
   font-weight: 600;
   box-shadow: 0 3px 10px rgba(220, 39, 67, 0.2);
-  margin-top: 0.25rem;
   font-size: 0.82rem;
 }
 
 .seller-contact-link.instagram:hover {
   transform: translateY(-1px);
   box-shadow: 0 5px 15px rgba(220, 39, 67, 0.3);
+  color: #fff !important;
+}
+
+.seller-contact-link.location {
+  background: linear-gradient(45deg, #0ea5e9 0%, #2563eb 100%);
+  color: #fff !important;
+  width: 100%;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  box-shadow: 0 3px 10px rgba(37, 99, 235, 0.22);
+  font-size: 0.82rem;
+}
+
+.seller-contact-link.whatsapp {
+  background: #25D366;
+  color: #fff !important;
+  width: 100%;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  box-shadow: 0 3px 10px rgba(37, 211, 102, 0.22);
+  font-size: 0.82rem;
+}
+
+.seller-contact-link.location:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 15px rgba(37, 99, 235, 0.32);
+  color: #fff !important;
+}
+
+.seller-contact-link.whatsapp:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 15px rgba(37, 211, 102, 0.32);
   color: #fff !important;
 }
 
@@ -2461,6 +2481,14 @@ select {
   color: var(--text);
 }
 
+.profile-owner-name {
+  margin: -0.05rem 0 0.2rem;
+  color: var(--text-2);
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
 .profile-header .verified-badge {
   background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(99, 102, 241, 0.2));
   color: #60a5fa;
@@ -2491,14 +2519,29 @@ select {
   margin-left: 0.25rem;
 }
 
-.profile-header .location {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
+.profile-header .profile-location {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: start;
+  column-gap: 0.45rem;
+  max-width: min(100%, 520px);
+  margin: 0.55rem auto 0;
+  padding: 0 0.35rem;
+  text-align: left;
   color: var(--text-3);
   font-size: 0.9rem;
-  margin-top: 0.5rem;
+  line-height: 1.35;
+}
+
+.profile-header .profile-location svg {
+  margin-top: 0.06rem;
+  opacity: 0.9;
+}
+
+.profile-header .profile-location .profile-location-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
 }
 
 .profile-bio {
@@ -2510,11 +2553,18 @@ select {
 }
 
 .profile-actions-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: stretch;
+  width: 100%;
   gap: 0.6rem;
   margin-top: 1rem;
+}
+
+.profile-actions-grid > .profile-action-btn {
+  flex: 1 1 210px;
+  max-width: 340px;
 }
 
 .profile-action-btn {
@@ -2522,7 +2572,8 @@ select {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  width: 100%;
+  width: auto;
+  min-width: 0;
   padding: 0 1rem;
   height: 46px;
   min-height: 46px;
@@ -2539,11 +2590,21 @@ select {
   flex: 0 0 auto;
 }
 
+/* Si hay un solo botón (ej: seguir/dejar de seguir), centrarlo y evitar que quede "pegado" a la izquierda */
+.profile-actions-grid > :only-child {
+  flex: 1 1 100%;
+  max-width: none;
+  width: 100%;
+}
+
 @media (max-width: 768px) {
   .profile-actions-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: 0.55rem;
-    row-gap: 0.35rem;
+    gap: 0.5rem;
+  }
+
+  .profile-actions-grid > .profile-action-btn {
+    flex-basis: calc(50% - 0.25rem);
+    max-width: none;
   }
 
   .profile-action-btn {
@@ -2556,6 +2617,19 @@ select {
   .profile-action-btn svg {
     width: 16px;
     height: 16px;
+  }
+}
+
+@media (max-width: 520px) {
+  .profile-header .profile-location {
+    max-width: 100%;
+    font-size: 0.86rem;
+    column-gap: 0.4rem;
+    padding: 0 0.2rem;
+  }
+
+  .profile-actions-grid > .profile-action-btn {
+    flex-basis: 100%;
   }
 }
 
@@ -4968,26 +5042,6 @@ select {
   background: #2563eb;
 }
 
-/* ===== PRICE CHANGE INDICATOR ===== */
-.price-change {
-  font-size: 0.8rem;
-  font-weight: 600;
-  padding: 0.2rem 0.5rem;
-  border-radius: 4px;
-  margin-left: 0.5rem;
-  vertical-align: middle;
-}
-
-.price-down {
-  background: rgba(34, 197, 94, 0.15);
-  color: #22c55e;
-}
-
-.price-up {
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
-}
-
 /* ===== DÓLAR BLUE WIDGET ===== */
 .dolar-widget {
   display: inline-flex;
@@ -5246,18 +5300,6 @@ select {
 .h-captcha iframe {
   border-radius: 12px;
   overflow: hidden;
-}
-
-/* Price drop badge */
-.price-drop-badge {
-  display: inline-block;
-  background: rgba(34, 197, 94, 0.15);
-  color: #22c55e;
-  font-size: 0.72rem;
-  font-weight: 700;
-  padding: 1px 6px;
-  border-radius: 4px;
-  margin-top: 2px;
 }
 
 /* Sold overlay (favorites) */
