@@ -304,14 +304,16 @@ body::before {
 
 .nav-logo {
   width: 188px;
-  height: auto;
+  height: 44px;
   max-height: 44px;
+  object-fit: contain;
   filter: drop-shadow(0 4px 14px rgba(245, 158, 11, 0.22));
 }
 
 @media (max-width: 768px) {
   .nav-logo {
     width: 160px;
+    height: 38px;
     max-height: 38px;
   }
 }
@@ -402,7 +404,7 @@ body::before {
   min-height: 60vh;
   overflow: hidden;
   background-color: #0d0d14;
-  background-image: url('https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=1920&q=90');
+  background-image: url('https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=1280&q=60');
   background-size: cover;
   background-position: center 25%;
   background-attachment: scroll;
@@ -652,6 +654,7 @@ body::before {
   letter-spacing: -0.03em;
   margin-bottom: 0.85rem;
   max-width: 18ch;
+  min-height: 2.1em;
 }
 
 .home-hero p {
@@ -660,6 +663,7 @@ body::before {
   line-height: 1.65;
   max-width: 60ch;
   margin-bottom: 1.35rem;
+  min-height: 3.3em;
 }
 
 .home-hero-actions {
@@ -689,6 +693,9 @@ body::before {
 
 .home-stat-value {
   font-size: clamp(1.6rem, 2.6vw, 2.2rem);
+  min-width: 3.4ch;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 .home-stat-label {
@@ -1427,6 +1434,12 @@ select {
   display: flex;
   flex-direction: column;
   min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .hero {
+    background-image: none;
+  }
 }
 
 .vehicle-seller-name-row {

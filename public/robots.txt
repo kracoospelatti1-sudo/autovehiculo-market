@@ -1,3 +1,10 @@
 User-agent: *
 Allow: /
+Disallow: /api/
+Disallow: /?section=login
+Disallow: /?section=register
+Disallow: /?section=messages
+Disallow: /?section=notifications
+Disallow: /?section=publish
+Disallow: /?section=admin
 Sitemap: https://autoventa.online/sitemap.xml

@@ -22,15 +22,53 @@ let dolarRate = null;
 let dolarRateInterval = null;
 let userFavoriteIds = new Set();
 let filtersDirty = false;
+let leafletCssLoaded = false;
+let homeRecentLoadedAt = 0;
+let publicStatsLoadedAt = 0;
+let lucideLoadPromise = null;
+
+function ensureLeafletCss() {
+  if (leafletCssLoaded || document.querySelector('link[data-leaflet-css="1"]')) {
+    leafletCssLoaded = true;
+    return;
+  }
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+  link.setAttribute('data-leaflet-css', '1');
+  document.head.appendChild(link);
+  leafletCssLoaded = true;
+}
 
 function loadLeaflet() {
   return new Promise((resolve) => {
+    ensureLeafletCss();
     if (window.L) return resolve();
     const script = document.createElement('script');
     script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
     script.onload = resolve;
     document.head.appendChild(script);
   });
+}
+
+function loadLucideIcons() {
+  if (window.lucide) {
+    window.lucide.createIcons();
+    return Promise.resolve();
+  }
+  if (lucideLoadPromise) return lucideLoadPromise;
+  lucideLoadPromise = new Promise((resolve) => {
+    const script = document.createElement('script');
+    script.src = 'https://unpkg.com/lucide@latest';
+    script.defer = true;
+    script.onload = () => {
+      if (window.lucide) window.lucide.createIcons();
+      resolve();
+    };
+    script.onerror = () => resolve();
+    document.head.appendChild(script);
+  });
+  return lucideLoadPromise;
 }
 
 function loadHCaptcha() {
@@ -50,6 +88,12 @@ function setMeta(attr, key, value) {
   if (el) el.setAttribute('content', value);
 }
 
+function setRobotsMetaForSection(sectionId) {
+  const indexableSections = new Set(['home', 'vehicles', 'vehicle-detail', 'terms']);
+  const robotsValue = indexableSections.has(sectionId) ? 'index, follow' : 'noindex, nofollow';
+  setMeta('name', 'robots', robotsValue);
+}
+
 function updateSEOMeta(vehicle, imageUrl) {
   const price = Number(vehicle.price).toLocaleString('es-AR');
   const mileage = Number(vehicle.mileage).toLocaleString('es-AR');
@@ -66,6 +110,7 @@ function updateSEOMeta(vehicle, imageUrl) {
   setMeta('name', 'twitter:title', title);
   setMeta('name', 'twitter:description', desc);
   setMeta('name', 'twitter:image', imageUrl);
+  setMeta('name', 'robots', 'index, follow');
   const canonical = document.querySelector('link[rel="canonical"]');
   if (canonical) canonical.href = url;
   window.history.pushState({ vehicleId: vehicle.id, section: 'vehicle-detail' }, '', `?vehicle=${vehicle.id}`);
@@ -112,6 +157,7 @@ function resetSEOMeta() {
   setMeta('name', 'twitter:title', defaultTitle);
   setMeta('name', 'twitter:description', defaultDesc);
   setMeta('name', 'twitter:image', defaultImg);
+  setMeta('name', 'robots', 'index, follow');
   const canonical = document.querySelector('link[rel="canonical"]');
   if (canonical) canonical.href = defaultUrl;
   window.history.replaceState({}, '', '/');
@@ -664,6 +710,10 @@ async function request(endpoint, options = {}) {
 
 function showSection(sectionId) {
   if (sectionId !== 'vehicle-detail') resetSEOMeta();
+  setRobotsMetaForSection(sectionId);
+  if (sectionId !== 'home') {
+    loadLucideIcons();
+  }
   if (currentUser && (sectionId === 'login' || sectionId === 'register')) return;
   // Push state para que el botón atrás funcione dentro del SPA
   const publicSections = ['home', 'vehicles', 'login', 'register', 'forgot-password', 'terms'];
@@ -682,7 +732,7 @@ function showSection(sectionId) {
     section.classList.add('fade-in');
   }
   setBottomNavActive(sectionId);
-  if (sectionId === 'home') { loadHomeRecent(); loadPublicStats(); }
+  if (sectionId === 'home') { loadHomeRecent(); }
   else if (sectionId === 'vehicles') loadVehicles(1);
   else if (sectionId === 'my-vehicles') loadMyVehicles();
   else if (sectionId === 'messages') { document.querySelector('.messages-container')?.classList.remove('chat-open'); loadConversations(); }
@@ -3891,8 +3941,14 @@ function closeConfirmModal() {
 
 // UTILS
 function thumbUrl(url) {
-  // Supabase image transforms requieren plan Pro — usar URL original por ahora
-  return url || PLACEHOLDER_IMG;
+  if (!url) return PLACEHOLDER_IMG;
+  const m = String(url).match(/^(https:\/\/[^/]+)\/storage\/v1\/object\/public\/(.+)$/);
+  if (m) {
+    const base = m[1];
+    const objectPath = m[2];
+    return `${base}/storage/v1/render/image/public/${objectPath}?width=640&height=400&resize=cover&quality=62`;
+  }
+  return url;
 }
 function formatNumber(n) { return (n || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
 function formatTime(d) { return new Date(d).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); }
@@ -4108,6 +4164,7 @@ function updateNav() {
   document.getElementById('navVehicles').style.display = 'flex';
   
   if (isLogged) {
+    loadLucideIcons();
     document.getElementById('navMessages').style.display = 'flex';
     document.getElementById('navNotifications').style.display = 'flex';
     document.getElementById('navFavorites').style.display = 'flex';
@@ -4371,7 +4428,7 @@ function toggleMobileMenu() {
     const adminItem = document.getElementById('mobileMenuAdmin');
     if (adminItem) adminItem.style.display = currentUser?.profile?.is_admin ? 'flex' : 'none';
     menu.style.display = 'flex';
-    if (window.lucide) lucide.createIcons();
+    loadLucideIcons();
   } else {
     menu.style.display = 'none';
   }
@@ -4471,6 +4528,7 @@ function setupFollowingFeedScroll() {
 async function loadHomeRecent() {
   const container = document.getElementById('homeRecentVehicles');
   if (!container) return;
+  if (homeRecentLoadedAt && (Date.now() - homeRecentLoadedAt) < 120000 && container.children.length > 0) return;
   // Show skeletons
   container.innerHTML = Array(6).fill().map(() => `
     <div class="vehicle-card" style="padding:1rem;">
@@ -4525,6 +4583,7 @@ async function loadHomeRecent() {
       </div>
     `).join('');
     applyCardCascade(container);
+    homeRecentLoadedAt = Date.now();
   } catch { container.innerHTML = ''; }
 }
 
@@ -4535,12 +4594,14 @@ function applyCardCascade(container) {
 }
 
 async function loadPublicStats() {
+  if (publicStatsLoadedAt && (Date.now() - publicStatsLoadedAt) < 300000) return;
   try {
     const data = await request('/stats/public');
     const ve = document.getElementById('statVehicles');
     const us = document.getElementById('statUsers');
     if (ve) ve.textContent = data.active_vehicles?.toLocaleString('es-AR') || '—';
     if (us) us.textContent = data.total_users?.toLocaleString('es-AR') || '—';
+    publicStatsLoadedAt = Date.now();
   } catch { /* silencioso */ }
 }
 // Defer non-critical fetches until the browser is idle to free up the main thread
@@ -4583,6 +4644,7 @@ async function loadSimilarVehicles(vehicleId) {
     document.getElementById('similarVehiclesSection')?.remove();
   }
 }
+
 
 
 

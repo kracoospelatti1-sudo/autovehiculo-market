@@ -77,11 +77,11 @@ app.use((req, res, next) => {
   res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   res.setHeader('Content-Security-Policy',
     "default-src 'self'; " +
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://js.hcaptcha.com https://pagead2.googlesyndication.com https://googleads.g.doubleclick.net https://www.googletagmanager.com https://partner.googleadservices.com; " +
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://js.hcaptcha.com https://pagead2.googlesyndication.com https://googleads.g.doubleclick.net https://www.googletagmanager.com https://partner.googleadservices.com https://*.adtrafficquality.google; " +
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; " +
     "font-src 'self' https://fonts.gstatic.com; " +
     "img-src 'self' data: blob: https:; " +
-    "connect-src 'self' https://*.supabase.co wss: https://nominatim.openstreetmap.org; " +
+    "connect-src 'self' https://*.supabase.co wss: https://nominatim.openstreetmap.org https://*.hcaptcha.com https://*.adtrafficquality.google; " +
     "frame-src https://newassets.hcaptcha.com https://tpc.googlesyndication.com https://googleads.g.doubleclick.net; " +
     "object-src 'none';"
   );
@@ -156,9 +156,6 @@ app.get('/', async (req, res, next) => {
       .replace(/(<meta property="og:title" content=")[^"]*(")/,     `$1${titleEsc}$2`)
       .replace(/(<meta property="og:description" content=")[^"]*(")/,`$1${descEsc}$2`)
       .replace(/(<meta property="og:image" content=")[^"]*(")/,     `$1${imageUrlEsc}$2`)
-      .replace(/(<meta property="og:image:width" content=")[^"]*(")/,  `$11920$2`)
-      .replace(/(<meta property="og:image:height" content=")[^"]*(")/,  `$11080$2`)
-      .replace(/(<meta property="og:image:type" content=")[^"]*(")/,  `$1image/jpeg$2`)
       .replace(/(<meta property="og:url" content=")[^"]*(")/,       `$1${urlEsc}$2`)
       .replace(/(<meta name="twitter:title" content=")[^"]*(")/,    `$1${titleEsc}$2`)
       .replace(/(<meta name="twitter:description" content=")[^"]*(")/,`$1${descEsc}$2`)
@@ -194,6 +191,24 @@ app.get('/sitemap.xml', async (req, res) => {
     console.error('[sitemap]', err);
     res.status(500).send('Error generating sitemap');
   }
+});
+
+// SEO: Serve robots.txt explicitly to avoid malformed directives from intermediaries.
+app.get('/robots.txt', (req, res) => {
+  res.type('text/plain; charset=utf-8');
+  res.send([
+    'User-agent: *',
+    'Allow: /',
+    'Disallow: /api/',
+    'Disallow: /?section=login',
+    'Disallow: /?section=register',
+    'Disallow: /?section=messages',
+    'Disallow: /?section=notifications',
+    'Disallow: /?section=publish',
+    'Disallow: /?section=admin',
+    'Sitemap: https://autoventa.online/sitemap.xml',
+    ''
+  ].join('\n'));
 });
 
 app.use(express.static('public', {

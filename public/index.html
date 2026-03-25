@@ -17,32 +17,30 @@
   <meta property="og:image" content="https://autoventa.online/og-default.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:image:type" content="image/png">
   <meta property="og:url" content="https://autoventa.online/">
   <!-- Twitter Cards -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Autoventa — Comprá y Vendé tu Vehículo en Argentina">
   <meta name="twitter:description" content="La plataforma más moderna para comprar y vender vehículos en Argentina.">
   <meta name="twitter:image" content="https://autoventa.online/og-default.png">
+  <meta name="twitter:site" content="@autoventaonline">
   <!-- Canonical & extras -->
   <link rel="canonical" href="https://autoventa.online/">
+  <link rel="alternate" hreflang="es-AR" href="https://autoventa.online/">
+  <link rel="alternate" hreflang="x-default" href="https://autoventa.online/">
   <meta name="theme-color" content="#f59e0b">
   <meta name="robots" content="index, follow">
   <!-- Preconnect para recursos externos críticos -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preconnect" href="https://unpkg.com">
   <link rel="preconnect" href="https://hlhzukssceikjmenpvri.supabase.co" crossorigin>
   <link rel="dns-prefetch" href="https://hlhzukssceikjmenpvri.supabase.co">
+  <link rel="preload" as="image" href="/Logo.svg" fetchpriority="high">
   <!-- Fuentes: no-render-blocking -->
-  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" onload="this.rel='stylesheet'">
-  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"></noscript>
-  <link rel="stylesheet" href="styles.min.css?v=28" fetchpriority="high">
-  <!-- Leaflet CSS: non-blocking (solo se necesita cuando se abre el mapa) -->
-  <link rel="preload" as="style" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" onload="this.rel='stylesheet'">
-  <noscript><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"></noscript>
-  <!-- Lucide con defer: no bloquea el renderizado inicial -->
-  <script src="https://unpkg.com/lucide@latest" defer></script>
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=optional" onload="this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=optional"></noscript>
+  <link rel="stylesheet" href="styles.min.css?v=30" fetchpriority="high">
   <!-- JSON-LD: WebSite + Organization -->
   <script type="application/ld+json">
   {
@@ -76,8 +74,6 @@
     ]
   }
   </script>
-  <!-- Google AdSense -->
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9105676883718599" crossorigin="anonymous"></script>
 </head>
 
 <body>
@@ -85,7 +81,7 @@
   <!-- NAVBAR -->
   <nav class="navbar">
     <div class="nav-brand" onclick="showSection('home')">
-      <img src="/Logo.svg" alt="Autoventa" class="nav-logo">
+    <img src="/Logo.svg" alt="Autoventa" class="nav-logo" width="188" height="44" fetchpriority="high" decoding="async">
     </div>
     <!-- Centro: links de navegación -->
     <div class="nav-links nav-links-center">
@@ -1158,7 +1154,7 @@
   <footer class="site-footer">
     <span>© 2026 Autoventa</span>
     <a href="/?section=terms" onclick="showSection('terms');return false;" style="cursor:pointer;">Términos y Condiciones</a>
-    <span style="color:var(--text-3);font-size:0.75rem;">v1.0.3</span>
+    <span style="color:var(--text-3);font-size:0.75rem;">v1.0.5</span>
   </footer>
 
   <!-- Edit Profile Modal -->
@@ -1172,12 +1168,30 @@
     </div>
   </div>
 
-  <script src="app.js?v=32" defer></script>
+  <script src="app.js?v=34" defer></script>
   <script>
-    // Lucide es defer — ejecutar cuando el DOM esté listo (los defer corren antes de DOMContentLoaded)
-    document.addEventListener('DOMContentLoaded', () => {
-      if (window.lucide) lucide.createIcons();
-    });
+    // AdSense: cargar únicamente tras interacción real para mejorar score mobile inicial
+    (function () {
+      let loaded = false;
+      const loadAds = () => {
+        if (loaded) return;
+        loaded = true;
+        const s = document.createElement('script');
+        s.async = true;
+        s.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9105676883718599';
+        s.crossOrigin = 'anonymous';
+        document.head.appendChild(s);
+      };
+      const onFirstInteraction = () => {
+        loadAds();
+        window.removeEventListener('scroll', onFirstInteraction, { passive: true });
+        window.removeEventListener('pointerdown', onFirstInteraction, { passive: true });
+        window.removeEventListener('keydown', onFirstInteraction);
+      };
+      window.addEventListener('scroll', onFirstInteraction, { passive: true, once: true });
+      window.addEventListener('pointerdown', onFirstInteraction, { passive: true, once: true });
+      window.addEventListener('keydown', onFirstInteraction, { once: true });
+    })();
   </script>
 </body>
 
