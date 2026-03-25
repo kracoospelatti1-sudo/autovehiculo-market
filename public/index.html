@@ -53,8 +53,8 @@
   <!-- Fuentes: no-render-blocking -->
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=optional" onload="this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=optional"></noscript>
-  <link rel="preload" as="style" href="styles.min.css?v=38" onload="this.rel='stylesheet'" fetchpriority="high">
-  <noscript><link rel="stylesheet" href="styles.min.css?v=38"></noscript>
+  <link rel="preload" as="style" href="styles.css?v=44" onload="this.rel='stylesheet'" fetchpriority="high">
+  <noscript><link rel="stylesheet" href="styles.css?v=44"></noscript>
   <!-- JSON-LD: WebSite + Organization -->
   <script type="application/ld+json">
   {
@@ -93,7 +93,7 @@
 <body>
 
   <!-- NAVBAR -->
-  <nav class="navbar">
+  <nav class="navbar" aria-label="Navegacion principal">
     <div class="nav-brand" onclick="showSection('home')">
     <img src="/Logo.svg" alt="Autoventa" class="nav-logo" width="188" height="44" fetchpriority="high" decoding="async">
     </div>
@@ -107,7 +107,6 @@
     </div>
     <!-- Derecha: acciones y utilidades -->
     <div class="nav-links nav-links-right">
-      <button id="themeToggle" onclick="toggleTheme()" title="Cambiar tema" aria-label="Cambiar tema">☀️</button>
       <span id="dolarWidget" class="dolar-widget" style="display:none;"></span>
       <a href="/?section=messages" onclick="showSection('messages');return false;" id="navMessages" style="display:none;">
         <i data-lucide="message-square"></i>
@@ -476,15 +475,15 @@
           <input type="text" id="searchInput" placeholder="Buscar por marca, modelo o título..."
             oninput="debounceSearch()">
         </div>
-        <button class="btn btn-secondary" onclick="toggleFilters()">
+        <button class="btn btn-secondary" id="filterToggleBtn" aria-controls="filtersPanel" aria-expanded="false" onclick="toggleFilters()">
           <i data-lucide="filter"></i>
           Filtros
         </button>
       </div>
-      <div class="filters-panel" id="filtersPanel">
+      <div class="filters-panel" id="filtersPanel" aria-hidden="true">
         <div class="form-row" style="margin-bottom:0.75rem;">
           <div class="form-group">
-            <label>Tipo</label>
+            <label for="filterVehicleType">Tipo</label>
             <select id="filterVehicleType"
               onchange="initBrandFilters(); updateVehicleTypeOptions('filter'); applyFilters()">
               <option value="">Todos</option>
@@ -495,19 +494,19 @@
         </div>
         <div class="form-row" style="margin-bottom:0.75rem;">
           <div class="form-group">
-            <label>Marca</label>
+            <label for="filterBrand">Marca</label>
             <select id="filterBrand" onchange="updateFilterModels(); applyFilters()">
               <option value="">Todas</option>
             </select>
           </div>
           <div class="form-group">
-            <label>Modelo</label>
+            <label for="filterModel">Modelo</label>
             <select id="filterModel" onchange="applyFilters()">
               <option value="">Todos</option>
             </select>
           </div>
           <div class="form-group">
-            <label>Transmisión</label>
+            <label for="filterTransmission">Transmisión</label>
             <select id="filterTransmission" onchange="applyFilters()">
               <option value="">Todas</option>
               <option value="Manual">Manual</option>
@@ -517,7 +516,7 @@
             </select>
           </div>
           <div class="form-group">
-            <label>Combustible</label>
+            <label for="filterFuel">Combustible</label>
             <select id="filterFuel" onchange="applyFilters()">
               <option value="">Todos</option>
               <option value="Nafta">Nafta</option>
@@ -530,31 +529,31 @@
         </div>
         <div class="form-row" style="margin-bottom:0.75rem;">
           <div class="form-group">
-            <label>Precio máximo (USD)</label>
+            <label for="filterMaxPrice">Precio máximo (USD)</label>
             <input type="number" id="filterMaxPrice" placeholder="Sin límite" oninput="applyFilters()">
           </div>
           <div class="form-group">
-            <label>KM máximo</label>
+            <label for="filterMaxMileage">KM máximo</label>
             <input type="number" id="filterMaxMileage" placeholder="Sin límite" oninput="applyFilters()">
           </div>
           <div class="form-group">
-            <label>Año mínimo</label>
+            <label for="filterMinYear">Año mínimo</label>
             <input type="number" id="filterMinYear" placeholder="2000" onchange="applyFilters()" min="1900" max="2030">
           </div>
           <div class="form-group">
-            <label>Año máximo</label>
+            <label for="filterMaxYear">Año máximo</label>
             <input type="number" id="filterMaxYear" placeholder="2026" onchange="applyFilters()" min="1900" max="2030">
           </div>
         </div>
         <div class="form-row" style="margin-bottom:0.75rem;">
           <div class="form-group">
-            <label>Provincia</label>
+            <label for="filterProvince">Provincia</label>
             <select id="filterProvince" onchange="applyFilters()">
               <option value="">Todas</option>
             </select>
           </div>
           <div class="form-group">
-            <label>Ciudad</label>
+            <label for="filterCity">Ciudad</label>
             <input type="text" id="filterCity" placeholder="Ej: Córdoba" oninput="applyFilters()">
           </div>
         </div>
@@ -608,7 +607,7 @@
           <div class="form-group">
             <label for="publishVehicleType">Tipo de vehículo *</label>
             <select id="publishVehicleType" required
-              onchange="toggleEngineCCField('publish'); updateVehicleTypeOptions('publish'); initBrandFilters()">
+              onchange="toggleEngineCCField('publish'); toggleBodyTypeField('publish'); toggleDrivetrainField('publish'); updateVehicleTypeOptions('publish'); initBrandFilters()">
               <option value="auto">Auto / Camioneta / SUV</option>
               <option value="moto">Moto / Scooter</option>
             </select>
@@ -622,10 +621,34 @@
             </div>
             <div class="form-group">
               <label>Modelo *</label>
-              <select id="publishModel" onchange="handleBodyTypeLookup('publish')">
+              <select id="publishModel" onchange="toggleDrivetrainField('publish')">
                 <option value="">Seleccionar modelo</option>
               </select>
-              <p id="publishBodyTypeHint" style="margin-top:0.35rem;font-size:0.78rem;color:var(--text-2);min-height:1.1em;"></p>
+            </div>
+          </div>
+          <div class="form-row" id="publishBodyTypeGroup">
+            <div class="form-group">
+              <label for="publishBodyType">Carroceria *</label>
+              <select id="publishBodyType" onchange="toggleDrivetrainField('publish')">
+                <option value="">Seleccionar</option>
+                <option value="Hatchback">Hatchback</option>
+                <option value="Sedan">Sedan</option>
+                <option value="Camioneta">Camioneta</option>
+                <option value="SUV">SUV</option>
+                <option value="Coupe">Coupe</option>
+                <option value="Rural">Rural</option>
+                <option value="Van">Van</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row" id="publishDrivetrainGroup" style="display:none;">
+            <div class="form-group">
+              <label for="publishDrivetrain">Tracción (solo camioneta)</label>
+              <select id="publishDrivetrain">
+                <option value="">Seleccionar</option>
+                <option value="4x2">4x2</option>
+                <option value="4x4">4x4</option>
+              </select>
             </div>
           </div>
           <div class="form-group">
@@ -659,7 +682,7 @@
               <input type="number" id="publishEngineCC" placeholder="Ej: 250" min="50" max="2500">
             </div>
             <div class="form-group">
-              <label>Combustible</label>
+              <label for="filterFuel">Combustible</label>
               <select id="publishFuel">
                 <option value="">Seleccionar</option>
                 <option value="Nafta">Nafta</option>
@@ -672,7 +695,7 @@
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label>Transmisión</label>
+              <label for="filterTransmission">Transmisión</label>
               <select id="publishTransmission">
                 <option value="">Seleccionar</option>
                 <option value="Manual">Manual</option>
@@ -875,7 +898,7 @@
           </div>
           <div class="form-group">
             <label>Tipo de vehículo</label>
-            <select id="editVehicleTypeTop" onchange="toggleEngineCCField('edit'); updateEditBrands()">
+            <select id="editVehicleTypeTop" onchange="toggleEngineCCField('edit'); toggleBodyTypeField('edit'); toggleDrivetrainField('edit'); updateEditBrands()">
               <option value="auto">Auto / Camioneta / SUV</option>
               <option value="moto">Moto / Scooter</option>
             </select>
@@ -889,10 +912,34 @@
             </div>
             <div class="form-group">
               <label>Modelo *</label>
-              <select id="editModel" required onchange="updateEditTitle(); autoGenEditDescription(); handleBodyTypeLookup('edit')">
+              <select id="editModel" required onchange="updateEditTitle(); autoGenEditDescription(); toggleDrivetrainField('edit')">
                 <option value="">Seleccionar modelo</option>
               </select>
-              <p id="editBodyTypeHint" style="margin-top:0.35rem;font-size:0.78rem;color:var(--text-2);min-height:1.1em;"></p>
+            </div>
+          </div>
+          <div class="form-row" id="editBodyTypeGroup">
+            <div class="form-group">
+              <label for="editBodyType">Carroceria</label>
+              <select id="editBodyType" onchange="toggleDrivetrainField('edit')">
+                <option value="">Seleccionar</option>
+                <option value="Hatchback">Hatchback</option>
+                <option value="Sedan">Sedan</option>
+                <option value="Camioneta">Camioneta</option>
+                <option value="SUV">SUV</option>
+                <option value="Coupe">Coupe</option>
+                <option value="Rural">Rural</option>
+                <option value="Van">Van</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row" id="editDrivetrainGroup" style="display:none;">
+            <div class="form-group">
+              <label for="editDrivetrain">Tracción (solo camioneta)</label>
+              <select id="editDrivetrain">
+                <option value="">Seleccionar</option>
+                <option value="4x2">4x2</option>
+                <option value="4x4">4x4</option>
+              </select>
             </div>
           </div>
           <div class="form-row">
@@ -924,7 +971,7 @@
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label>Combustible</label>
+              <label for="filterFuel">Combustible</label>
               <select id="editFuel">
                 <option value="">Combustible</option>
                 <option value="Nafta">Nafta</option>
@@ -935,7 +982,7 @@
               </select>
             </div>
             <div class="form-group">
-              <label>Transmisión</label>
+              <label for="filterTransmission">Transmisión</label>
               <select id="editTransmission">
                 <option value="">Seleccionar</option>
                 <option>Manual</option>
@@ -1126,7 +1173,7 @@
   <div id="modalOverlay" class="modal-overlay" style="display:none;" onclick="closeAllModals()"></div>
 
   <!-- BOTTOM NAVIGATION (MOBILE) -->
-  <nav class="bottom-nav">
+  <nav class="bottom-nav" aria-label="Navegacion inferior movil">
     <a class="bottom-nav-item active" href="/"
       onclick="showSection('home'); return false;">
       <svg>
@@ -1169,7 +1216,7 @@
   </nav>
 
   <!-- MOBILE ACCOUNT MENU -->
-  <div id="mobileAccountMenu" class="mobile-account-menu" style="display:none;">
+  <div id="mobileAccountMenu" class="mobile-account-menu" style="display:none;" aria-hidden="true">
     <div class="mobile-menu-backdrop" onclick="closeMobileMenu()"></div>
     <div class="mobile-menu-panel">
       <div class="mobile-menu-header">
@@ -1194,8 +1241,6 @@
       <a id="mobileMenuAdmin" href="/?section=admin" onclick="closeMobileMenu(); showSection('admin'); return false;" class="mobile-menu-item"
         style="display:none;"><i data-lucide="shield-check"></i> Admin</a>
       <div style="height:1px;background:var(--border);margin:0.5rem 0.75rem;"></div>
-      <a href="/?action=theme" onclick="toggleTheme()" class="mobile-menu-item" id="mobileThemeToggle">☀️ Cambiar a modo día</a>
-      <div style="height:1px;background:var(--border);margin:0.5rem 0.75rem;"></div>
       <a href="/" onclick="closeMobileMenu(); logout();" class="mobile-menu-item" style="color:#ef4444;"><i
           data-lucide="log-out"></i> Cerrar Sesión</a>
     </div>
@@ -1204,7 +1249,7 @@
   <footer class="site-footer">
     <span>© 2026 Autoventa</span>
     <a href="/?section=terms" onclick="showSection('terms');return false;" style="cursor:pointer;">Términos y Condiciones</a>
-    <span style="color:var(--text-3);font-size:0.75rem;">v1.0.13</span>
+    <span style="color:var(--text-3);font-size:0.75rem;">v1.0.14</span>
   </footer>
 
   <!-- Edit Profile Modal -->
@@ -1232,7 +1277,7 @@
       if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
     };
   </script>
-  <script src="app.js?v=48" defer></script>
+  <script src="app.js?v=52" defer></script>
   <script>
     // AdSense: cargar únicamente tras interacción real para mejorar score mobile inicial
     (function () {

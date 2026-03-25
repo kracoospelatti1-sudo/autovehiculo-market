@@ -32,8 +32,10 @@ let myVehiclesHasMore = false;
 let profileVehiclesPage = 1;
 let profileVehiclesHasMore = false;
 let profileVehiclesUserId = null;
-let bodyTypeLookupSeq = 0;
 let editProfileTarget = null;
+let modalStack = [];
+let mobileMenuTrigger = null;
+let keyboardClickableObserver = null;
 
 function ensureLeafletCss() {
   if (leafletCssLoaded || document.querySelector('link[data-leaflet-css="1"]')) {
@@ -88,6 +90,78 @@ function loadHCaptcha() {
     script.onload = resolve;
     document.head.appendChild(script);
   });
+}
+
+function isVisibleElement(el) {
+  return !!el && getComputedStyle(el).display !== 'none' && getComputedStyle(el).visibility !== 'hidden';
+}
+
+function getFocusableElements(container) {
+  if (!container) return [];
+  const selector = [
+    'a[href]',
+    'button:not([disabled])',
+    'input:not([disabled]):not([type="hidden"])',
+    'select:not([disabled])',
+    'textarea:not([disabled])',
+    '[tabindex]:not([tabindex="-1"])'
+  ].join(',');
+  return Array.from(container.querySelectorAll(selector)).filter(el => isVisibleElement(el));
+}
+
+function setBodyScrollLocked(locked) {
+  document.body.style.overflow = locked ? 'hidden' : '';
+}
+
+function syncModalOverlay() {
+  const overlay = document.getElementById('modalOverlay');
+  if (!overlay) return;
+  const hasModal = modalStack.length > 0;
+  overlay.style.display = hasModal ? 'block' : 'none';
+  setBodyScrollLocked(hasModal || isVisibleElement(document.getElementById('mobileAccountMenu')));
+}
+
+function openAccessibleModal(modalId, options = {}) {
+  const modal = document.getElementById(modalId);
+  if (!modal) return;
+  const lastFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  modal.style.display = options.display || 'block';
+  const existingIndex = modalStack.findIndex(m => m.id === modalId);
+  if (existingIndex !== -1) modalStack.splice(existingIndex, 1);
+  modalStack.push({ id: modalId, lastFocused });
+  syncModalOverlay();
+
+  const focusSelector = options.initialFocusSelector;
+  const focusTarget = focusSelector ? modal.querySelector(focusSelector) : null;
+  const focusable = getFocusableElements(modal);
+  const fallback = focusable[0] || modal;
+  requestAnimationFrame(() => (focusTarget || fallback)?.focus?.());
+}
+
+function closeAccessibleModal(modalId, { restoreFocus = true } = {}) {
+  const modal = document.getElementById(modalId);
+  if (modal) modal.style.display = 'none';
+  const idx = modalStack.findIndex(m => m.id === modalId);
+  const ctx = idx !== -1 ? modalStack[idx] : null;
+  if (idx !== -1) modalStack.splice(idx, 1);
+  syncModalOverlay();
+  if (restoreFocus && ctx?.lastFocused && document.contains(ctx.lastFocused)) {
+    requestAnimationFrame(() => ctx.lastFocused.focus());
+  }
+}
+
+function closeTopAccessibleModal() {
+  const top = modalStack[modalStack.length - 1];
+  if (!top) return false;
+  if (top.id === 'lightboxModal') closeLightbox();
+  else if (top.id === 'editVehicleModal') closeEditModal();
+  else if (top.id === 'tradeModal') closeTradeModal();
+  else if (top.id === 'reportModal') closeReportModal();
+  else if (top.id === 'rateModal') closeRateModal();
+  else if (top.id === 'confirmModal') closeConfirmModal();
+  else if (top.id === 'editProfileModal') closeEditProfileModal();
+  else closeAccessibleModal(top.id);
+  return true;
 }
 
 // SEO helpers
@@ -512,6 +586,149 @@ function toggleTheme() {
   applyTheme(newDay);
 }
 
+function setStarRating(value) {
+  const rating = document.getElementById('starRating');
+  if (!rating) return;
+  const stars = Array.from(rating.querySelectorAll('.star'));
+  const safeValue = Number.isFinite(value) ? Math.max(0, Math.min(5, value)) : 0;
+  rating.dataset.value = String(safeValue);
+  stars.forEach((star, idx) => {
+    const active = idx < safeValue;
+    star.classList.toggle('active', active);
+    star.setAttribute('aria-checked', idx === Math.max(0, safeValue - 1) && safeValue > 0 ? 'true' : 'false');
+    star.setAttribute('tabindex', idx === Math.max(0, safeValue - 1) ? '0' : '-1');
+  });
+  if (safeValue === 0 && stars[0]) stars[0].setAttribute('tabindex', '0');
+}
+
+function initStarRatingA11y() {
+  const rating = document.getElementById('starRating');
+  if (!rating) return;
+  rating.setAttribute('role', 'radiogroup');
+  if (!rating.getAttribute('aria-label')) rating.setAttribute('aria-label', 'Calificación por estrellas');
+  const stars = Array.from(rating.querySelectorAll('.star'));
+  stars.forEach((star, idx) => {
+    star.setAttribute('role', 'radio');
+    star.setAttribute('aria-label', `${idx + 1} estrella${idx === 0 ? '' : 's'}`);
+    star.setAttribute('tabindex', idx === 0 ? '0' : '-1');
+  });
+  setStarRating(0);
+}
+
+function wireImplicitFormLabels() {
+  document.querySelectorAll('.form-group label:not([for])').forEach((label, idx) => {
+    const group = label.closest('.form-group');
+    if (!group) return;
+    const field = group.querySelector('input:not([type="hidden"]), select, textarea');
+    if (!field) return;
+    if (!field.id) field.id = `fieldAuto${idx + 1}`;
+    label.setAttribute('for', field.id);
+  });
+}
+
+function initAccessibilitySemantics() {
+  const modalDefs = [
+    { id: 'editVehicleModal', label: 'Editar publicación' },
+    { id: 'tradeModal', label: 'Proponer permuta' },
+    { id: 'reportModal', label: 'Reportar publicación' },
+    { id: 'rateModal', label: 'Calificar vendedor' },
+    { id: 'confirmModal', label: 'Confirmación' },
+    { id: 'editProfileModal', label: 'Editar perfil' }
+  ];
+  modalDefs.forEach(({ id, label }) => {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('tabindex', '-1');
+    const title = modal.querySelector('.modal-header h3');
+    if (title) {
+      if (!title.id) title.id = `${id}Title`;
+      modal.setAttribute('aria-labelledby', title.id);
+    } else {
+      modal.setAttribute('aria-label', label);
+    }
+  });
+
+  const closeButtons = document.querySelectorAll('.modal-close:not([aria-label])');
+  closeButtons.forEach(btn => btn.setAttribute('aria-label', 'Cerrar modal'));
+
+  const lightbox = document.getElementById('lightboxModal');
+  if (lightbox) {
+    lightbox.setAttribute('role', 'dialog');
+    lightbox.setAttribute('aria-modal', 'true');
+    lightbox.setAttribute('tabindex', '-1');
+    if (!lightbox.getAttribute('aria-label')) lightbox.setAttribute('aria-label', 'Galería de imágenes');
+  }
+  document.querySelector('.lightbox-close')?.setAttribute('aria-label', 'Cerrar galería');
+  document.querySelector('.lightbox-prev')?.setAttribute('aria-label', 'Imagen anterior');
+  document.querySelector('.lightbox-next')?.setAttribute('aria-label', 'Siguiente imagen');
+
+  const toastContainer = document.getElementById('toastContainer');
+  if (toastContainer) {
+    toastContainer.setAttribute('aria-live', 'polite');
+    toastContainer.setAttribute('aria-atomic', 'true');
+  }
+
+  const mobileMenu = document.getElementById('mobileAccountMenu');
+  if (mobileMenu) {
+    mobileMenu.setAttribute('role', 'dialog');
+    mobileMenu.setAttribute('aria-modal', 'true');
+    mobileMenu.setAttribute('tabindex', '-1');
+    mobileMenu.querySelector('.mobile-menu-header button')?.setAttribute('aria-label', 'Cerrar menú');
+  }
+
+  const mobileThemeToggle = document.getElementById('mobileThemeToggle');
+  if (mobileThemeToggle) {
+    mobileThemeToggle.setAttribute('href', '#');
+    mobileThemeToggle.removeAttribute('onclick');
+    mobileThemeToggle.addEventListener('click', (event) => {
+      event.preventDefault();
+      toggleTheme();
+    });
+  }
+
+  wireImplicitFormLabels();
+  initStarRatingA11y();
+}
+
+function makeElementKeyboardClickable(el) {
+  if (!el || el.dataset.kbClick === '1') return;
+  const tag = el.tagName;
+  if (['A', 'BUTTON', 'INPUT', 'SELECT', 'TEXTAREA'].includes(tag)) return;
+  if (el.matches('.modal-overlay, .mobile-menu-backdrop, .lightbox-overlay, .lightbox-thumbs')) return;
+  el.setAttribute('role', 'button');
+  el.setAttribute('tabindex', '0');
+  el.dataset.kbClick = '1';
+}
+
+function enhanceKeyboardClickables(root = document) {
+  if (!root) return;
+  if (root instanceof Element) {
+    if (root.hasAttribute('onclick')) makeElementKeyboardClickable(root);
+    if (!root.querySelector) return;
+    if (root.querySelector('[onclick]')) {
+      root.querySelectorAll('[onclick]').forEach(makeElementKeyboardClickable);
+    }
+    return;
+  }
+  if (root.querySelectorAll) {
+    root.querySelectorAll('[onclick]').forEach(makeElementKeyboardClickable);
+  }
+}
+
+function initKeyboardClickableObserver() {
+  if (keyboardClickableObserver || !document.body) return;
+  keyboardClickableObserver = new MutationObserver((mutations) => {
+    mutations.forEach((m) => {
+      m.addedNodes.forEach((n) => {
+        if (n instanceof Element) enhanceKeyboardClickables(n);
+      });
+    });
+  });
+  keyboardClickableObserver.observe(document.body, { childList: true, subtree: true });
+}
+
 // Init province/city selects when DOM ready
 async function handleEmailLinks() {
   const params = new URLSearchParams(window.location.search);
@@ -544,8 +761,16 @@ async function handleEmailLinks() {
 window.addEventListener('popstate', (e) => {
   const section = e.state?.section;
   const vehicleId = e.state?.vehicleId;
+  const stateProfileId = e.state?.profileId;
+  const query = new URLSearchParams(window.location.search);
+  const queryProfileId = query.get('profile');
   if (vehicleId) {
     viewVehicle(vehicleId);
+  } else if (stateProfileId || queryProfileId) {
+    viewProfile(stateProfileId || queryProfileId);
+  } else if (section === 'profile') {
+    if (currentUser?.id) viewProfile(currentUser.id);
+    else showSection('home');
   } else if (section) {
     showSection(section);
   } else {
@@ -555,6 +780,9 @@ window.addEventListener('popstate', (e) => {
 
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
+  initAccessibilitySemantics();
+  enhanceKeyboardClickables();
+  initKeyboardClickableObserver();
   setupProvinceCity('publishProvince', 'publishCity');
   setupProvinceCity('editProvince', 'editCity');
   const publishForm = document.querySelector('#publish form');
@@ -610,6 +838,63 @@ function toggleEngineCCField(prefix = 'publish') {
   const ccGroup = document.getElementById(`${prefix}EngineCCGroup`);
   if (!typeEl || !ccGroup) return;
   ccGroup.style.display = typeEl.value === 'moto' ? 'block' : 'none';
+}
+
+function shouldShowBodyTypeField(prefix = 'publish') {
+  const typeEl = document.getElementById(`${prefix}VehicleTypeTop`) || document.getElementById(`${prefix}VehicleType`);
+  return !!typeEl && typeEl.value === 'auto';
+}
+
+function toggleBodyTypeField(prefix = 'publish') {
+  const group = document.getElementById(`${prefix}BodyTypeGroup`);
+  const select = document.getElementById(`${prefix}BodyType`);
+  if (!group || !select) return;
+  const visible = shouldShowBodyTypeField(prefix);
+  group.style.display = visible ? '' : 'none';
+  if (!visible) select.value = '';
+}
+
+function normalizeTextForCompare(value = '') {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+function isPickupBodyType(bodyType = '') {
+  const v = normalizeTextForCompare(bodyType);
+  if (!v) return false;
+  return v.includes('camioneta') || v.includes('pickup') || v.includes('pick up');
+}
+
+function normalizedDrivetrainValue(value = '') {
+  const v = String(value || '')
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/×/g, 'x')
+    .replace(/\*/g, 'x');
+  if (v === '4x2' || v === '4x4') return v;
+  return '';
+}
+
+function shouldShowDrivetrainField(prefix = 'publish') {
+  const typeEl = document.getElementById(`${prefix}VehicleTypeTop`) || document.getElementById(`${prefix}VehicleType`);
+  if (!typeEl || typeEl.value !== 'auto') return false;
+  const bodyTypeEl = document.getElementById(`${prefix}BodyType`);
+  const bodyType = bodyTypeEl?.value || '';
+  return isPickupBodyType(bodyType);
+}
+
+function toggleDrivetrainField(prefix = 'publish') {
+  const group = document.getElementById(`${prefix}DrivetrainGroup`);
+  const select = document.getElementById(`${prefix}Drivetrain`);
+  if (!group || !select) return;
+  const visible = shouldShowDrivetrainField(prefix);
+  group.style.display = visible ? '' : 'none';
+  if (!visible) select.value = '';
 }
 
 function updateVehicleTypeOptions(prefix = 'publish') {
@@ -746,9 +1031,14 @@ function showSection(sectionId) {
   if (currentUser && (sectionId === 'login' || sectionId === 'register')) return;
   // Push state para que el botón atrás funcione dentro del SPA
   const publicSections = ['home', 'vehicles', 'login', 'register', 'forgot-password', 'terms'];
+  const profileRoute = sectionId === 'profile' && currentProfileId
+    ? `/?section=profile&profile=${encodeURIComponent(String(currentProfileId))}`
+    : null;
   if (publicSections.includes(sectionId)) {
     const url = sectionId === 'home' ? '/' : `/?section=${sectionId}`;
     history.pushState({ section: sectionId }, '', url);
+  } else if (sectionId === 'profile' && profileRoute) {
+    history.pushState({ section: sectionId, profileId: String(currentProfileId) }, '', profileRoute);
   } else {
     history.pushState({ section: sectionId }, '', `/?section=${sectionId}`);
   }
@@ -762,6 +1052,7 @@ function showSection(sectionId) {
     if (sectionId === 'home') section.classList.remove('fade-in');
     else section.classList.add('fade-in');
   }
+  wireImplicitFormLabels();
   setBottomNavActive(sectionId);
   if (sectionId === 'home') { loadHomeRecent(); }
   else if (sectionId === 'vehicles') loadVehicles(1);
@@ -815,6 +1106,12 @@ function setBottomNavActive(sectionId) {
     'vehicle-detail': 1,
     'messages': 2,
     'publish': 3,
+    'favorites': 4,
+    'following-feed': 4,
+    'my-vehicles': 4,
+    'notifications': 4,
+    'profile': 4,
+    'admin': 4,
   };
   const idx = map[sectionId];
   if (idx !== undefined && items[idx]) items[idx].classList.add('active');
@@ -863,7 +1160,11 @@ function resetPublishForm() {
 
   const typeEl = document.getElementById('publishVehicleType');
   if (typeEl) typeEl.value = 'auto';
+  const publishBodyTypeEl = document.getElementById('publishBodyType');
+  if (publishBodyTypeEl) publishBodyTypeEl.value = '';
   toggleEngineCCField('publish');
+  toggleBodyTypeField('publish');
+  toggleDrivetrainField('publish');
   updateVehicleTypeOptions('publish');
   initBrandFilters();
   const publishBrandEl = document.getElementById('publishBrand');
@@ -872,7 +1173,11 @@ function resetPublishForm() {
     syncBrandPickerTrigger('publishBrand');
   }
   const publishModelEl = document.getElementById('publishModel');
-  if (publishModelEl) publishModelEl.innerHTML = '<option value="">Seleccionar modelo</option>';
+  if (publishModelEl) {
+    publishModelEl.innerHTML = '<option value="">Seleccionar modelo</option>';
+  }
+  const publishDrivetrainEl = document.getElementById('publishDrivetrain');
+  if (publishDrivetrainEl) publishDrivetrainEl.value = '';
 
   const pubCurrencyEl = document.getElementById('publishCurrency');
   if (pubCurrencyEl) {
@@ -1234,9 +1539,13 @@ function debounceAdmin(fn) {
 
 function toggleFilters() {
   const panel = document.getElementById('filtersPanel');
-  const isHidden = getComputedStyle(panel).display === 'none';
-  panel.style.display = isHidden ? 'block' : 'none';
-  if (isHidden) updateMobileFilterApplyButton();
+  const btn = document.getElementById('filterToggleBtn');
+  if (!panel) return;
+  panel.style.display = '';
+  const isOpen = panel.classList.toggle('open');
+  panel.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+  if (btn) btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  if (isOpen) updateMobileFilterApplyButton();
 }
 
 function isMobileViewport() {
@@ -1322,6 +1631,9 @@ function buildVehicleMetaHtml(v) {
       chips.push(`<span>${v.engine_cc} cc</span>`);
     } else if (v.transmission && !usedTransmission) {
       chips.push(`<span>${escapeHtml(v.transmission)}</span>`);
+    }
+    if (v.vehicle_type !== 'moto' && v.drivetrain) {
+      chips.push(`<span>${escapeHtml(v.drivetrain)}</span>`);
     }
   }
 
@@ -1554,83 +1866,10 @@ function updatePublishModels() {
   const type = document.getElementById('publishVehicleType')?.value || 'auto';
   const brands = getBrandsForType(type);
   if (brand && brands[brand]) brands[brand].forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = m; modelSelect.appendChild(o); });
-  setBodyTypeHint('publish', '', null);
-}
-
-function mapBodyTypeToVehicleType(bodyType = '') {
-  const v = String(bodyType || '').toLowerCase();
-  if (!v) return '';
-  if (v.includes('moto')) return 'moto';
-  return 'auto';
-}
-
-function setBodyTypeHint(scope, bodyType, confidence) {
-  const hintEl = document.getElementById(scope === 'edit' ? 'editBodyTypeHint' : 'publishBodyTypeHint');
-  if (!hintEl) return;
-  if (!bodyType) {
-    hintEl.textContent = 'Tipo de carroceria: completa marca y modelo para detectar automaticamente.';
-    hintEl.style.opacity = '0.82';
-    return;
-  }
-  const pct = Number.isFinite(Number(confidence)) ? ' (' + Math.round(Number(confidence) * 100) + '%)' : '';
-  hintEl.textContent = 'Tipo detectado: ' + bodyType + pct;
-  hintEl.style.opacity = '1';
-}
-
-function setBodyTypeStatus(scope, message) {
-  const hintEl = document.getElementById(scope === 'edit' ? 'editBodyTypeHint' : 'publishBodyTypeHint');
-  if (!hintEl) return;
-  hintEl.textContent = message || 'Tipo de carroceria: completa marca y modelo para detectar automaticamente.';
-  hintEl.style.opacity = '0.9';
-}
-
-async function handleBodyTypeLookup(scope = 'publish') {
-  try {
-    const brandEl = document.getElementById(scope === 'edit' ? 'editBrand' : 'publishBrand');
-    const modelEl = document.getElementById(scope === 'edit' ? 'editModel' : 'publishModel');
-    const typeEl = document.getElementById(scope === 'edit' ? 'editVehicleTypeTop' : 'publishVehicleType');
-    const brand = brandEl?.value?.trim() || '';
-    const model = modelEl?.value?.trim() || '';
-
-    if (!brand || !model) {
-      setBodyTypeHint(scope, '', null);
-      return;
-    }
-
-    const seq = ++bodyTypeLookupSeq;
-    let cache = null;
-    let lastError = '';
-    try {
-      cache = await request(`/body-type-cache?brand=${encodeURIComponent(brand)}&model=${encodeURIComponent(model)}`);
-    } catch (err) {
-      try {
-        cache = await request('/body-type-cache/sync', {
-          method: 'POST',
-          body: JSON.stringify({ brand, model, force: false })
-        });
-      } catch (syncErr) {
-        lastError = syncErr?.message || '';
-        cache = null;
-      }
-    }
-
-    if (seq !== bodyTypeLookupSeq || !cache) {
-      setBodyTypeStatus(scope, lastError || 'No se pudo detectar');
-      return;
-    }
-
-    setBodyTypeHint(scope, cache.body_type || '', cache.confidence);
-    if (modelEl) modelEl.dataset.detectedBodyType = cache.body_type || ''; 
-
-    const mappedType = mapBodyTypeToVehicleType(cache.body_type);
-    if (typeEl && mappedType && typeEl.value !== mappedType) {
-      typeEl.value = mappedType;
-      if (scope === 'edit') toggleEngineCCField('edit');
-      else toggleEngineCCField('publish');
-    }
-  } catch {
-    setBodyTypeStatus(scope, 'Error al consultar tipo');
-  }
+  const publishBodyTypeEl = document.getElementById('publishBodyType');
+  if (publishBodyTypeEl) publishBodyTypeEl.value = '';
+  toggleBodyTypeField('publish');
+  toggleDrivetrainField('publish');
 }
 // VEHICLE DETAIL
 async function viewVehicle(id) {
@@ -1772,6 +2011,7 @@ async function viewVehicle(id) {
               <div class="spec-head"><img class="spec-icon" src="/icons/spec-transmission.svg" alt="" loading="lazy"><div class="label">Transmisión</div></div>
               <div class="value">${escapeHtml(vehicle.transmission || 'N/A')}</div>
             </div>
+            ${vehicle.drivetrain ? `<div class="spec-card"><div class="spec-head"><img class="spec-icon" src="/icons/spec-transmission.svg" alt="" loading="lazy"><div class="label">Tracción</div></div><div class="value">${escapeHtml(vehicle.drivetrain)}</div></div>` : ''}
             ${vehicle.vehicle_type === 'moto' && vehicle.engine_cc ? `<div class="spec-card"><div class="spec-head"><img class="spec-icon" src="/icons/spec-transmission.svg" alt="" loading="lazy"><div class="label">Cilindrada</div></div><div class="value">${vehicle.engine_cc} cc</div></div>` : ''}
           </div>
         </div>
@@ -2129,6 +2369,8 @@ async function handlePublish(e) {
     const fuel = document.getElementById('publishFuel').value;
     const transmission = document.getElementById('publishTransmission').value;
     const description = document.getElementById('publishDescription').value.trim();
+    const publishVehicleType = document.getElementById('publishVehicleType')?.value || 'auto';
+    const publishBodyType = document.getElementById('publishBodyType')?.value || '';
 
     const missing = [];
     if (!title) missing.push('título');
@@ -2139,6 +2381,7 @@ async function handlePublish(e) {
     if ((document.getElementById('publishCurrency')?.value || 'USD') === 'ARS' && !dolarRate?.venta) missing.push('cotizacion del dolar');
     if (!fuel) missing.push('combustible');
     if (!transmission) missing.push('transmisión');
+    if (publishVehicleType === 'auto' && !publishBodyType) missing.push('carrocería');
     if (!province || !city) missing.push('ubicación');
     if (!description) missing.push('descripción');
     if (!uploadedImages.length) missing.push('al menos una foto');
@@ -2171,8 +2414,9 @@ async function handlePublish(e) {
       province: province,
       description: document.getElementById('publishDescription').value,
       accepts_trade: document.getElementById('publishAcceptsTrade').checked,
-      vehicle_type: document.getElementById('publishVehicleType')?.value || 'auto',
-      body_type: document.getElementById('publishModel')?.dataset?.detectedBodyType || null,
+      vehicle_type: publishVehicleType,
+      body_type: publishVehicleType === 'auto' ? publishBodyType : null,
+      drivetrain: normalizedDrivetrainValue(document.getElementById('publishDrivetrain')?.value) || null,
       engine_cc: document.getElementById('publishEngineCC')?.value ? parseInt(document.getElementById('publishEngineCC').value) : null,
       contact_phone: document.getElementById('publishContactPhone')?.value?.trim() || null,
       contact_address: document.getElementById('publishContactAddress')?.value?.trim() || null,
@@ -2311,9 +2555,13 @@ async function openEditModal(id, e) {
     const editModelEl = document.getElementById('editModel');
     if (editModelEl) {
       editModelEl.value = v.model || '';
-      if (v.body_type) editModelEl.dataset.detectedBodyType = v.body_type;
     }
-    handleBodyTypeLookup('edit');
+    const editBodyTypeEl = document.getElementById('editBodyType');
+    if (editBodyTypeEl) editBodyTypeEl.value = v.body_type || '';
+    toggleBodyTypeField('edit');
+    const editDrivetrainEl = document.getElementById('editDrivetrain');
+    if (editDrivetrainEl) editDrivetrainEl.value = normalizedDrivetrainValue(v.drivetrain);
+    toggleDrivetrainField('edit');
     document.getElementById('editYear').value = v.year || '';
     document.getElementById('editVersion').value = v.version || '';
     updateEditTitle();
@@ -2363,16 +2611,16 @@ async function openEditModal(id, e) {
     const editImageInput = document.getElementById('editImageInput');
     if (editImageInput) editImageInput.value = '';
     renderEditImagePreviews();
-    document.getElementById('editVehicleModal').style.display = 'block';
-    document.getElementById('modalOverlay').style.display = 'block';
+    openAccessibleModal('editVehicleModal', { initialFocusSelector: '#editBrand' });
   } catch (err) { showToast(err.message, 'error'); }
 }
 
 function closeEditModal() {
-  document.getElementById('editVehicleModal').style.display = 'none';
-  document.getElementById('modalOverlay').style.display = 'none';
+  closeAccessibleModal('editVehicleModal');
   const editCur = document.getElementById('editCurrency');
   if (editCur) { editCur.value = 'USD'; editCur.dataset.prev = 'USD'; }
+  const editDrive = document.getElementById('editDrivetrain');
+  if (editDrive) editDrive.value = '';
   const editHint = document.getElementById('editPriceHint');
   if (editHint) editHint.textContent = '';
   editUploadedImages = [];
@@ -2408,12 +2656,19 @@ async function handleEditVehicle(e) {
     const editYear  = document.getElementById('editYear')?.value || '';
     const editVersion = document.getElementById('editVersion').value;
     const editVehicleType = document.getElementById('editVehicleTypeTop')?.value || 'auto';
+    const editBodyType = document.getElementById('editBodyType')?.value || '';
     const editCurrency = document.getElementById('editCurrency')?.value || 'USD';
     const editRawPrice = parseFloat(document.getElementById('editPrice').value) || null;
     const editPriceUSD = getPriceInUSD('edit');
     const editFrozenArs = editCurrency === 'ARS' ? editRawPrice : (dolarRate?.venta ? Math.round(editPriceUSD * dolarRate.venta) : null);
     if (!editUploadedImages.length) {
       showToast('Debe quedar al menos una foto', 'error');
+      btn.disabled = false;
+      btn.textContent = 'Guardar cambios';
+      return;
+    }
+    if (editVehicleType === 'auto' && !editBodyType) {
+      showToast('Seleccioná la carrocería del vehículo', 'error');
       btn.disabled = false;
       btn.textContent = 'Guardar cambios';
       return;
@@ -2440,7 +2695,8 @@ async function handleEditVehicle(e) {
         description: document.getElementById('editDescription').value,
         accepts_trade: document.getElementById('editAcceptsTrade').checked,
         vehicle_type: editVehicleType,
-        body_type: document.getElementById('editModel')?.dataset?.detectedBodyType || null,
+        body_type: editVehicleType === 'auto' ? editBodyType : null,
+        drivetrain: normalizedDrivetrainValue(document.getElementById('editDrivetrain')?.value) || null,
         engine_cc: document.getElementById('editEngineCC')?.value ? parseInt(document.getElementById('editEngineCC').value) : null,
         contact_phone: document.getElementById('editContactPhone')?.value?.trim() || null,
         contact_address: document.getElementById('editContactAddress')?.value?.trim() || null,
@@ -2567,7 +2823,20 @@ async function loadConversations(page = 1) {
       container.insertAdjacentHTML('beforeend', `<button class="btn btn-ghost btn-sm load-more-btn" style="width:100%;margin-top:0.5rem;" onclick="loadConversations(${page + 1})">Cargar más</button>`);
     }
     if (page === 1) { if (currentConversationId) loadChatFull(currentConversationId); else renderEmptyChat(); }
-  } catch (err) { console.error(err); }
+  } catch (err) {
+    const container = document.getElementById('conversationsListContent');
+    if (container && page === 1) {
+      container.innerHTML = `
+        <div class="empty-state" style="padding:1.5rem;text-align:center;">
+          <h3 style="margin-bottom:0.5rem;font-size:1rem;">No pudimos cargar tus chats</h3>
+          <p style="color:var(--text-2);font-size:0.9rem;margin-bottom:0.9rem;">Reintenta en unos segundos.</p>
+          <button class="btn btn-secondary btn-sm" onclick="loadConversations(1)">Reintentar</button>
+        </div>
+      `;
+      renderEmptyChat();
+    }
+    showToast(err.message || 'No se pudieron cargar las conversaciones', 'error');
+  }
 }
 
 async function openConversation(convId, el) {
@@ -3163,9 +3432,6 @@ let notificationsTotal = 0;
 async function loadNotifications(offset = 0) {
   try {
     if (offset === 0) {
-      request('/notifications/read-all', { method: 'PUT' }).catch(() => {});
-      const badge = document.getElementById('notificationsBadge');
-      if (badge) { badge.textContent = ''; badge.style.display = 'none'; }
       notificationsOffset = 0;
     }
     const { notifications, total } = await request(`/notifications?offset=${offset}`);
@@ -3196,7 +3462,19 @@ async function loadNotifications(offset = 0) {
       btn.onclick = () => loadNotifications(notificationsOffset);
       container.appendChild(btn);
     }
-  } catch (err) { console.error(err); }
+  } catch (err) {
+    const container = document.getElementById('notificationsList');
+    if (container && offset === 0) {
+      container.innerHTML = `
+        <div class="empty-state" style="padding:1.5rem;text-align:center;">
+          <h3 style="margin-bottom:0.5rem;font-size:1rem;">No pudimos cargar notificaciones</h3>
+          <p style="color:var(--text-2);font-size:0.9rem;margin-bottom:0.9rem;">Verifica tu conexión e intenta de nuevo.</p>
+          <button class="btn btn-secondary btn-sm" onclick="loadNotifications(0)">Reintentar</button>
+        </div>
+      `;
+    }
+    showToast(err.message || 'No se pudieron cargar las notificaciones', 'error');
+  }
 }
 
 async function loadNotificationCount() {
@@ -3329,7 +3607,6 @@ async function viewProfile(id) {
         
         ${profileLocationDisplay ? `
           <div class="profile-location">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
             <span class="profile-location-text">${escapeHtml(profileLocationDisplay)}</span>
           </div>
         ` : ''}
@@ -3529,14 +3806,12 @@ async function editProfile(targetUserId = null) {
       </div>
     </form>
   `;
-  document.getElementById('editProfileModal').style.display = 'flex';
-  document.getElementById('modalOverlay').style.display = 'block';
+  openAccessibleModal('editProfileModal', { initialFocusSelector: '#editUsername' });
   setTimeout(() => initEditProfileCity(sourceProfile?.city || ''), 0);
 }
 
 function closeEditProfileModal() {
-  document.getElementById('editProfileModal').style.display = 'none';
-  document.getElementById('modalOverlay').style.display = 'none';
+  closeAccessibleModal('editProfileModal');
   const titleEl = document.querySelector('#editProfileModal .modal-header h3');
   if (titleEl) titleEl.textContent = 'Editar perfil';
   editProfileTarget = null;
@@ -3856,8 +4131,7 @@ async function openTradeModal(vehicleId) {
   const select = document.getElementById('tradeOfferedVehicle');
   select.innerHTML = '<option value="">Cargando tus vehículos...</option>';
   document.getElementById('tradeMessage').value = '';
-  document.getElementById('tradeModal').style.display = 'block';
-  document.getElementById('modalOverlay').style.display = 'block';
+  openAccessibleModal('tradeModal', { initialFocusSelector: '#tradeOfferedVehicle' });
   try {
     const vehicles = await request('/my-vehicles');
     const active = (vehicles || []).filter(v => v.status === 'active');
@@ -3871,8 +4145,7 @@ async function openTradeModal(vehicleId) {
 }
 
 function closeTradeModal() {
-  document.getElementById('tradeModal').style.display = 'none';
-  document.getElementById('modalOverlay').style.display = 'none';
+  closeAccessibleModal('tradeModal');
   tradeTargetVehicleId = null;
 }
 
@@ -4072,13 +4345,11 @@ async function toggleBan(id) {
 // MODALS
 function openReportModal(vehicleId) {
   reportVehicleId = vehicleId;
-  document.getElementById('reportModal').style.display = 'block';
-  document.getElementById('modalOverlay').style.display = 'block';
+  openAccessibleModal('reportModal', { initialFocusSelector: '#reportReason' });
 }
 
 function closeReportModal() {
-  document.getElementById('reportModal').style.display = 'none';
-  document.getElementById('modalOverlay').style.display = 'none';
+  closeAccessibleModal('reportModal');
   reportVehicleId = null;
 }
 
@@ -4097,33 +4368,28 @@ function openRateModal(convId, recipientId, vehicleId) {
   rateConversationId = convId;
   rateRecipientId = recipientId;
   rateVehicleId = vehicleId || null;
-  document.getElementById('starRating').querySelectorAll('.star').forEach(s => s.classList.remove('active'));
+  setStarRating(0);
   document.getElementById('rateReview').value = '';
-  document.getElementById('rateModal').style.display = 'block';
-  document.getElementById('modalOverlay').style.display = 'block';
+  openAccessibleModal('rateModal', { initialFocusSelector: '#starRating .star' });
 }
 
 function closeRateModal() {
-  document.getElementById('rateModal').style.display = 'none';
-  document.getElementById('modalOverlay').style.display = 'none';
+  closeAccessibleModal('rateModal');
   rateConversationId = null;
   rateRecipientId = null;
   rateVehicleId = null;
 }
 
 document.addEventListener('click', e => {
-  if (e.target.classList.contains('star') && e.target.closest('#starRating')) {
-    const stars = e.target.closest('#starRating').querySelectorAll('.star');
-    const clickedIndex = Array.from(stars).indexOf(e.target);
-    stars.forEach((s, i) => {
-      if (i <= clickedIndex) s.classList.add('active');
-      else s.classList.remove('active');
-    });
+  const star = e.target.closest('#starRating .star');
+  if (star) {
+    const value = parseInt(star.dataset.value || '0', 10);
+    if (value > 0) setStarRating(value);
   }
 });
 
 async function submitRating() {
-  const stars = document.querySelectorAll('#starRating .star.active').length;
+  const stars = parseInt(document.getElementById('starRating')?.dataset.value || '0', 10);
   const review = document.getElementById('rateReview').value;
   if (!stars) { showToast('Selecciona estrellas', 'error'); return; }
   try {
@@ -4133,8 +4399,14 @@ async function submitRating() {
   } catch (err) { showToast(err.message, 'error'); }
 }
 function closeAllModals() {
-  document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
-  document.getElementById('modalOverlay').style.display = 'none';
+  if (isVisibleElement(document.getElementById('editVehicleModal'))) closeEditModal();
+  if (isVisibleElement(document.getElementById('tradeModal'))) closeTradeModal();
+  if (isVisibleElement(document.getElementById('reportModal'))) closeReportModal();
+  if (isVisibleElement(document.getElementById('rateModal'))) closeRateModal();
+  if (isVisibleElement(document.getElementById('confirmModal'))) closeConfirmModal();
+  if (isVisibleElement(document.getElementById('editProfileModal'))) closeEditProfileModal();
+  modalStack = [];
+  syncModalOverlay();
   closeLightbox();
   confirmCallback = null;
 }
@@ -4178,7 +4450,6 @@ function openLightbox(images, startIndex) {
   if (!images?.length) return;
   lightboxImages = images;
   lightboxIndex = typeof startIndex === 'number' ? startIndex : 0;
-  const modal = document.getElementById('lightboxModal');
   initLightboxSwipe();
   // Render thumbnail strip
   const thumbsEl = document.getElementById('lightboxThumbs');
@@ -4201,11 +4472,11 @@ function openLightbox(images, startIndex) {
   } else {
     counterEl.style.display = 'none';
   }
-  modal.style.display = 'flex';
+  openAccessibleModal('lightboxModal', { display: 'flex', initialFocusSelector: '.lightbox-close' });
 }
 function closeLightbox(e) {
   if (e && e.target && e.target.tagName === 'IMG') return;
-  document.getElementById('lightboxModal').style.display = 'none';
+  closeAccessibleModal('lightboxModal');
 }
 function lightboxSetIndex(i) {
   lightboxIndex = i;
@@ -4223,10 +4494,105 @@ function lightboxNav(dir) {
   lightboxSetIndex((lightboxIndex + dir + lightboxImages.length) % lightboxImages.length);
 }
 document.addEventListener('keydown', e => {
-  if (document.getElementById('lightboxModal').style.display === 'none') return;
-  if (e.key === 'Escape') closeLightbox();
-  if (e.key === 'ArrowLeft') lightboxNav(-1);
-  if (e.key === 'ArrowRight') lightboxNav(1);
+  const lightboxVisible = isVisibleElement(document.getElementById('lightboxModal'));
+  if (lightboxVisible) {
+    if (e.key === 'Escape') { e.preventDefault(); closeLightbox(); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); lightboxNav(-1); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); lightboxNav(1); }
+    return;
+  }
+
+  const mobileMenuVisible = isVisibleElement(document.getElementById('mobileAccountMenu'));
+  if (e.key === 'Escape') {
+    if (closeTopAccessibleModal()) {
+      e.preventDefault();
+      return;
+    }
+    if (mobileMenuVisible) {
+      closeMobileMenu();
+      e.preventDefault();
+      return;
+    }
+  }
+
+  const activeModal = modalStack.length ? document.getElementById(modalStack[modalStack.length - 1].id) : null;
+  if (!activeModal && mobileMenuVisible && e.key === 'Tab') {
+    const menu = document.getElementById('mobileAccountMenu');
+    const focusable = getFocusableElements(menu);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const active = document.activeElement;
+    if (e.shiftKey && active === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && active === last) {
+      e.preventDefault();
+      first.focus();
+    }
+    return;
+  }
+  if (activeModal && e.key === 'Tab') {
+    const focusable = getFocusableElements(activeModal);
+    if (!focusable.length) {
+      e.preventDefault();
+      activeModal.focus();
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const active = document.activeElement;
+    if (e.shiftKey && active === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && active === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
+});
+
+document.addEventListener('keydown', e => {
+  const target = e.target;
+  if (!(target instanceof HTMLElement)) return;
+  if (target.dataset.kbClick === '1' && (e.key === 'Enter' || e.key === ' ')) {
+    e.preventDefault();
+    target.click();
+  }
+});
+
+document.addEventListener('keydown', e => {
+  const star = e.target instanceof HTMLElement ? e.target.closest('#starRating .star') : null;
+  if (!star) return;
+  const rating = document.getElementById('starRating');
+  if (!rating) return;
+  const stars = Array.from(rating.querySelectorAll('.star'));
+  const idx = stars.indexOf(star);
+  if (idx === -1) return;
+
+  if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    const next = Math.min(stars.length - 1, idx + 1);
+    setStarRating(next + 1);
+    stars[next]?.focus();
+  } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+    e.preventDefault();
+    const prev = Math.max(0, idx - 1);
+    setStarRating(prev + 1);
+    stars[prev]?.focus();
+  } else if (e.key === 'Home') {
+    e.preventDefault();
+    setStarRating(1);
+    stars[0]?.focus();
+  } else if (e.key === 'End') {
+    e.preventDefault();
+    setStarRating(stars.length);
+    stars[stars.length - 1]?.focus();
+  } else if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    const value = parseInt(star.dataset.value || '0', 10);
+    if (value > 0) setStarRating(value);
+  }
 });
 
 // Confirm Modal
@@ -4238,12 +4604,10 @@ function showConfirmModal(title, message, buttonText, callback) {
   btn.textContent = buttonText;
   confirmCallback = callback;
   btn.onclick = () => { const cb = confirmCallback; closeConfirmModal(); if (cb) cb(); };
-  document.getElementById('confirmModal').style.display = 'block';
-  document.getElementById('modalOverlay').style.display = 'block';
+  openAccessibleModal('confirmModal', { initialFocusSelector: '#confirmModalAction' });
 }
 function closeConfirmModal() {
-  document.getElementById('confirmModal').style.display = 'none';
-  document.getElementById('modalOverlay').style.display = 'none';
+  closeAccessibleModal('confirmModal');
   confirmCallback = null;
 }
 
@@ -4503,6 +4867,9 @@ function showToast(msg, type = 'info') {
   const toast = document.createElement('div');
   toast.className = `toast ${type} toast-enter`;
   toast.textContent = msg;
+  const isAssertive = type === 'error' || type === 'warning';
+  toast.setAttribute('role', isAssertive ? 'alert' : 'status');
+  toast.setAttribute('aria-live', isAssertive ? 'assertive' : 'polite');
   toast.onclick = () => removeToast(toast);
   container.appendChild(toast);
   setTimeout(() => removeToast(toast), 3500);
@@ -4583,6 +4950,8 @@ function updateEditBrands() {
   initBrandPicker('editBrand');
   updateEditModels();
   toggleEngineCCField('edit');
+  toggleBodyTypeField('edit');
+  toggleDrivetrainField('edit');
 }
 
 function updateEditModels() {
@@ -4601,7 +4970,10 @@ function updateEditModels() {
     });
   }
   modelSelect.value = prev || '';
-  setBodyTypeHint('edit', '', null);
+  const editBodyTypeEl = document.getElementById('editBodyType');
+  if (editBodyTypeEl) editBodyTypeEl.value = '';
+  toggleBodyTypeField('edit');
+  toggleDrivetrainField('edit');
 }
 
 function updateEditTitle() {
@@ -4699,9 +5071,17 @@ checkAuth().then(async () => {
   const params = new URLSearchParams(window.location.search);
   const vehicleId = params.get('vehicle');
   const section = params.get('section');
+  const profileId = params.get('profile');
   if (vehicleId) {
     window.history.replaceState({}, '', window.location.pathname);
     viewVehicle(parseInt(vehicleId));
+  } else if (profileId) {
+    window.history.replaceState({}, '', window.location.pathname);
+    viewProfile(profileId);
+  } else if (section === 'profile') {
+    window.history.replaceState({}, '', window.location.pathname);
+    if (currentUser?.id) viewProfile(currentUser.id);
+    else showSection('home');
   } else if (section) {
     window.history.replaceState({}, '', window.location.pathname);
     showSection(section);
@@ -4757,8 +5137,10 @@ function tryPublish() {
 initBrandFilters();
 updateVehicleTypeOptions('publish');
 updateVehicleTypeOptions('filter');
-setBodyTypeHint('publish', '', null);
-setBodyTypeHint('edit', '', null);
+toggleBodyTypeField('publish');
+toggleBodyTypeField('edit');
+toggleDrivetrainField('publish');
+toggleDrivetrainField('edit');
 
 function autoFillTitle() {
   const brand = document.getElementById('publishBrand')?.value || '';
@@ -4786,19 +5168,51 @@ if (yearInput) yearInput.max = new Date().getFullYear() + 1;
 // MOBILE ACCOUNT MENU
 function toggleMobileMenu() {
   const menu = document.getElementById('mobileAccountMenu');
-  if (menu.style.display === 'none' || menu.style.display === '') {
-    document.getElementById('mobileMenuUsername').textContent = currentUser?.username || '';
+  if (!menu) return;
+  if (menu.style.display === 'none' || menu.style.display === '' || !menu.classList.contains('is-open')) {
+    mobileMenuTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const userNameEl = document.getElementById('mobileMenuUsername');
+    if (userNameEl) userNameEl.textContent = currentUser?.username || '';
     const adminItem = document.getElementById('mobileMenuAdmin');
     if (adminItem) adminItem.style.display = currentUser?.profile?.is_admin ? 'flex' : 'none';
     menu.style.display = 'flex';
+    menu.removeAttribute('inert');
+    menu.setAttribute('aria-hidden', 'false');
+    requestAnimationFrame(() => menu.classList.add('is-open'));
+    setBodyScrollLocked(true);
+    requestAnimationFrame(() => {
+      const first = menu.querySelector('.mobile-menu-item, .mobile-menu-header button');
+      (first || menu).focus?.();
+    });
     loadLucideIcons();
   } else {
-    menu.style.display = 'none';
+    closeMobileMenu();
   }
 }
 function closeMobileMenu() {
   const menu = document.getElementById('mobileAccountMenu');
-  if (menu) menu.style.display = 'none';
+  if (!menu) return;
+  const returnTarget = (mobileMenuTrigger && document.contains(mobileMenuTrigger)) ? mobileMenuTrigger : null;
+  const fallbackTarget = document.querySelector('.bottom-nav .bottom-nav-item:last-child, .navbar .nav-brand');
+  const focusTarget = returnTarget || (fallbackTarget instanceof HTMLElement ? fallbackTarget : null);
+  const activeEl = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  if (activeEl && menu.contains(activeEl)) {
+    if (focusTarget) focusTarget.focus({ preventScroll: true });
+    else activeEl.blur();
+  }
+  menu.classList.remove('is-open');
+  menu.setAttribute('aria-hidden', 'true');
+  menu.setAttribute('inert', '');
+  setTimeout(() => {
+    if (!menu.classList.contains('is-open')) menu.style.display = 'none';
+  }, 240);
+  setBodyScrollLocked(modalStack.length > 0);
+  if (focusTarget && document.contains(focusTarget)) {
+    requestAnimationFrame(() => {
+      if (document.contains(focusTarget)) focusTarget.focus({ preventScroll: true });
+    });
+  }
+  mobileMenuTrigger = null;
 }
 
 let followingFeedPage = 1;
@@ -4907,10 +5321,10 @@ async function loadHomeRecent() {
       `;
       return;
     }
-    container.innerHTML = vehicles.slice(0, 3).map(v => `
+    container.innerHTML = vehicles.slice(0, 3).map((v, idx) => `
       <div class="vehicle-card" onclick="viewVehicle(${v.id})">
         <div class="vehicle-image-container">
-          <img src="${thumbUrl(v.images?.find(i => i.is_primary)?.url || v.images?.[0]?.url || v.image_url)}" class="vehicle-image" alt="${escapeHtml(v.title)}" loading="lazy" decoding="async" width="520" height="325" onerror="this.src=PLACEHOLDER_IMG">
+          <img src="${thumbUrl(v.images?.find(i => i.is_primary)?.url || v.images?.[0]?.url || v.image_url)}" class="vehicle-image" alt="${escapeHtml(v.title)}" width="520" height="325" decoding="async" ${idx === 0 ? 'loading="eager" fetchpriority="high"' : 'loading="lazy"'} onerror="this.src=PLACEHOLDER_IMG">
           <div class="vehicle-img-overlay"></div>
           <span class="vehicle-badge">${escapeHtml(String(v.year))}</span>
           ${v.status === 'sold' ? '<span class="vehicle-badge badge-sold">VENDIDO</span>' : ''}
@@ -4927,8 +5341,17 @@ async function loadHomeRecent() {
           ${buildVehicleMetaHtml(v)}
           <div class="vehicle-card-footer">
             <div class="vehicle-seller">
-              <div class="avatar-tiny">${v.seller_name?.charAt(0)?.toUpperCase()}</div>
-              <span>${escapeHtml(v.seller_name || 'Anónimo')}</span>
+              <div class="avatar-tiny">${(v.seller_verified ? v.seller_dealership : (v.seller_first_name || v.seller_name))?.charAt(0)?.toUpperCase()}</div>
+              <div class="vehicle-seller-info">
+                <div class="vehicle-seller-name-row">
+                <span>${escapeHtml(v.seller_verified && v.seller_dealership ? v.seller_dealership : (v.seller_first_name && v.seller_last_name ? `${v.seller_first_name} ${v.seller_last_name}` : (v.seller_name || 'Anónimo')))}</span>
+                ${v.seller_verified ? verifiedCheckIcon() : ''}
+                </div>
+              </div>
+            </div>
+            <div class="vehicle-views">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              ${v.view_count || 0}
             </div>
           </div>
         </div>
@@ -4936,7 +5359,18 @@ async function loadHomeRecent() {
     `).join('');
     applyCardCascade(container);
     homeRecentLoadedAt = Date.now();
-  } catch { container.innerHTML = ''; }
+  } catch (err) {
+    container.innerHTML = `
+      <div class="home-recent-empty">
+        <h4>No pudimos cargar los destacados</h4>
+        <p>Probá nuevamente en unos segundos.</p>
+        <div class="home-recent-empty-actions">
+          <button class="btn btn-secondary btn-sm" onclick="loadHomeRecent()">Reintentar</button>
+        </div>
+      </div>
+    `;
+    showToast(err?.message || 'No se pudieron cargar los destacados', 'error');
+  }
 }
 
 function applyCardCascade(container) {

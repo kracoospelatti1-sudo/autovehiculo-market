@@ -82,7 +82,7 @@ app.use((req, res, next) => {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; " +
     "font-src 'self' https://fonts.gstatic.com; " +
     "img-src 'self' data: blob: https:; " +
-    "connect-src 'self' https://*.supabase.co wss: https://nominatim.openstreetmap.org https://*.hcaptcha.com https://*.adtrafficquality.google; " +
+    "connect-src 'self' https://*.supabase.co wss: https://nominatim.openstreetmap.org https://*.hcaptcha.com https://*.adtrafficquality.google https://unpkg.com; " +
     "frame-src https://newassets.hcaptcha.com https://tpc.googlesyndication.com https://googleads.g.doubleclick.net; " +
     "object-src 'none';"
   );
@@ -342,6 +342,13 @@ app.use(express.static('public', {
     const isStaticAsset = ['.js', '.css', '.svg', '.png', '.jpg', '.jpeg', '.webp', '.json', '.woff', '.woff2', '.ico'].includes(ext);
     const isCoreAsset = ['app.js', 'styles.min.css', 'logo.svg', 'favicon.svg'].includes(fileName);
 
+    // Force UTF-8 for text assets to avoid mojibake behind some proxies/CDNs.
+    if (isHtml) res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+    else if (ext === '.js') res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
+    else if (ext === '.css') res.setHeader('Content-Type', 'text/css; charset=UTF-8');
+    else if (ext === '.json') res.setHeader('Content-Type', 'application/json; charset=UTF-8');
+    else if (ext === '.svg') res.setHeader('Content-Type', 'image/svg+xml; charset=UTF-8');
+
     if (isVersioned || isCoreAsset) {
       res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
       return;
@@ -431,6 +438,22 @@ function canonicalBodyType(value = '') {
   if (v.includes('rural') || v.includes('wagon') || v.includes('familiar')) return 'Rural';
   if (v.includes('van') || v.includes('furgon')) return 'Van';
   return String(value || '').trim();
+}
+
+function isPickupBodyType(value = '') {
+  const v = normalizeLookupText(value);
+  if (!v) return false;
+  return v.includes('pickup') || v.includes('pick up') || v.includes('camioneta');
+}
+
+function canonicalDrivetrain(value = '') {
+  const v = String(value || '')
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/×/g, 'x')
+    .replace(/\*/g, 'x');
+  if (v === '4x2' || v === '4x4') return v;
+  return '';
 }
 
 function extractBodyTypeFromAttributes(attrs = []) {
@@ -1416,7 +1439,7 @@ app.post('/api/vehicles', authenticateToken, async (req, res) => {
     }
     const admin = req.user.is_admin === true || await isAdmin(req.user.id);
 
-    let { title, brand, model, year, price, price_original, price_currency, mileage, fuel, transmission, description, city, province, images, accepts_trade, vehicle_type, body_type, engine_cc, version, contact_phone, contact_address } = req.body;
+    let { title, brand, model, year, price, price_original, price_currency, mileage, fuel, transmission, description, city, province, images, accepts_trade, vehicle_type, body_type, drivetrain, engine_cc, version, contact_phone, contact_address } = req.body;
     if (!admin && (contact_phone || contact_address)) {
       return res.status(403).json({ error: 'Solo administradores pueden definir telefono o direccion personalizada.' });
     }
@@ -1443,12 +1466,20 @@ app.post('/api/vehicles', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: `Máximo ${MAX_VEHICLE_IMAGES} fotos por publicación` });
     }
 
-    // Auto-generate title on the server
-    title = `${brand} ${model} ${version || ''} ${year}`.replace(/\s+/g, ' ').trim();
-    const resolvedBodyType = canonicalBodyType(body_type || '') || await resolveBodyTypeForListing(brand, model) || null;
-
     const validTypes = ['auto', 'moto'];
     const vehicleType = validTypes.includes(vehicle_type) ? vehicle_type : 'auto';
+    const manualBodyType = canonicalBodyType(body_type || '');
+    if (vehicleType === 'auto' && !manualBodyType) {
+      return res.status(400).json({ error: 'Selecciona la carroceria del vehiculo' });
+    }
+
+    // Auto-generate title on the server
+    title = `${brand} ${model} ${version || ''} ${year}`.replace(/\s+/g, ' ').trim();
+    const resolvedBodyType = vehicleType === 'auto' ? manualBodyType : null;
+    const normalizedDrivetrain = canonicalDrivetrain(drivetrain || '');
+    const resolvedDrivetrain = vehicleType === 'auto' && isPickupBodyType(resolvedBodyType)
+      ? (normalizedDrivetrain || null)
+      : null;
 
     const insertPayload = {
       user_id: req.user.id,
@@ -1468,6 +1499,7 @@ app.post('/api/vehicles', authenticateToken, async (req, res) => {
       accepts_trade: !!accepts_trade,
       vehicle_type: vehicleType,
       body_type: resolvedBodyType,
+      drivetrain: resolvedDrivetrain,
       engine_cc: vehicleType === 'moto' && engine_cc ? parseInt(engine_cc) : null,
       version: version || null,
       price_original: price_original ? parseFloat(price_original) : null,
@@ -1534,7 +1566,7 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
     if (isNaN(vid)) return res.status(400).json({ error: 'ID inválido' });
     const { data: vehicle, error: vehicleError } = await supabase
       .from('vehicles')
-      .select('user_id, price')
+      .select('user_id, price, body_type, brand, model, vehicle_type')
       .eq('id', vid)
       .maybeSingle(); // BUG-08
 
@@ -1547,9 +1579,11 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'No tienes permiso' });
     }
 
-    const { title, brand, model, year, price, price_original, price_currency, mileage, fuel, transmission, description, city, province, status, vehicle_type, body_type, engine_cc, version, contact_phone, contact_address, images } = req.body;
+    const { title, brand, model, year, price, price_original, price_currency, mileage, fuel, transmission, description, city, province, status, vehicle_type, body_type, drivetrain, engine_cc, version, contact_phone, contact_address, images } = req.body;
 
     let updates = { updated_at: new Date().toISOString() };
+    let effectiveBodyType = vehicle.body_type || '';
+    let effectiveVehicleType = vehicle.vehicle_type || 'auto';
     if (brand !== undefined) updates.brand = brand;
     if (model !== undefined) updates.model = model;
     if (version !== undefined) updates.version = version;
@@ -1597,13 +1631,28 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
       const validTypes = ['auto', 'moto'];
       if (!validTypes.includes(vehicle_type)) return res.status(400).json({ error: 'Tipo inválido' });
       updates.vehicle_type = vehicle_type;
+      effectiveVehicleType = vehicle_type;
     }
-    if (body_type !== undefined) updates.body_type = canonicalBodyType(body_type || '') || null;
-    if ((brand !== undefined || model !== undefined) && body_type === undefined) {
-      const { data: curBody } = await supabase.from('vehicles').select('brand, model').eq('id', vid).maybeSingle();
-      const b = brand ?? curBody?.brand ?? '';
-      const m = model ?? curBody?.model ?? '';
-      updates.body_type = await resolveBodyTypeForListing(b, m) || null;
+    if (body_type !== undefined) {
+      updates.body_type = effectiveVehicleType === 'auto'
+        ? (canonicalBodyType(body_type || '') || null)
+        : null;
+      effectiveBodyType = updates.body_type || '';
+    }
+    if (updates.vehicle_type === 'moto' && body_type === undefined) {
+      updates.body_type = null;
+      effectiveBodyType = '';
+    }
+    if (drivetrain !== undefined) {
+      const normalizedDrivetrain = canonicalDrivetrain(drivetrain || '');
+      updates.drivetrain = effectiveVehicleType === 'auto' && normalizedDrivetrain && isPickupBodyType(effectiveBodyType)
+        ? normalizedDrivetrain
+        : null;
+    } else if (updates.body_type !== undefined || updates.vehicle_type !== undefined) {
+      // If listing stops being pickup/camioneta (or no longer auto), clear stale drivetrain.
+      if (effectiveVehicleType !== 'auto' || !isPickupBodyType(effectiveBodyType)) {
+        updates.drivetrain = null;
+      }
     }
     if (engine_cc !== undefined) updates.engine_cc = engine_cc ? parseInt(engine_cc) : null;
     if (!admin && (contact_phone !== undefined || contact_address !== undefined)) {

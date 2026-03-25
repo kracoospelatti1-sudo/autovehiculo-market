@@ -329,10 +329,12 @@ body::before {
 .nav-links-center {
   flex: 1;
   justify-content: center;
+  min-width: 0;
 }
 
 .nav-links-right {
   gap: 0.35rem;
+  min-width: 0;
 }
 
 .nav-links a {
@@ -360,6 +362,52 @@ body::before {
   color: var(--primary);
   background: rgba(245, 158, 11, 0.12);
   box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.2);
+}
+
+@media (max-width: 1280px) {
+  .navbar {
+    padding: 0 1.5rem;
+    gap: 1rem;
+  }
+
+  .nav-links {
+    gap: 0.25rem;
+  }
+
+  .nav-links a {
+    font-size: 0.84rem;
+    padding: 0.5rem 0.62rem;
+  }
+
+  .nav-links-center,
+  .nav-links-right {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .nav-links-center::-webkit-scrollbar,
+  .nav-links-right::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (max-width: 980px) {
+  .nav-logo {
+    width: 164px;
+    height: 38px;
+    max-height: 38px;
+  }
+
+  .nav-links a {
+    font-size: 0.8rem;
+    padding: 0.45rem 0.52rem;
+  }
+
+  .nav-links a[onclick*="publish"],
+  .nav-links a[onclick*="Publish"] {
+    padding: 0.45rem 0.72rem;
+    margin-left: 0.2rem;
+  }
 }
 
 /* CTA (+ Publicar) */
@@ -713,17 +761,8 @@ body::before {
   padding-bottom: 2.5rem;
 }
 
-.home-recent-grid .vehicle-card {
-  border-color: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.22);
-}
-
 .home-recent-grid {
   min-height: 360px;
-}
-
-.home-recent-grid .vehicle-card:hover {
-  transform: translateY(-6px);
 }
 
 .home-features {
@@ -901,6 +940,18 @@ body::before {
 
 .btn:active {
   transform: scale(0.97);
+}
+
+/* Consistent keyboard focus visibility */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible,
+[role="radio"]:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 .btn-primary {
@@ -2520,28 +2571,22 @@ select {
 }
 
 .profile-header .profile-location {
-  display: grid;
-  grid-template-columns: 16px minmax(0, 1fr);
-  align-items: start;
-  column-gap: 0.45rem;
+  display: block;
   max-width: min(100%, 520px);
   margin: 0.55rem auto 0;
   padding: 0 0.35rem;
-  text-align: left;
+  text-align: center;
   color: var(--text-3);
   font-size: 0.9rem;
   line-height: 1.35;
-}
-
-.profile-header .profile-location svg {
-  margin-top: 0.06rem;
-  opacity: 0.9;
 }
 
 .profile-header .profile-location .profile-location-text {
   min-width: 0;
   overflow-wrap: anywhere;
   text-wrap: balance;
+  display: block;
+  text-align: center;
 }
 
 .profile-bio {
@@ -2624,7 +2669,6 @@ select {
   .profile-header .profile-location {
     max-width: 100%;
     font-size: 0.86rem;
-    column-gap: 0.4rem;
     padding: 0 0.2rem;
   }
 
@@ -2867,6 +2911,11 @@ select {
   cursor: pointer;
   color: var(--text-3);
   gap: 0.6rem;
+}
+
+.upload-placeholder:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
 }
 
 .upload-placeholder p {
@@ -3284,6 +3333,10 @@ select {
 }
 
 .star {
+  background: transparent;
+  border: none;
+  line-height: 1;
+  padding: 0;
   font-size: 2rem;
   color: var(--dark-4);
   cursor: pointer;
@@ -4841,14 +4894,14 @@ select {
   position: fixed;
   inset: 0;
   z-index: 10000;
-  display: flex;
+  display: none;
   flex-direction: column;
   justify-content: flex-end;
   pointer-events: none;
 }
 
-.mobile-account-menu[style*="display: block"],
-.mobile-account-menu[style*="display: flex"] {
+.mobile-account-menu.is-open {
+  display: flex;
   pointer-events: auto;
 }
 
@@ -4862,8 +4915,7 @@ select {
   transition: opacity 0.3s ease;
 }
 
-.mobile-account-menu[style*="display: block"] .mobile-menu-backdrop,
-.mobile-account-menu[style*="display: flex"] .mobile-menu-backdrop {
+.mobile-account-menu.is-open .mobile-menu-backdrop {
   opacity: 1;
 }
 
@@ -4880,8 +4932,7 @@ select {
   transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-.mobile-account-menu[style*="display: block"] .mobile-menu-panel,
-.mobile-account-menu[style*="display: flex"] .mobile-menu-panel {
+.mobile-account-menu.is-open .mobile-menu-panel {
   transform: translateY(0);
 }
 
@@ -5755,7 +5806,7 @@ select {
   }
 
   .vehicles-grid .vehicle-meta span {
-    font-size: 0.69rem;
+    font-size: 0.75rem;
     padding: 0.16rem 0.44rem;
   }
 
@@ -5766,7 +5817,7 @@ select {
   }
 
   .vehicles-grid .vehicle-trade-badge {
-    font-size: 0.6rem;
+    font-size: 0.68rem;
     padding: 0.19rem 0.42rem;
   }
 
@@ -5778,7 +5829,7 @@ select {
   .vehicles-grid .vehicle-seller .verified-badge {
     display: inline-flex;
     margin-left: 0;
-    font-size: 0.62rem;
+    font-size: 0.68rem;
     padding: 1px 4px;
   }
 }
