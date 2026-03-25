@@ -1108,7 +1108,7 @@ async function loadVehicles(page = 1, scrollToResults = false) {
     container.innerHTML = vehicles.map((v, idx) => `
       <div class="vehicle-card" onclick="viewVehicle(${v.id})">
         <div class="vehicle-image-container">
-          <img src="${thumbUrl(v.images?.find(i => i.is_primary)?.url || v.images?.[0]?.url || v.image_url)}" class="vehicle-image" alt="${escapeHtml(v.title)}" ${idx === 0 ? 'loading="eager" fetchpriority="high"' : 'loading="lazy"'} onerror="this.src=PLACEHOLDER_IMG">
+          <img src="${thumbUrl(v.images?.find(i => i.is_primary)?.url || v.images?.[0]?.url || v.image_url)}" class="vehicle-image" alt="${escapeHtml(v.title)}" width="520" height="325" decoding="async" ${idx === 0 ? 'loading="eager" fetchpriority="high"' : 'loading="lazy"'} onerror="this.src=PLACEHOLDER_IMG">
           <div class="vehicle-img-overlay"></div>
           <span class="vehicle-badge">${escapeHtml(String(v.year))}</span>
           ${v.status === 'sold' ? '<span class="vehicle-badge badge-sold">VENDIDO</span>' : ''}
@@ -4530,7 +4530,7 @@ async function loadHomeRecent() {
   if (!container) return;
   if (homeRecentLoadedAt && (Date.now() - homeRecentLoadedAt) < 120000 && container.children.length > 0) return;
   // Show skeletons
-  container.innerHTML = Array(6).fill().map(() => `
+  container.innerHTML = Array(3).fill().map(() => `
     <div class="vehicle-card" style="padding:1rem;">
       <div class="skeleton skeleton-img"></div>
       <div style="padding:1rem 0;">
@@ -4555,10 +4555,10 @@ async function loadHomeRecent() {
       `;
       return;
     }
-    container.innerHTML = vehicles.slice(0, 6).map(v => `
+    container.innerHTML = vehicles.slice(0, 3).map(v => `
       <div class="vehicle-card" onclick="viewVehicle(${v.id})">
         <div class="vehicle-image-container">
-          <img src="${thumbUrl(v.images?.find(i => i.is_primary)?.url || v.images?.[0]?.url || v.image_url)}" class="vehicle-image" alt="${escapeHtml(v.title)}" loading="lazy" onerror="this.src=PLACEHOLDER_IMG">
+          <img src="${thumbUrl(v.images?.find(i => i.is_primary)?.url || v.images?.[0]?.url || v.image_url)}" class="vehicle-image" alt="${escapeHtml(v.title)}" loading="lazy" decoding="async" width="520" height="325" onerror="this.src=PLACEHOLDER_IMG">
           <div class="vehicle-img-overlay"></div>
           <span class="vehicle-badge">${escapeHtml(String(v.year))}</span>
           ${v.status === 'sold' ? '<span class="vehicle-badge badge-sold">VENDIDO</span>' : ''}
@@ -4588,6 +4588,7 @@ async function loadHomeRecent() {
 }
 
 function applyCardCascade(container) {
+  if (window.matchMedia('(prefers-reduced-motion: reduce), (max-width: 768px)').matches) return;
   container.querySelectorAll('.vehicle-card[onclick]').forEach((card, i) => {
     card.style.animationDelay = `${i * 65}ms`;
   });

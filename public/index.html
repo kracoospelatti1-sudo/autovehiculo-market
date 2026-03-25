@@ -31,6 +31,19 @@
   <link rel="alternate" hreflang="x-default" href="https://autoventa.online/">
   <meta name="theme-color" content="#f59e0b">
   <meta name="robots" content="index, follow">
+  <style>
+    body { margin: 0; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #08080f; color: #ededf5; }
+    .navbar { position: sticky; top: 0; z-index: 1000; height: 72px; display: flex; align-items: center; justify-content: space-between; padding: 0 4rem; border-bottom: 1px solid rgba(255,255,255,.06); background: rgba(8,8,15,.75); }
+    .nav-logo { width: 188px; height: 44px; aspect-ratio: 188/44; object-fit: contain; display: block; }
+    @media (max-width: 768px) { .navbar { padding: 0 1rem; } .nav-logo { width: 160px; height: 38px; aspect-ratio: 160/38; } }
+    .container { max-width: 1280px; margin: 0 auto; padding: 2rem 1.5rem; }
+    .section { display: none; }
+    #home.section { display: block; padding-top: .8rem; }
+    .home-shell { max-width: 1240px; margin: 0 auto; padding: 0 1.25rem; }
+    .home-hero { border-radius: 28px; border: 1px solid rgba(255,255,255,.08); padding: 3.3rem 2.1rem 3rem; }
+    .home-hero h1 { font-size: clamp(2rem, 4.8vw, 3.7rem); line-height: 1.02; letter-spacing: -.03em; margin: 0 0 .85rem; max-width: 18ch; min-height: 2.1em; }
+    .home-hero p { margin: 0 0 1.35rem; min-height: 3.3em; color: #9898b8; }
+  </style>
   <!-- Preconnect para recursos externos críticos -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -40,8 +53,8 @@
   <!-- Fuentes: no-render-blocking -->
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=optional" onload="this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=optional"></noscript>
-  <link rel="preload" as="style" href="styles.min.css?v=33" onload="this.rel='stylesheet'" fetchpriority="high">
-  <noscript><link rel="stylesheet" href="styles.min.css?v=33"></noscript>
+  <link rel="preload" as="style" href="styles.min.css?v=34" onload="this.rel='stylesheet'" fetchpriority="high">
+  <noscript><link rel="stylesheet" href="styles.min.css?v=34"></noscript>
   <!-- JSON-LD: WebSite + Organization -->
   <script type="application/ld+json">
   {
@@ -1177,7 +1190,7 @@
   <footer class="site-footer">
     <span>© 2026 Autoventa</span>
     <a href="/?section=terms" onclick="showSection('terms');return false;" style="cursor:pointer;">Términos y Condiciones</a>
-    <span style="color:var(--text-3);font-size:0.75rem;">v1.0.8</span>
+    <span style="color:var(--text-3);font-size:0.75rem;">v1.0.9</span>
   </footer>
 
   <!-- Edit Profile Modal -->
@@ -1191,7 +1204,7 @@
     </div>
   </div>
 
-  <script src="app.js?v=37" defer></script>
+  <script src="app.js?v=38" defer></script>
   <script>
     // AdSense: cargar únicamente tras interacción real para mejorar score mobile inicial
     (function () {
