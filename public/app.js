@@ -4007,8 +4007,9 @@ function googleMapsSearchUrl(address) {
 
 function shareVehicle(id, title, price) {
   const url = `${window.location.origin}${window.location.pathname}?vehicle=${id}`;
-  const text = `🚗 ${title}\n💰 $${Number(price).toLocaleString('es-AR')}\n${url}`;
+  const text = `${title}\nUSD ${Number(price).toLocaleString('es-AR')}\n${url}`;
   const waUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+  const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
 
   const existing = document.getElementById('shareDropdown');
   if (existing) { existing.remove(); return; }
@@ -4018,10 +4019,21 @@ function shareVehicle(id, title, price) {
   dropdown.className = 'share-dropdown';
   dropdown.innerHTML = `
     <a href="${escapeHtml(waUrl)}" target="_blank" rel="noopener" class="share-option">
-      <span>📱</span> Compartir por WhatsApp
+      <span>WA</span> Compartir por WhatsApp
     </a>
+    <a href="${escapeHtml(fbUrl)}" target="_blank" rel="noopener" class="share-option">
+      <span>FB</span> Compartir en Facebook
+    </a>
+    <button class="share-option" id="instagramStoryBtn">
+      <span>IG</span> Historia de Instagram
+    </button>
+    ${(navigator.share ? `
+    <button class="share-option" id="nativeShareBtn">
+      <span>APP</span> Compartir con apps
+    </button>
+    ` : '')}
     <button class="share-option" id="copyLinkBtn">
-      <span>🔗</span> Copiar link
+      <span>LINK</span> Copiar link
     </button>
   `;
 
@@ -4038,11 +4050,36 @@ function shareVehicle(id, title, price) {
     document.getElementById('shareDropdown')?.remove();
   });
 
+  const igBtn = document.getElementById('instagramStoryBtn');
+  if (igBtn) {
+    igBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(text)
+        .then(() => showToast('Texto copiado. Abri Instagram y pegalo en tu historia.', 'success'))
+        .catch(() => showToast('No se pudo copiar. Copia el link manualmente.', 'warning'));
+      const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent || '');
+      if (isMobile) window.location.href = 'instagram://story-camera';
+      else window.open('https://www.instagram.com/', '_blank', 'noopener');
+      document.getElementById('shareDropdown')?.remove();
+    });
+  }
+
+  const nativeBtn = document.getElementById('nativeShareBtn');
+  if (nativeBtn) {
+    nativeBtn.addEventListener('click', async () => {
+      try {
+        await navigator.share({ title, text, url });
+      } catch (_) {
+        // user cancelled
+      } finally {
+        document.getElementById('shareDropdown')?.remove();
+      }
+    });
+  }
+
   setTimeout(() => document.addEventListener('click', function handler(e) {
     if (!dropdown.contains(e.target)) { dropdown.remove(); document.removeEventListener('click', handler); }
   }), 0);
 }
-
 // VEHICLE MAP
 const CITY_COORDS = {
   'Buenos Aires': [-34.6037, -58.3816],
@@ -4662,6 +4699,7 @@ async function loadSimilarVehicles(vehicleId) {
     document.getElementById('similarVehiclesSection')?.remove();
   }
 }
+
 
 
 
