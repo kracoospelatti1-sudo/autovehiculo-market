@@ -3333,6 +3333,9 @@ select {
   object-fit: contain;
   cursor: default;
   border-radius: var(--radius-md);
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .lightbox-close {
@@ -5756,5 +5759,61 @@ select {
 
   .vehicles-grid .vehicle-price {
     font-size: 1.52rem;
+  }
+}
+
+/* My vehicles: allow taller cards on mobile so action buttons are fully visible */
+@media (max-width: 768px) {
+  #myVehiclesList.vehicles-grid .vehicle-card {
+    height: auto;
+    min-height: 250px;
+  }
+
+  #myVehiclesList.vehicles-grid .vehicle-info {
+    display: flex;
+    flex-direction: column;
+  }
+
+  #myVehiclesList .my-vehicle-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: auto;
+    padding-top: 0.6rem;
+  }
+}
+
+@media (max-width: 420px) {
+  #myVehiclesList.vehicles-grid .vehicle-card {
+    min-height: 246px;
+  }
+}
+
+/* Mobile fix: keep home stats in one aligned row (3 columns) */
+@media (max-width: 640px) {
+  #home .home-stats-bar {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.3rem;
+    padding: 0.7rem 0.55rem;
+  }
+
+  #home .home-stat {
+    min-width: 0;
+    padding: 0.5rem 0.25rem;
+  }
+
+  #home .home-stat-sep {
+    display: none !important;
+  }
+
+  #home .home-stat-value {
+    font-size: clamp(1.25rem, 6.2vw, 1.8rem);
+  }
+
+  #home .home-stat-label {
+    font-size: 0.62rem;
+    line-height: 1.2;
+    letter-spacing: 0.06em;
+    text-align: center;
   }
 }
