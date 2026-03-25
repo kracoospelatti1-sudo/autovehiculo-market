@@ -101,11 +101,13 @@ function updateSEOMeta(vehicle, imageUrl) {
   const title = `${vehicle.title} — $${price} | Autoventa`;
   const desc = `${vehicle.brand} ${vehicle.model} ${vehicle.year}, ${mileage}km, ${vehicle.fuel}, ${vehicle.transmission}. En ${location}.`;
   const url = `https://autoventa.online/?vehicle=${vehicle.id}`;
+  const ogImage = `https://autoventa.online/og/vehicle/${vehicle.id}.svg?v=${encodeURIComponent(String(vehicle.updated_at || ''))}`;
   document.title = title;
   setMeta('name', 'description', desc);
   setMeta('property', 'og:title', title);
   setMeta('property', 'og:description', desc);
-  setMeta('property', 'og:image', imageUrl);
+  setMeta('property', 'og:image', ogImage);
+  setMeta('property', 'og:image:type', 'image/svg+xml');
   setMeta('property', 'og:url', url);
   setMeta('name', 'twitter:title', title);
   setMeta('name', 'twitter:description', desc);
@@ -153,6 +155,7 @@ function resetSEOMeta() {
   setMeta('property', 'og:title', defaultTitle);
   setMeta('property', 'og:description', defaultDesc);
   setMeta('property', 'og:image', defaultImg);
+  setMeta('property', 'og:image:type', 'image/png');
   setMeta('property', 'og:url', defaultUrl);
   setMeta('name', 'twitter:title', defaultTitle);
   setMeta('name', 'twitter:description', defaultDesc);
@@ -4019,21 +4022,21 @@ function shareVehicle(id, title, price) {
   dropdown.className = 'share-dropdown';
   dropdown.innerHTML = `
     <a href="${escapeHtml(waUrl)}" target="_blank" rel="noopener" class="share-option">
-      <span>WA</span> Compartir por WhatsApp
+      <span class="share-option-icon share-icon-wa"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M20.52 3.48A11.82 11.82 0 0 0 12.13 0C5.57 0 .23 5.35.23 11.93c0 2.1.55 4.14 1.59 5.93L0 24l6.3-1.65a11.86 11.86 0 0 0 5.81 1.49h.01c6.56 0 11.9-5.35 11.9-11.93a11.8 11.8 0 0 0-3.5-8.43zM12.12 21.8h-.01a9.78 9.78 0 0 1-4.98-1.36l-.36-.21-3.74.98 1-3.63-.24-.37a9.8 9.8 0 0 1-1.5-5.22c0-5.4 4.4-9.8 9.82-9.8a9.76 9.76 0 0 1 6.95 2.89 9.76 9.76 0 0 1 2.88 6.95c0 5.41-4.4 9.8-9.82 9.8zm5.38-7.35c-.3-.15-1.75-.86-2.02-.96-.27-.1-.47-.15-.67.15-.2.3-.77.96-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.25-.46-2.38-1.47-.88-.78-1.48-1.75-1.65-2.05-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.61-.92-2.2-.24-.58-.48-.5-.66-.5-.17-.01-.37-.01-.57-.01-.2 0-.52.07-.79.37-.27.3-1.03 1.01-1.03 2.47s1.06 2.87 1.21 3.07c.15.2 2.09 3.2 5.07 4.49.7.3 1.26.48 1.69.61.71.23 1.35.2 1.86.12.57-.09 1.75-.72 2-1.42.25-.7.25-1.3.18-1.42-.08-.13-.28-.2-.57-.35z"/></svg></span> Compartir por WhatsApp
     </a>
     <a href="${escapeHtml(fbUrl)}" target="_blank" rel="noopener" class="share-option">
-      <span>FB</span> Compartir en Facebook
+      <span class="share-option-icon share-icon-fb"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M22 12a10 10 0 1 0-11.56 9.88v-6.99H7.9V12h2.54V9.8c0-2.5 1.5-3.88 3.8-3.88 1.1 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56V12h2.77l-.44 2.89h-2.33v6.99A10 10 0 0 0 22 12z"/></svg></span> Compartir en Facebook
     </a>
     <button class="share-option" id="instagramStoryBtn">
-      <span>IG</span> Historia de Instagram
+      <span class="share-option-icon share-icon-ig"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"></rect><circle cx="12" cy="12" r="4"></circle><circle cx="17.5" cy="6.5" r="1"></circle></svg></span> Historia de Instagram
     </button>
     ${(navigator.share ? `
     <button class="share-option" id="nativeShareBtn">
-      <span>APP</span> Compartir con apps
+      <span class="share-option-icon share-icon-app"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="M8.7 10.7l6.6-3.4M8.7 13.3l6.6 3.4"></path></svg></span> Compartir con apps
     </button>
     ` : '')}
     <button class="share-option" id="copyLinkBtn">
-      <span>LINK</span> Copiar link
+      <span class="share-option-icon share-icon-link"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 1 0-7l2-2a5 5 0 0 1 7 7l-1.5 1.5"></path><path d="M14 11a5 5 0 0 1 0 7l-2 2a5 5 0 0 1-7-7L6.5 11.5"></path></svg></span> Copiar link
     </button>
   `;
 
@@ -4054,11 +4057,9 @@ function shareVehicle(id, title, price) {
   if (igBtn) {
     igBtn.addEventListener('click', () => {
       navigator.clipboard.writeText(text)
-        .then(() => showToast('Texto copiado. Abri Instagram y pegalo en tu historia.', 'success'))
+        .then(() => showToast('Link copiado. Pegalo en historia (sticker enlace), bio o DM.', 'success'))
         .catch(() => showToast('No se pudo copiar. Copia el link manualmente.', 'warning'));
-      const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent || '');
-      if (isMobile) window.location.href = 'instagram://story-camera';
-      else window.open('https://www.instagram.com/', '_blank', 'noopener');
+      window.open('https://www.instagram.com/direct/inbox/', '_blank', 'noopener');
       document.getElementById('shareDropdown')?.remove();
     });
   }

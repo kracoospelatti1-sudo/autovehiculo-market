@@ -112,6 +112,61 @@ const escapeHtml = (value = '') => String(value)
   .replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;')
   .replace(/'/g, '&#39;');
+const escapeXml = (value = '') => String(value)
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&apos;');
+const trimEllipsis = (value = '', max = 80) => {
+  const v = String(value || '').trim();
+  if (v.length <= max) return v;
+  return `${v.slice(0, Math.max(0, max - 1)).trim()}…`;
+};
+function buildVehicleOgSvg({ title, price, city, province, year, fuel, transmission, imageUrl }) {
+  const safeTitle = escapeXml(trimEllipsis(title || 'Vehiculo destacado', 78));
+  const safeLocation = escapeXml([city, province].filter(Boolean).join(', ') || 'Argentina');
+  const safeMeta = escapeXml([year, fuel, transmission].filter(Boolean).join(' • '));
+  const safePrice = escapeXml(`USD ${Number(price || 0).toLocaleString('es-AR')}`);
+  const safeImage = escapeXml(imageUrl || 'https://autoventa.online/og-default.png');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0C0C16"/>
+      <stop offset="1" stop-color="#111120"/>
+    </linearGradient>
+    <linearGradient id="ovTop" x1="0" y1="0" x2="0" y2="630" gradientUnits="userSpaceOnUse">
+      <stop stop-color="rgba(0,0,0,0.05)"/>
+      <stop offset="1" stop-color="rgba(0,0,0,0.78)"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="rgba(0,0,0,0.4)"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bgGrad)"/>
+  <image href="${safeImage}" x="0" y="0" width="1200" height="630" preserveAspectRatio="xMidYMid slice"/>
+  <rect width="1200" height="630" fill="url(#ovTop)"/>
+
+  <g filter="url(#shadow)">
+    <rect x="56" y="52" width="250" height="52" rx="14" fill="rgba(245,158,11,0.16)" stroke="rgba(245,158,11,0.55)"/>
+    <text x="81" y="85" fill="#FCD34D" font-family="Inter,Arial,sans-serif" font-size="26" font-weight="800">AUTOVENTA</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="56" y="430" width="1088" height="152" rx="20" fill="rgba(8,8,15,0.72)" stroke="rgba(255,255,255,0.12)"/>
+  </g>
+  <text x="88" y="486" fill="#F8FAFC" font-family="Inter,Arial,sans-serif" font-size="44" font-weight="800">${safeTitle}</text>
+  <text x="88" y="530" fill="#A5B4FC" font-family="Inter,Arial,sans-serif" font-size="24" font-weight="600">${safeMeta}</text>
+  <text x="88" y="563" fill="#CBD5E1" font-family="Inter,Arial,sans-serif" font-size="22" font-weight="500">${safeLocation}</text>
+
+  <g filter="url(#shadow)">
+    <rect x="846" y="462" width="268" height="90" rx="18" fill="rgba(245,158,11,0.24)" stroke="rgba(245,158,11,0.7)"/>
+  </g>
+  <text x="980" y="520" text-anchor="middle" fill="#FDE68A" font-family="Inter,Arial,sans-serif" font-size="42" font-weight="900">${safePrice}</text>
+</svg>`;
+}
 
 function isLikelyRealAddress(address = '') {
   const clean = String(address).trim();
@@ -127,7 +182,7 @@ app.get('/', async (req, res, next) => {
   try {
     const { data: vehicle } = await supabase
       .from('vehicles')
-      .select('id, title, brand, model, year, price, mileage, fuel, transmission, city, province, description, status')
+      .select('id, title, brand, model, year, price, mileage, fuel, transmission, city, province, description, status, updated_at')
       .eq('id', vehicleId)
       .eq('status', 'active')
       .maybeSingle();
@@ -139,13 +194,15 @@ app.get('/', async (req, res, next) => {
       .order('is_primary', { ascending: false })
       .order('order_index', { ascending: true })
       .limit(1);
-    const imageUrl = imgs?.[0]?.url || 'https://autoventa.online/og-default.png';
+    const imageUrl = `https://autoventa.online/og/vehicle/${vehicle.id}.svg?v=${encodeURIComponent((vehicle.updated_at || '').toString())}`;
+    const twitterImageUrl = imgs?.[0]?.url || 'https://autoventa.online/og-default.png';
     const title = `${vehicle.title} — $${Number(vehicle.price).toLocaleString('es-AR')} | Autoventa`;
     const desc = `${vehicle.brand} ${vehicle.model} ${vehicle.year}, ${Number(vehicle.mileage).toLocaleString('es-AR')}km, ${vehicle.fuel}. En ${vehicle.city}${vehicle.province ? ', ' + vehicle.province : ''}.`;
     const url = `https://autoventa.online/?vehicle=${vehicle.id}`;
     const titleEsc = escapeHtml(title);
     const descEsc = escapeHtml(desc);
     const imageUrlEsc = escapeHtml(imageUrl);
+    const twitterImageEsc = escapeHtml(twitterImageUrl);
     const urlEsc = escapeHtml(url);
     const fs = require('fs');
     const path = require('path');
@@ -156,10 +213,11 @@ app.get('/', async (req, res, next) => {
       .replace(/(<meta property="og:title" content=")[^"]*(")/,     `$1${titleEsc}$2`)
       .replace(/(<meta property="og:description" content=")[^"]*(")/,`$1${descEsc}$2`)
       .replace(/(<meta property="og:image" content=")[^"]*(")/,     `$1${imageUrlEsc}$2`)
+      .replace(/(<meta property="og:image:type" content=")[^"]*(")/, `$1image/svg+xml$2`)
       .replace(/(<meta property="og:url" content=")[^"]*(")/,       `$1${urlEsc}$2`)
       .replace(/(<meta name="twitter:title" content=")[^"]*(")/,    `$1${titleEsc}$2`)
       .replace(/(<meta name="twitter:description" content=")[^"]*(")/,`$1${descEsc}$2`)
-      .replace(/(<meta name="twitter:image" content=")[^"]*(")/,    `$1${imageUrlEsc}$2`)
+      .replace(/(<meta name="twitter:image" content=")[^"]*(")/,    `$1${twitterImageEsc}$2`)
       .replace(/(<link rel="canonical" href=")[^"]*(")/,            `$1${urlEsc}$2`);
     res.send(html);
   } catch (err) {
@@ -190,6 +248,48 @@ app.get('/sitemap.xml', async (req, res) => {
   } catch (err) {
     console.error('[sitemap]', err);
     res.status(500).send('Error generating sitemap');
+  }
+});
+
+// SEO: Dynamic OG card image per vehicle (1200x630 SVG)
+app.get('/og/vehicle/:id.svg', async (req, res) => {
+  try {
+    const vid = parseInt(req.params.id, 10);
+    if (!vid || Number.isNaN(vid)) return res.status(400).send('Invalid vehicle id');
+
+    const { data: vehicle } = await supabase
+      .from('vehicles')
+      .select('id, title, year, price, fuel, transmission, city, province, status')
+      .eq('id', vid)
+      .eq('status', 'active')
+      .maybeSingle();
+    if (!vehicle) return res.status(404).send('Vehicle not found');
+
+    const { data: imgs } = await supabase
+      .from('vehicle_images')
+      .select('url, is_primary, order_index')
+      .eq('vehicle_id', vid)
+      .order('is_primary', { ascending: false })
+      .order('order_index', { ascending: true })
+      .limit(1);
+
+    const imageUrl = imgs?.[0]?.url || 'https://autoventa.online/og-default.png';
+    const svg = buildVehicleOgSvg({
+      title: vehicle.title,
+      price: vehicle.price,
+      city: vehicle.city,
+      province: vehicle.province,
+      year: vehicle.year,
+      fuel: vehicle.fuel,
+      transmission: vehicle.transmission,
+      imageUrl
+    });
+    res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.send(svg);
+  } catch (err) {
+    console.error('[og-svg]', err);
+    res.status(500).send('Error generating OG image');
   }
 });
 

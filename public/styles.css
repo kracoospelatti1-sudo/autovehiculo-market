@@ -4930,6 +4930,41 @@ select {
   background: #2a2a3e;
 }
 
+.share-option-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.share-option-icon svg {
+  display: block;
+}
+
+.share-icon-wa {
+  background: #25d366;
+}
+
+.share-icon-fb {
+  background: #1877f2;
+}
+
+.share-icon-ig {
+  background: linear-gradient(135deg, #f58529 0%, #dd2a7b 45%, #8134af 100%);
+}
+
+.share-icon-app {
+  background: #4b5563;
+}
+
+.share-icon-link {
+  background: #2563eb;
+}
+
 /* ===== PRICE CHANGE INDICATOR ===== */
 .price-change {
   font-size: 0.8rem;
