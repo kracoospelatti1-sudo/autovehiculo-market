@@ -984,11 +984,42 @@ app.get('/api/vehicles/:id', optionalAuth, async (req, res) => {
 
     if (!isOwner && !admin) {
       if (requesterId) {
-        // Track unique view per user
-        await supabase.rpc('track_unique_view', { p_vehicle_id: vehicle.id, p_viewer_id: requesterId });
+        // Track unique view per user when RPC exists.
+        const { error: uniqueErr } = await supabase.rpc('track_unique_view', {
+          p_vehicle_id: vehicle.id,
+          p_viewer_id: requesterId
+        });
+        if (uniqueErr) {
+          console.error('[views] track_unique_view failed:', uniqueErr.message, 'vehicle:', vehicle.id, 'viewer:', requesterId);
+          const { error: incErr } = await supabase.rpc('increment_view_count', { vehicle_id: vehicle.id });
+          if (incErr) {
+            console.error('[views] increment_view_count fallback failed:', incErr.message, 'vehicle:', vehicle.id);
+            await supabase
+              .from('vehicles')
+              .update({ view_count: (vehicle.view_count || 0) + 1 })
+              .eq('id', vehicle.id);
+          }
+        }
       } else {
-        // Anonymous: just increment (backwards compat)
-        await supabase.rpc('increment_view_count', { vehicle_id: vehicle.id });
+        // Anonymous view: increment count. Fall back to direct update if RPC is unavailable.
+        const { error: incErr } = await supabase.rpc('increment_view_count', { vehicle_id: vehicle.id });
+        if (incErr) {
+          console.error('[views] increment_view_count failed:', incErr.message, 'vehicle:', vehicle.id);
+          await supabase
+            .from('vehicles')
+            .update({ view_count: (vehicle.view_count || 0) + 1 })
+            .eq('id', vehicle.id);
+        }
+      }
+
+      // Return fresh view_count in the detail payload.
+      const { data: refreshedView } = await supabase
+        .from('vehicles')
+        .select('view_count')
+        .eq('id', vehicle.id)
+        .maybeSingle();
+      if (refreshedView && typeof refreshedView.view_count === 'number') {
+        vehicle.view_count = refreshedView.view_count;
       }
     }
 
