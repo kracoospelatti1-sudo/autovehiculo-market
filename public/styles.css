@@ -1336,7 +1336,7 @@ select {
   align-items: center;
   gap: 0.35rem;
   font-size: 0.85rem;
-  color: #64748b;
+  color: #aeb8d2;
   margin-bottom: 1rem;
 }
 
@@ -5636,7 +5636,7 @@ select {
 
   .vehicles-grid .vehicle-location {
     font-size: 0.74rem;
-    color: var(--text-3);
+    color: #b7c1db;
     margin-bottom: 0.3rem;
   }
 

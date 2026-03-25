@@ -40,7 +40,8 @@
   <!-- Fuentes: no-render-blocking -->
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=optional" onload="this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=optional"></noscript>
-  <link rel="stylesheet" href="styles.min.css?v=30" fetchpriority="high">
+  <link rel="preload" as="style" href="styles.min.css?v=32" onload="this.rel='stylesheet'" fetchpriority="high">
+  <noscript><link rel="stylesheet" href="styles.min.css?v=32"></noscript>
   <!-- JSON-LD: WebSite + Organization -->
   <script type="application/ld+json">
   {
@@ -123,7 +124,7 @@
     <!-- HOME -->
     <section id="home" class="section">
       <div class="home-shell">
-        <div class="home-hero fade-in">
+        <div class="home-hero">
           <div class="home-hero-badge">Marketplace de vehiculos con compradores reales</div>
           <h1>Tu proximo vehiculo esta mas cerca de lo que pensas</h1>
           <p>Publicaciones verificadas, contacto directo y un flujo simple para consultar, negociar y cerrar una operacion en menos tiempo.</p>
@@ -1154,7 +1155,7 @@
   <footer class="site-footer">
     <span>© 2026 Autoventa</span>
     <a href="/?section=terms" onclick="showSection('terms');return false;" style="cursor:pointer;">Términos y Condiciones</a>
-    <span style="color:var(--text-3);font-size:0.75rem;">v1.0.5</span>
+    <span style="color:var(--text-3);font-size:0.75rem;">v1.0.7</span>
   </footer>
 
   <!-- Edit Profile Modal -->
@@ -1168,7 +1169,7 @@
     </div>
   </div>
 
-  <script src="app.js?v=34" defer></script>
+  <script src="app.js?v=36" defer></script>
   <script>
     // AdSense: cargar únicamente tras interacción real para mejorar score mobile inicial
     (function () {
