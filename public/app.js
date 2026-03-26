@@ -2349,7 +2349,7 @@ ${vehicle.accepts_trade && isLoggedIn && !isOwner && vehicle.status === 'active'
               <button class="btn btn-primary" style="white-space:nowrap;" onclick="openTradeModal(${vehicle.id})">Proponer permuta</button>
             </div>
           ` : ''}
-          ${vehicle.accepts_financing && !isOwner && vehicle.status === 'active' ? `
+          ${vehicle.accepts_financing && vehicle.status !== 'sold' ? `
             <div style="margin-top:0.75rem;background:rgba(59,130,246,0.07);border:1px solid rgba(59,130,246,0.22);border-radius:var(--radius-md);padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
               <div>
                 <div style="font-weight:600;font-size:0.95rem;">💳 Este vendedor ofrece financiación</div>
