@@ -1469,13 +1469,15 @@ app.post('/api/vehicles', authenticateToken, async (req, res) => {
     const validTypes = ['auto', 'moto'];
     const vehicleType = validTypes.includes(vehicle_type) ? vehicle_type : 'auto';
     const manualBodyType = canonicalBodyType(body_type || '');
-    if (vehicleType === 'auto' && !manualBodyType) {
-      return res.status(400).json({ error: 'Selecciona la carroceria del vehiculo' });
-    }
+    const inferredBodyType = vehicleType === 'auto' && !manualBodyType
+      ? canonicalBodyType(await resolveBodyTypeForListing(brand, model))
+      : '';
 
     // Auto-generate title on the server
     title = `${brand} ${model} ${version || ''} ${year}`.replace(/\s+/g, ' ').trim();
-    const resolvedBodyType = vehicleType === 'auto' ? manualBodyType : null;
+    const resolvedBodyType = vehicleType === 'auto'
+      ? (manualBodyType || inferredBodyType || null)
+      : null;
     const normalizedDrivetrain = canonicalDrivetrain(drivetrain || '');
     const resolvedDrivetrain = vehicleType === 'auto' && isPickupBodyType(resolvedBodyType)
       ? (normalizedDrivetrain || null)

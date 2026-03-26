@@ -36,6 +36,32 @@ let editProfileTarget = null;
 let modalStack = [];
 let mobileMenuTrigger = null;
 let keyboardClickableObserver = null;
+let currentSectionId = 'home';
+let vehiclesCurrentPage = 1;
+let vehiclesHistorySyncTimer = null;
+let isHandlingPopState = false;
+
+const VEHICLES_STATE_STORAGE_KEY = 'vehicles:list-state:v1';
+const VEHICLES_FILTER_IDS = [
+  'filterBrand',
+  'filterModel',
+  'filterMinPrice',
+  'filterMaxPrice',
+  'filterMinYear',
+  'filterMaxYear',
+  'filterMinMileage',
+  'filterMaxMileage',
+  'filterFuel',
+  'filterTransmission',
+  'filterCity',
+  'filterProvince',
+  'filterSort',
+  'filterVehicleType'
+];
+
+if (typeof window !== 'undefined' && 'scrollRestoration' in window.history) {
+  window.history.scrollRestoration = 'manual';
+}
 
 function ensureLeafletCss() {
   if (leafletCssLoaded || document.querySelector('link[data-leaflet-css="1"]')) {
@@ -208,7 +234,6 @@ function updateSEOMeta(vehicle, imageUrl) {
   setMeta('name', 'robots', 'index, follow');
   const canonical = document.querySelector('link[rel="canonical"]');
   if (canonical) canonical.href = url;
-  window.history.pushState({ vehicleId: vehicle.id, section: 'vehicle-detail' }, '', `?vehicle=${vehicle.id}`);
   // JSON-LD por vehículo
   document.getElementById('vehicle-jsonld')?.remove();
   const script = document.createElement('script');
@@ -256,7 +281,6 @@ function resetSEOMeta() {
   setMeta('name', 'robots', 'index, follow');
   const canonical = document.querySelector('link[rel="canonical"]');
   if (canonical) canonical.href = defaultUrl;
-  window.history.replaceState({}, '', '/');
   document.getElementById('vehicle-jsonld')?.remove();
 }
 
@@ -758,23 +782,194 @@ async function handleEmailLinks() {
 }
 
 // Botón atrás del navegador
-window.addEventListener('popstate', (e) => {
-  const section = e.state?.section;
-  const vehicleId = e.state?.vehicleId;
-  const stateProfileId = e.state?.profileId;
-  const query = new URLSearchParams(window.location.search);
-  const queryProfileId = query.get('profile');
-  if (vehicleId) {
-    viewVehicle(vehicleId);
-  } else if (stateProfileId || queryProfileId) {
-    viewProfile(stateProfileId || queryProfileId);
-  } else if (section === 'profile') {
-    if (currentUser?.id) viewProfile(currentUser.id);
-    else showSection('home');
-  } else if (section) {
-    showSection(section);
+function getActiveVehiclesPageFromDom() {
+  const active = document.querySelector('#vehiclesPagination button.active');
+  const parsed = parseInt(active?.textContent || '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function collectVehiclesFilterState() {
+  const filters = {};
+  VEHICLES_FILTER_IDS.forEach((id) => {
+    const el = document.getElementById(id);
+    filters[id] = el?.value || '';
+  });
+  filters.searchInput = document.getElementById('searchInput')?.value || '';
+  return filters;
+}
+
+function applyVehiclesFilterState(filters = {}) {
+  const vehicleTypeEl = document.getElementById('filterVehicleType');
+  if (vehicleTypeEl) {
+    const nextType = String(filters.filterVehicleType || vehicleTypeEl.value || 'auto');
+    if (vehicleTypeEl.value !== nextType) {
+      vehicleTypeEl.value = nextType;
+      initBrandFilters();
+    }
+  }
+
+  const searchInput = document.getElementById('searchInput');
+  if (searchInput && typeof filters.searchInput === 'string') {
+    searchInput.value = filters.searchInput;
+  }
+
+  [
+    'filterMinPrice',
+    'filterMaxPrice',
+    'filterMinYear',
+    'filterMaxYear',
+    'filterMinMileage',
+    'filterMaxMileage',
+    'filterFuel',
+    'filterTransmission',
+    'filterCity',
+    'filterProvince',
+    'filterSort'
+  ].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el && filters[id] !== undefined) el.value = filters[id] || '';
+  });
+
+  const brandEl = document.getElementById('filterBrand');
+  if (brandEl) {
+    brandEl.value = filters.filterBrand || '';
+    updateFilterModels();
+    if (typeof syncBrandPickerTrigger === 'function') syncBrandPickerTrigger('filterBrand');
+  }
+
+  const modelEl = document.getElementById('filterModel');
+  if (modelEl) {
+    const desiredModel = filters.filterModel || '';
+    const hasOption = [...modelEl.options].some(o => o.value === desiredModel);
+    modelEl.value = hasOption ? desiredModel : '';
+  }
+
+  filtersDirty = false;
+  updateMobileFilterApplyButton();
+}
+
+function getStoredVehiclesListState() {
+  try {
+    const raw = sessionStorage.getItem(VEHICLES_STATE_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function persistVehiclesListState({ scrollY } = {}) {
+  if (!window.history || typeof window.history.replaceState !== 'function') return;
+  const page = getActiveVehiclesPageFromDom() || vehiclesCurrentPage || 1;
+  const snapshot = {
+    page: Number(page) > 0 ? Number(page) : 1,
+    scrollY: Number.isFinite(scrollY) ? Math.max(0, Math.round(scrollY)) : Math.max(0, Math.round(window.scrollY || 0)),
+    filters: collectVehiclesFilterState(),
+    ts: Date.now()
+  };
+
+  const currentState = history.state && typeof history.state === 'object' ? history.state : {};
+  history.replaceState({ ...currentState, section: 'vehicles', vehiclesState: snapshot }, '', '/?section=vehicles');
+
+  try {
+    sessionStorage.setItem(VEHICLES_STATE_STORAGE_KEY, JSON.stringify(snapshot));
+  } catch {}
+}
+
+function scheduleVehiclesListStateSync() {
+  if (currentSectionId !== 'vehicles') return;
+  clearTimeout(vehiclesHistorySyncTimer);
+  vehiclesHistorySyncTimer = setTimeout(() => {
+    if (currentSectionId !== 'vehicles' || isHandlingPopState) return;
+    persistVehiclesListState();
+  }, 120);
+}
+
+async function restoreVehiclesListState(stateFromHistory = null) {
+  const snapshot = (stateFromHistory && typeof stateFromHistory === 'object')
+    ? stateFromHistory
+    : getStoredVehiclesListState();
+  const hasSnapshot = !!snapshot;
+  const targetPage = hasSnapshot
+    ? Math.max(1, Number(snapshot?.page || 1))
+    : (getActiveVehiclesPageFromDom() || vehiclesCurrentPage || 1);
+  const targetScrollY = Math.max(0, Number(snapshot?.scrollY || 0));
+
+  showSection('vehicles', { pushHistory: false, preserveScroll: true, skipSectionLoad: true });
+  if (snapshot?.filters) applyVehiclesFilterState(snapshot.filters);
+
+  const cardsCount = document.querySelectorAll('#vehiclesList .vehicle-card').length;
+  const currentPageDom = getActiveVehiclesPageFromDom() || vehiclesCurrentPage || 1;
+  const needsReload = cardsCount === 0 || (hasSnapshot && currentPageDom !== targetPage);
+
+  if (needsReload) {
+    await loadVehicles(targetPage, false, { skipStateSync: true });
   } else {
-    showSection('home');
+    vehiclesCurrentPage = currentPageDom;
+  }
+
+  if (targetScrollY > 0) {
+    window.scrollTo({ top: targetScrollY, behavior: 'auto' });
+    requestAnimationFrame(() => window.scrollTo({ top: targetScrollY, behavior: 'auto' }));
+    setTimeout(() => window.scrollTo({ top: targetScrollY, behavior: 'auto' }), 80);
+  }
+
+  persistVehiclesListState({ scrollY: targetScrollY });
+}
+
+window.addEventListener('scroll', () => {
+  if (currentSectionId !== 'vehicles' || isHandlingPopState) return;
+  scheduleVehiclesListStateSync();
+}, { passive: true });
+
+window.addEventListener('popstate', async (e) => {
+  isHandlingPopState = true;
+  try {
+    const section = e.state?.section;
+    const vehicleId = e.state?.vehicleId;
+    const stateProfileId = e.state?.profileId;
+    const stateVehicles = e.state?.vehiclesState;
+    const query = new URLSearchParams(window.location.search);
+    const queryProfileId = query.get('profile');
+    const querySection = query.get('section');
+    const queryVehicleId = query.get('vehicle');
+
+    const resolvedVehicleId = vehicleId || (queryVehicleId ? parseInt(queryVehicleId, 10) : null);
+    if (resolvedVehicleId) {
+      await viewVehicle(resolvedVehicleId, { pushHistory: false });
+      return;
+    }
+
+    const resolvedSection = section || querySection;
+    if (resolvedSection === 'vehicles') {
+      await restoreVehiclesListState(stateVehicles);
+      return;
+    }
+
+    if (stateProfileId || queryProfileId) {
+      viewProfile(stateProfileId || queryProfileId);
+      return;
+    }
+
+    if (resolvedSection === 'profile') {
+      if (currentUser?.id) viewProfile(currentUser.id);
+      else showSection('home', { pushHistory: false });
+      return;
+    }
+
+    if (resolvedSection === 'vehicle-detail') {
+      await restoreVehiclesListState(stateVehicles);
+      return;
+    }
+
+    if (resolvedSection) {
+      showSection(resolvedSection, { pushHistory: false });
+    } else {
+      showSection('home', { pushHistory: false });
+    }
+  } finally {
+    isHandlingPopState = false;
   }
 });
 
@@ -1022,7 +1217,12 @@ async function request(endpoint, options = {}) {
   return data;
 }
 
-function showSection(sectionId) {
+function showSection(sectionId, options = {}) {
+  const pushHistory = options.pushHistory !== false && !isHandlingPopState;
+  const preserveScroll = options.preserveScroll === true;
+  const skipSectionLoad = options.skipSectionLoad === true;
+  const vehiclesPage = Number(options.vehiclesPage) > 0 ? Number(options.vehiclesPage) : 1;
+
   if (sectionId !== 'vehicle-detail') resetSEOMeta();
   setRobotsMetaForSection(sectionId);
   if (sectionId !== 'home') {
@@ -1030,17 +1230,21 @@ function showSection(sectionId) {
   }
   if (currentUser && (sectionId === 'login' || sectionId === 'register')) return;
   // Push state para que el botón atrás funcione dentro del SPA
-  const publicSections = ['home', 'vehicles', 'login', 'register', 'forgot-password', 'terms'];
-  const profileRoute = sectionId === 'profile' && currentProfileId
-    ? `/?section=profile&profile=${encodeURIComponent(String(currentProfileId))}`
-    : null;
-  if (publicSections.includes(sectionId)) {
-    const url = sectionId === 'home' ? '/' : `/?section=${sectionId}`;
-    history.pushState({ section: sectionId }, '', url);
-  } else if (sectionId === 'profile' && profileRoute) {
-    history.pushState({ section: sectionId, profileId: String(currentProfileId) }, '', profileRoute);
-  } else {
-    history.pushState({ section: sectionId }, '', `/?section=${sectionId}`);
+  if (pushHistory) {
+    const publicSections = ['home', 'vehicles', 'login', 'register', 'forgot-password', 'terms'];
+    const profileRoute = sectionId === 'profile' && currentProfileId
+      ? `/?section=profile&profile=${encodeURIComponent(String(currentProfileId))}`
+      : null;
+    if (sectionId === 'vehicle-detail') {
+      // El ruteo de detalle se controla en viewVehicle(...) con ?vehicle=<id>
+    } else if (publicSections.includes(sectionId)) {
+      const url = sectionId === 'home' ? '/' : `/?section=${sectionId}`;
+      history.pushState({ section: sectionId }, '', url);
+    } else if (sectionId === 'profile' && profileRoute) {
+      history.pushState({ section: sectionId, profileId: String(currentProfileId) }, '', profileRoute);
+    } else {
+      history.pushState({ section: sectionId }, '', `/?section=${sectionId}`);
+    }
   }
   // Limpiar el div de reenvío de verificación al salir del login
   document.getElementById('resendVerificationDiv')?.remove();
@@ -1052,34 +1256,42 @@ function showSection(sectionId) {
     if (sectionId === 'home') section.classList.remove('fade-in');
     else section.classList.add('fade-in');
   }
+  currentSectionId = sectionId;
   wireImplicitFormLabels();
   setBottomNavActive(sectionId);
-  if (sectionId === 'home') { loadHomeRecent(); }
-  else if (sectionId === 'vehicles') loadVehicles(1);
-  else if (sectionId === 'my-vehicles') loadMyVehicles();
-  else if (sectionId === 'messages') { document.querySelector('.messages-container')?.classList.remove('chat-open'); loadConversations(); }
-  else if (sectionId === 'favorites') loadFavorites();
-  else if (sectionId === 'notifications') loadNotifications();
-  else if (sectionId === 'following-feed') loadFollowingFeed(1, true);
-  else if (sectionId === 'admin') loadAdmin();
-  else if (sectionId === 'register') {
-    // Render hCaptcha when section becomes visible (needed with render=explicit)
-    loadHCaptcha().then(() => {
-      setTimeout(() => {
-        const container = document.querySelector('.h-captcha');
-        if (container && window.hcaptcha && !container.querySelector('iframe')) {
-          try { hcaptcha.render(container, { sitekey: container.dataset.sitekey }); } catch(e) {}
-        }
-      }, 50);
-    });
-  }
-  else if (sectionId === 'publish') {
-    resetPublishForm();
+  if (!skipSectionLoad) {
+    if (sectionId === 'home') { loadHomeRecent(); }
+    else if (sectionId === 'vehicles') loadVehicles(vehiclesPage, false, { skipStateSync: !pushHistory });
+    else if (sectionId === 'my-vehicles') loadMyVehicles();
+    else if (sectionId === 'messages') { document.querySelector('.messages-container')?.classList.remove('chat-open'); loadConversations(); }
+    else if (sectionId === 'favorites') loadFavorites();
+    else if (sectionId === 'notifications') loadNotifications();
+    else if (sectionId === 'following-feed') loadFollowingFeed(1, true);
+    else if (sectionId === 'admin') loadAdmin();
+    else if (sectionId === 'register') {
+      // Render hCaptcha when section becomes visible (needed with render=explicit)
+      loadHCaptcha().then(() => {
+        setTimeout(() => {
+          const container = document.querySelector('.h-captcha');
+          if (container && window.hcaptcha && !container.querySelector('iframe')) {
+            try { hcaptcha.render(container, { sitekey: container.dataset.sitekey }); } catch(e) {}
+          }
+        }, 50);
+      });
+    }
+    else if (sectionId === 'publish') {
+      resetPublishForm();
+    }
   }
   if (sectionId !== 'messages') stopPolling();
   if (sectionId !== 'messages') currentConversationId = null;
   if (sectionId !== 'vehicle-detail') currentVehicleId = null;
-  window.scrollTo({ top: 0, behavior: 'auto' });
+  if (!preserveScroll) {
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }
+  if (sectionId === 'vehicles') {
+    scheduleVehiclesListStateSync();
+  }
 }
 
 function initHomeWithoutShift() {
@@ -1093,6 +1305,7 @@ function initHomeWithoutShift() {
   document.querySelectorAll('.section').forEach(s => {
     if (s.id !== 'home') s.style.display = 'none';
   });
+  currentSectionId = 'home';
   loadHomeRecent();
 }
 
@@ -1420,13 +1633,15 @@ function logout() {
 }
 
 // VEHICLES
-async function loadVehicles(page = 1, scrollToResults = false) {
+async function loadVehicles(page = 1, scrollToResults = false, options = {}) {
+  const targetPage = Number(page) > 0 ? Number(page) : 1;
+  vehiclesCurrentPage = targetPage;
   if (vehicleSearchAbortController) {
     vehicleSearchAbortController.abort();
   }
   vehicleSearchAbortController = new AbortController();
   const container = document.getElementById('vehiclesList');
-  if (page === 1 && container) {
+  if (targetPage === 1 && container) {
     container.innerHTML = Array(6).fill().map(() => `
       <div class="vehicle-card" style="padding: 1rem;">
         <div class="skeleton skeleton-img"></div>
@@ -1448,7 +1663,7 @@ async function loadVehicles(page = 1, scrollToResults = false) {
     });
     const vehicleTypeEl = document.getElementById('filterVehicleType');
     if (vehicleTypeEl?.value) params.append('vehicle_type', vehicleTypeEl.value);
-    params.append('page', page);
+    params.append('page', targetPage);
     const { vehicles = [], total = 0 } = await request(`/vehicles?${params}`, { signal: vehicleSearchAbortController.signal }) || {};
     document.getElementById('vehiclesCount').textContent = `${total} vehículo${total !== 1 ? 's' : ''} encontrado${total !== 1 ? 's' : ''}`;
     if (!vehicles?.length) {
@@ -1493,12 +1708,20 @@ async function loadVehicles(page = 1, scrollToResults = false) {
       </div>
     `).join('');
     applyCardCascade(container);
-    renderPagination(total, page);
+    renderPagination(total, targetPage);
     if (scrollToResults) {
       const nav = document.querySelector('.navbar');
       const navHeight = nav ? nav.getBoundingClientRect().height : 0;
       const y = container.getBoundingClientRect().top + window.scrollY - navHeight - 10;
       window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+    }
+    if (!options.skipStateSync && currentSectionId === 'vehicles') {
+      scheduleVehiclesListStateSync();
+      if (scrollToResults) {
+        setTimeout(() => {
+          if (currentSectionId === 'vehicles') persistVehiclesListState();
+        }, 450);
+      }
     }
   } catch (err) {
     if (err.name === 'AbortError') return;
@@ -1624,35 +1847,45 @@ function buildVehicleStatusBadges(v, { compact = false } = {}) {
 
 function buildVehicleMetaHtml(v) {
   const chips = [];
+  const addChip = (html) => {
+    if (html && !chips.includes(html)) chips.push(html);
+  };
   const mileageChip = v.mileage === 0
     ? '<span class="badge-nuevo">NUEVO</span>'
     : `<span><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>${formatNumber(v.mileage)} km</span>`;
-  chips.push(mileageChip);
+  addChip(mileageChip);
 
-  let usedTransmission = false;
-  let usedCc = false;
   const rawFuel = String(v.fuel || '').trim();
   const hasFuel = rawFuel && rawFuel.toLowerCase() !== 'n/a' && rawFuel.toLowerCase() !== 'na';
+  const rawTransmission = String(v.transmission || '').trim();
+  const rawBodyType = String(v.body_type || '').trim();
+  const rawDrivetrain = String(v.drivetrain || '').trim();
+  const normalizedBodyType = rawBodyType.toLowerCase();
+  const isTruckBodyType = ['camioneta', 'pickup', 'pick-up'].includes(normalizedBodyType);
 
   if (hasFuel) {
-    chips.push(`<span>${escapeHtml(rawFuel)}</span>`);
-  } else if (v.transmission) {
-    chips.push(`<span>${escapeHtml(v.transmission)}</span>`);
-    usedTransmission = true;
-  } else if (v.vehicle_type === 'moto' && v.engine_cc) {
-    chips.push(`<span>${v.engine_cc} cc</span>`);
-    usedCc = true;
+    addChip(`<span>${escapeHtml(rawFuel)}</span>`);
   }
 
-  if (!isCompactVehicleCardsMobile()) {
-    if (v.vehicle_type === 'moto' && v.engine_cc && !usedCc) {
-      chips.push(`<span>${v.engine_cc} cc</span>`);
-    } else if (v.transmission && !usedTransmission) {
-      chips.push(`<span>${escapeHtml(v.transmission)}</span>`);
+  if (rawTransmission) {
+    addChip(`<span>${escapeHtml(rawTransmission)}</span>`);
+  }
+
+  if (v.vehicle_type === 'moto') {
+    if (v.engine_cc) {
+      addChip(`<span>${v.engine_cc} cc</span>`);
     }
-    if (v.vehicle_type !== 'moto' && v.drivetrain) {
-      chips.push(`<span>${escapeHtml(v.drivetrain)}</span>`);
+  } else {
+    if (rawBodyType) {
+      addChip(`<span>${escapeHtml(rawBodyType)}</span>`);
     }
+    if (rawDrivetrain && (isTruckBodyType || !rawBodyType)) {
+      addChip(`<span>${escapeHtml(rawDrivetrain)}</span>`);
+    }
+  }
+
+  if (isCompactVehicleCardsMobile()) {
+    chips.splice(4);
   }
 
   return `<div class="vehicle-meta">${chips.join('')}</div>`;
@@ -1890,9 +2123,13 @@ function updatePublishModels() {
   toggleDrivetrainField('publish');
 }
 // VEHICLE DETAIL
-async function viewVehicle(id) {
+async function viewVehicle(id, options = {}) {
+  const previousSection = currentSectionId;
+  if (previousSection === 'vehicles') {
+    persistVehiclesListState();
+  }
   currentVehicleId = id;
-  showSection('vehicle-detail');
+  showSection('vehicle-detail', { pushHistory: false });
   const detailContainer = document.getElementById('vehicleDetailContent');
   if (detailContainer) {
     detailContainer.innerHTML = `
@@ -1931,6 +2168,12 @@ async function viewVehicle(id) {
     const images = sortedVehicleImages.length ? sortedVehicleImages : [{ url: vehicle.image_url || PLACEHOLDER_IMG }];
     const mainImgUrl = (images.find(img => img.is_primary)?.url || images[0].url);
     updateSEOMeta(vehicle, mainImgUrl);
+    const nextDetailState = { section: 'vehicle-detail', vehicleId: Number(vehicle.id) };
+    if (options.pushHistory === false || isHandlingPopState) {
+      window.history.replaceState(nextDetailState, '', `?vehicle=${vehicle.id}`);
+    } else {
+      window.history.pushState(nextDetailState, '', `?vehicle=${vehicle.id}`);
+    }
     const ownerWhatsapp = (vehicle.contact_phone || '').replace(/[\s\-\(\)]/g, '').replace(/^\+/, '');
     const ownerLocationAddress = (vehicle.contact_address || '').trim();
     const ownerLocationProvince = (vehicle.province || '').replace(/\s*\(.*?\)/g, '').trim();
@@ -2409,7 +2652,6 @@ async function handlePublish(e) {
     if ((document.getElementById('publishCurrency')?.value || 'USD') === 'ARS' && !dolarRate?.venta) missing.push('cotizacion del dolar');
     if (!fuel) missing.push('combustible');
     if (!transmission) missing.push('transmisión');
-    if (publishVehicleType === 'auto' && !publishBodyType) missing.push('carrocería');
     if (!province || !city) missing.push('ubicación');
     if (!description) missing.push('descripción');
     if (!uploadedImages.length) missing.push('al menos una foto');
@@ -2444,7 +2686,7 @@ async function handlePublish(e) {
       accepts_trade: document.getElementById('publishAcceptsTrade').checked,
       accepts_financing: document.getElementById('publishAcceptsFinancing')?.checked || false,
       vehicle_type: publishVehicleType,
-      body_type: publishVehicleType === 'auto' ? publishBodyType : null,
+      body_type: publishVehicleType === 'auto' ? (publishBodyType || null) : null,
       drivetrain: normalizedDrivetrainValue(document.getElementById('publishDrivetrain')?.value) || null,
       engine_cc: document.getElementById('publishEngineCC')?.value ? parseInt(document.getElementById('publishEngineCC').value) : null,
       contact_phone: document.getElementById('publishContactPhone')?.value?.trim() || null,
@@ -2698,12 +2940,6 @@ async function handleEditVehicle(e) {
       btn.textContent = 'Guardar cambios';
       return;
     }
-    if (editVehicleType === 'auto' && !editBodyType) {
-      showToast('Seleccioná la carrocería del vehículo', 'error');
-      btn.disabled = false;
-      btn.textContent = 'Guardar cambios';
-      return;
-    }
     const editImageUrls = await uploadEditImages();
     const autoTitle = `${editBrand} ${editModel} ${editVersion} ${editYear}`.replace(/\s+/g, ' ').trim();
     await request(`/vehicles/${id}`, {
@@ -2727,7 +2963,7 @@ async function handleEditVehicle(e) {
         accepts_trade: document.getElementById('editAcceptsTrade').checked,
         accepts_financing: document.getElementById('editAcceptsFinancing')?.checked || false,
         vehicle_type: editVehicleType,
-        body_type: editVehicleType === 'auto' ? editBodyType : null,
+        body_type: editVehicleType === 'auto' ? (editBodyType || null) : null,
         drivetrain: normalizedDrivetrainValue(document.getElementById('editDrivetrain')?.value) || null,
         engine_cc: document.getElementById('editEngineCC')?.value ? parseInt(document.getElementById('editEngineCC').value) : null,
         contact_phone: document.getElementById('editContactPhone')?.value?.trim() || null,
