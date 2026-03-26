@@ -2628,6 +2628,23 @@ async function openEditModal(id, e) {
     document.getElementById('editAcceptsTrade').checked = !!v.accepts_trade;
     const editFinancingEl = document.getElementById('editAcceptsFinancing');
     if (editFinancingEl) editFinancingEl.checked = !!v.accepts_financing;
+    const editCCEl = document.getElementById('editEngineCC');
+    if (editCCEl) editCCEl.value = v.engine_cc || '';
+    toggleEngineCCField('edit');
+    const editPhoneGroup = document.getElementById('editContactPhoneGroup');
+    if (editPhoneGroup) editPhoneGroup.style.display = currentUser?.profile?.is_admin ? 'block' : 'none';
+    const editAddressGroup = document.getElementById('editContactAddressGroup');
+    if (editAddressGroup) editAddressGroup.style.display = currentUser?.profile?.is_admin ? 'block' : 'none';
+    const editPhoneEl = document.getElementById('editContactPhone');
+    if (editPhoneEl) editPhoneEl.value = v.contact_phone || '';
+    const editAddressEl = document.getElementById('editContactAddress');
+    if (editAddressEl) editAddressEl.value = v.contact_address || '';
+    const editImageInput = document.getElementById('editImageInput');
+    if (editImageInput) editImageInput.value = '';
+    renderEditImagePreviews();
+    openAccessibleModal('editVehicleModal', { initialFocusSelector: '#editBrand' });
+  } catch (err) { showToast(err.message, 'error'); }
+}
 
 function closeEditModal() {
   closeAccessibleModal('editVehicleModal');
