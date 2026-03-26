@@ -488,6 +488,60 @@ async function resolveInstagramPublishConfig() {
   };
 }
 
+async function syncInstagramConfigFromEnvToDb({ overwrite = false } = {}) {
+  const envConfig = {
+    businessAccountId: String(INSTAGRAM_BUSINESS_ACCOUNT_ID || '').trim(),
+    accessToken: String(INSTAGRAM_ACCESS_TOKEN || '').trim(),
+    graphApiVersion: String(INSTAGRAM_GRAPH_API_VERSION || 'v23.0').trim(),
+    defaultHashtags: String(INSTAGRAM_DEFAULT_HASHTAGS || '').trim()
+  };
+
+  if (!envConfig.businessAccountId && !envConfig.accessToken && !envConfig.defaultHashtags) {
+    return { synced: false, reason: 'missing-env' };
+  }
+
+  const dbConfig = await loadInstagramPublishConfigFromDb();
+  if (dbConfig === null) {
+    return { synced: false, reason: 'missing-table' };
+  }
+
+  const updates = [];
+  const nowIso = new Date().toISOString();
+  const maybeAdd = (key, value, currentValue = '') => {
+    const cleanValue = String(value || '').trim();
+    const cleanCurrent = String(currentValue || '').trim();
+    if (!cleanValue) return;
+    if (!overwrite && cleanCurrent) return;
+    updates.push({
+      key,
+      value: cleanValue,
+      updated_at: nowIso,
+      updated_by: null
+    });
+  };
+
+  maybeAdd(IG_CONFIG_DB_KEYS.businessAccountId, envConfig.businessAccountId, dbConfig.businessAccountId);
+  maybeAdd(IG_CONFIG_DB_KEYS.accessToken, envConfig.accessToken, dbConfig.accessToken);
+  maybeAdd(IG_CONFIG_DB_KEYS.graphApiVersion, envConfig.graphApiVersion, dbConfig.graphApiVersion);
+  maybeAdd(IG_CONFIG_DB_KEYS.defaultHashtags, envConfig.defaultHashtags, dbConfig.defaultHashtags);
+
+  if (updates.length === 0) {
+    return { synced: false, reason: 'already-configured' };
+  }
+
+  const { error } = await supabase
+    .from('app_settings')
+    .upsert(updates, { onConflict: 'key' });
+  if (error) {
+    if (isMissingAppSettingsTableError(error)) {
+      return { synced: false, reason: 'missing-table' };
+    }
+    throw error;
+  }
+
+  return { synced: true, updated: updates.map((u) => u.key) };
+}
+
 async function getTrackedInstagramPostsForVehicle(vehicleId) {
   try {
     const { data, error } = await supabase
@@ -4324,7 +4378,17 @@ function emailResetTemplate(username, resetUrl) {
   </div></body></html>`;
 }
 
-httpServer.listen(PORT, () => {
+httpServer.listen(PORT, async () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`)
+  try {
+    const syncResult = await syncInstagramConfigFromEnvToDb();
+    if (syncResult?.synced) {
+      console.log(`[instagram config] sincronizado desde .env a app_settings: ${syncResult.updated.join(', ')}`);
+    } else if (syncResult?.reason === 'missing-table') {
+      console.warn('[instagram config] tabla app_settings no existe. Ejecuta add-instagram-config-table.sql');
+    }
+  } catch (err) {
+    console.warn('[instagram config] no se pudo sincronizar desde .env:', err.message);
+  }
 })
 
