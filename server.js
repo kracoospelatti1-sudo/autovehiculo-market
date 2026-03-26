@@ -28,6 +28,16 @@ const ALLOWED_ORIGINS = [
 ];
 const APP_URL = process.env.APP_URL || 'http://localhost:3000';
 const FROM_EMAIL = process.env.SMTP_FROM || 'Autoventa <noreply@autoventa.online>';
+const INSTAGRAM_GRAPH_API_VERSION = process.env.INSTAGRAM_GRAPH_API_VERSION || 'v23.0';
+const INSTAGRAM_BUSINESS_ACCOUNT_ID = process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID || '';
+const INSTAGRAM_ACCESS_TOKEN = process.env.INSTAGRAM_ACCESS_TOKEN || '';
+const INSTAGRAM_DEFAULT_HASHTAGS = (process.env.INSTAGRAM_DEFAULT_HASHTAGS || '#autoventa #autosusados #autos #argentina').trim();
+const IG_CONFIG_DB_KEYS = Object.freeze({
+  businessAccountId: 'instagram_business_account_id',
+  accessToken: 'instagram_access_token',
+  graphApiVersion: 'instagram_graph_api_version',
+  defaultHashtags: 'instagram_default_hashtags'
+});
 
 const mailer = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.hostinger.com',
@@ -417,6 +427,241 @@ function formatNumber(num) {
   return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
+function getPublicAppBaseUrl(req) {
+  const envBase = String(APP_URL || '').trim();
+  const envIsLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(envBase);
+  if (/^https?:\/\//i.test(envBase) && !envIsLocal) {
+    return envBase.replace(/\/+$/, '');
+  }
+  const proto = req?.protocol || 'https';
+  const host = req?.get?.('host') || 'autoventa.online';
+  return `${proto}://${host}`.replace(/\/+$/, '');
+}
+
+function isMissingAppSettingsTableError(error) {
+  const code = String(error?.code || '').toUpperCase();
+  const msg = `${error?.message || ''} ${error?.details || ''}`.toLowerCase();
+  return code === 'PGRST205' || (msg.includes('app_settings') && msg.includes('does not exist'));
+}
+
+function isMissingVehicleInstagramPostsTableError(error) {
+  const code = String(error?.code || '').toUpperCase();
+  const msg = `${error?.message || ''} ${error?.details || ''}`.toLowerCase();
+  return code === 'PGRST205' || (msg.includes('vehicle_instagram_posts') && msg.includes('does not exist'));
+}
+
+async function loadInstagramPublishConfigFromDb() {
+  try {
+    const { data, error } = await supabase
+      .from('app_settings')
+      .select('key, value')
+      .in('key', Object.values(IG_CONFIG_DB_KEYS));
+    if (error) {
+      if (isMissingAppSettingsTableError(error)) return null;
+      throw error;
+    }
+    const map = Object.fromEntries((data || []).map((row) => [String(row.key || ''), String(row.value || '').trim()]));
+    return {
+      businessAccountId: map[IG_CONFIG_DB_KEYS.businessAccountId] || '',
+      accessToken: map[IG_CONFIG_DB_KEYS.accessToken] || '',
+      graphApiVersion: map[IG_CONFIG_DB_KEYS.graphApiVersion] || '',
+      defaultHashtags: map[IG_CONFIG_DB_KEYS.defaultHashtags] || ''
+    };
+  } catch (err) {
+    console.warn('[instagram config] db read warning:', err.message);
+    return null;
+  }
+}
+
+async function resolveInstagramPublishConfig() {
+  const dbConfig = await loadInstagramPublishConfigFromDb();
+  const businessAccountId = String(dbConfig?.businessAccountId || INSTAGRAM_BUSINESS_ACCOUNT_ID || '').trim();
+  const accessToken = String(dbConfig?.accessToken || INSTAGRAM_ACCESS_TOKEN || '').trim();
+  const graphApiVersion = String(dbConfig?.graphApiVersion || INSTAGRAM_GRAPH_API_VERSION || 'v23.0').trim();
+  const defaultHashtags = String(dbConfig?.defaultHashtags || INSTAGRAM_DEFAULT_HASHTAGS || '').trim();
+  return {
+    businessAccountId,
+    accessToken,
+    graphApiVersion,
+    defaultHashtags,
+    source: dbConfig ? 'database' : 'environment'
+  };
+}
+
+async function getTrackedInstagramPostsForVehicle(vehicleId) {
+  try {
+    const { data, error } = await supabase
+      .from('vehicle_instagram_posts')
+      .select('id, media_id, permalink')
+      .eq('vehicle_id', vehicleId);
+    if (error) {
+      if (isMissingVehicleInstagramPostsTableError(error)) return [];
+      throw error;
+    }
+    return Array.isArray(data) ? data : [];
+  } catch (err) {
+    console.warn(`[instagram post tracking][list] vehicle ${vehicleId}:`, err.message);
+    return [];
+  }
+}
+
+async function trackInstagramPostForVehicle({ vehicleId, mediaId, permalink = '', publishedBy = null }) {
+  try {
+    if (!vehicleId || !mediaId) return false;
+    const row = {
+      vehicle_id: vehicleId,
+      media_id: String(mediaId).trim(),
+      permalink: String(permalink || '').trim(),
+      published_by: publishedBy || null
+    };
+    const { error } = await supabase
+      .from('vehicle_instagram_posts')
+      .upsert(row, { onConflict: 'media_id' });
+    if (error) {
+      if (isMissingVehicleInstagramPostsTableError(error)) return false;
+      throw error;
+    }
+    return true;
+  } catch (err) {
+    console.warn(`[instagram post tracking][save] vehicle ${vehicleId}:`, err.message);
+    return false;
+  }
+}
+
+async function tryDeleteInstagramPostsForVehicle(vehicleId, resolvedConfig = null) {
+  const summary = { tracked: 0, deleted: 0, failed: 0, skipped: false, reason: '' };
+  const tracked = await getTrackedInstagramPostsForVehicle(vehicleId);
+  summary.tracked = tracked.length;
+  if (tracked.length === 0) return summary;
+
+  const config = resolvedConfig || await resolveInstagramPublishConfig();
+  const status = getInstagramPublishConfigStatus(config);
+  if (!status.ok) {
+    summary.skipped = true;
+    summary.failed = tracked.length;
+    summary.reason = `missing-config:${status.missing.join(',')}`;
+    return summary;
+  }
+
+  for (const item of tracked) {
+    const mediaId = String(item?.media_id || '').trim();
+    if (!mediaId) {
+      summary.failed += 1;
+      continue;
+    }
+    try {
+      await instagramGraphRequest(`/${mediaId}`, {
+        method: 'DELETE',
+        accessToken: config.accessToken,
+        graphApiVersion: config.graphApiVersion
+      });
+      summary.deleted += 1;
+    } catch (err) {
+      summary.failed += 1;
+      console.warn(`[instagram cleanup] vehicle ${vehicleId}, media ${mediaId}:`, err.message);
+    }
+  }
+
+  return summary;
+}
+
+function getInstagramPublishConfigStatus(config = {}) {
+  const missing = [];
+  if (!config.businessAccountId) missing.push('INSTAGRAM_BUSINESS_ACCOUNT_ID');
+  if (!config.accessToken) missing.push('INSTAGRAM_ACCESS_TOKEN');
+  return {
+    ok: missing.length === 0,
+    missing
+  };
+}
+
+function normalizeProvince(value = '') {
+  return String(value || '')
+    .replace(/\s*\(.*?\)\s*/g, '')
+    .trim();
+}
+
+function buildInstagramCaption(vehicle, detailUrl, publisherName = '', hashtags = INSTAGRAM_DEFAULT_HASHTAGS) {
+  const lines = [];
+  const usd = Number(vehicle?.price || 0);
+  const ars = Number(vehicle?.price_original || 0);
+  const publisher = String(publisherName || '').trim();
+  const acceptsTrade = vehicle?.accepts_trade === true;
+  const acceptsFinancing = vehicle?.accepts_financing === true;
+  const year = vehicle?.year ? String(vehicle.year) : '';
+  const mileage = Number.isFinite(Number(vehicle?.mileage)) ? `${formatNumber(Number(vehicle.mileage))} km` : '';
+  const fuel = vehicle?.fuel ? String(vehicle.fuel).trim() : '';
+  const transmission = vehicle?.transmission ? String(vehicle.transmission).trim() : '';
+  const city = vehicle?.city ? String(vehicle.city).trim() : '';
+  const province = normalizeProvince(vehicle?.province || '');
+  const location = [city, province].filter(Boolean).join(', ');
+  const detailMeta = [year, mileage, fuel, transmission].filter(Boolean).join(' · ');
+
+  lines.push(`🚗 ${vehicle?.title || `${vehicle?.brand || ''} ${vehicle?.model || ''}`.trim()}`.trim());
+  if (usd > 0) lines.push(`💵 USD ${formatNumber(Math.round(usd))}`);
+  if (ars > 0) lines.push(`🇦🇷 ARS ${formatNumber(Math.round(ars))}`);
+  if (detailMeta) lines.push(detailMeta);
+  if (location) lines.push(`📍 ${location}`);
+  if (publisher) lines.push(`🏢 Concesionaria: ${publisher}`);
+  lines.push(`🔄 Permuta: ${acceptsTrade ? 'Si' : 'No'}`);
+  lines.push(`💳 Financiacion: ${acceptsFinancing ? 'Si' : 'No'}`);
+  lines.push('');
+  lines.push('Disponible en Autoventa');
+  lines.push(detailUrl);
+  if (hashtags) {
+    lines.push('');
+    lines.push(String(hashtags).trim());
+  }
+  let caption = lines.join('\n').trim();
+  if (caption.length > 2200) caption = `${caption.slice(0, 2197)}...`;
+  return caption;
+}
+
+function extractInstagramGraphError(payload, statusCode = 500) {
+  if (!payload) return `Error de Instagram API (HTTP ${statusCode})`;
+  const graphErr = payload.error || payload;
+  if (typeof graphErr === 'string') return graphErr;
+  const base = graphErr?.message || `Error de Instagram API (HTTP ${statusCode})`;
+  const code = graphErr?.code ? ` [code ${graphErr.code}]` : '';
+  const subcode = graphErr?.error_subcode ? ` [subcode ${graphErr.error_subcode}]` : '';
+  return `${base}${code}${subcode}`.trim();
+}
+
+async function instagramGraphRequest(endpointPath, { method = 'POST', params = {}, accessToken = '', graphApiVersion = '' } = {}) {
+  const token = String(accessToken || INSTAGRAM_ACCESS_TOKEN || '').trim();
+  const version = String(graphApiVersion || INSTAGRAM_GRAPH_API_VERSION || 'v23.0').trim();
+  if (!token) throw new Error('Falta access token de Instagram');
+  const base = `https://graph.facebook.com/${version}`;
+  const pathPart = String(endpointPath || '').startsWith('/')
+    ? String(endpointPath || '')
+    : `/${String(endpointPath || '')}`;
+  const url = `${base}${pathPart}`;
+  const safeParams = Object.fromEntries(
+    Object.entries(params || {}).filter(([, v]) => v !== undefined && v !== null && String(v).trim() !== '')
+  );
+
+  let response;
+  if (method === 'GET' || method === 'DELETE') {
+    const query = new URLSearchParams({ ...safeParams, access_token: token });
+    response = await fetch(`${url}?${query.toString()}`, { method });
+  } else {
+    const body = new URLSearchParams({ ...safeParams, access_token: token });
+    response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body
+    });
+  }
+
+  let payload = null;
+  try { payload = await response.json(); } catch { payload = null; }
+
+  if (!response.ok || payload?.error) {
+    throw new Error(extractInstagramGraphError(payload, response.status));
+  }
+  return payload || {};
+}
+
 function normalizeLookupText(value = '') {
   return String(value || '')
     .normalize('NFD')
@@ -797,6 +1042,11 @@ async function deleteSoldVehicle(vid) {
       const afterPublic = img.url.split('/storage/v1/object/public/vehicle-images/')[1];
       if (afterPublic) await supabase.storage.from('vehicle-images').remove([afterPublic]);
     }
+  }
+  const igConfig = await resolveInstagramPublishConfig();
+  const igCleanup = await tryDeleteInstagramPostsForVehicle(vid, igConfig);
+  if (igCleanup.failed > 0) {
+    console.warn(`[cron][instagram cleanup] vehicle ${vid}:`, JSON.stringify(igCleanup));
   }
   const { data: convs } = await supabase.from('conversations').select('id').eq('vehicle_id', vid);
   if (convs?.length) {
@@ -1762,6 +2012,12 @@ app.delete('/api/vehicles/:id', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'No tienes permiso' });
     }
 
+    const igConfig = await resolveInstagramPublishConfig();
+    const igCleanup = await tryDeleteInstagramPostsForVehicle(vid, igConfig);
+    if (igCleanup.failed > 0) {
+      console.warn(`[delete vehicle][instagram cleanup] vehicle ${vid}:`, JSON.stringify(igCleanup));
+    }
+
     const { data: images } = await supabase
       .from('vehicle_images')
       .select('url')
@@ -1805,7 +2061,7 @@ app.delete('/api/vehicles/:id', authenticateToken, async (req, res) => {
       return res.status(500).json({ error: `No se pudo eliminar: ${delErr.message}` });
     }
 
-    res.json({ message: 'Vehículo eliminado' });
+    res.json({ message: 'Vehículo eliminado', instagram_cleanup: igCleanup });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Error en el servidor' });
@@ -3253,6 +3509,238 @@ app.get('/api/stats', authenticateToken, async (req, res) => {
 });
 
 // ADMIN — listar todos los vehículos
+app.get('/api/admin/instagram-config', authenticateToken, async (req, res) => {
+  try {
+    const admin = req.user.is_admin === true || (req.user.is_admin === undefined && await isAdmin(req.user.id));
+    if (!admin) return res.status(403).json({ error: 'Acceso denegado' });
+
+    const instagramConfig = await resolveInstagramPublishConfig();
+    const status = getInstagramPublishConfigStatus(instagramConfig);
+    const token = String(instagramConfig.accessToken || '');
+
+    res.json({
+      configured: status.ok,
+      missing: status.missing,
+      source: instagramConfig.source,
+      business_account_id: instagramConfig.businessAccountId || '',
+      access_token_set: token.length > 0,
+      access_token_preview: token ? `${token.slice(0, 6)}...${token.slice(-4)}` : '',
+      graph_api_version: instagramConfig.graphApiVersion || INSTAGRAM_GRAPH_API_VERSION,
+      default_hashtags: instagramConfig.defaultHashtags || ''
+    });
+  } catch (error) {
+    console.error('[/api/admin/instagram-config][GET]', error.message);
+    res.status(500).json({ error: 'No se pudo obtener la configuracion de Instagram' });
+  }
+});
+
+app.put('/api/admin/instagram-config', authenticateToken, async (req, res) => {
+  try {
+    const admin = req.user.is_admin === true || (req.user.is_admin === undefined && await isAdmin(req.user.id));
+    if (!admin) return res.status(403).json({ error: 'Acceso denegado' });
+
+    const inputBusinessId = req.body?.business_account_id ?? req.body?.instagram_business_account_id;
+    const inputAccessToken = req.body?.access_token ?? req.body?.instagram_access_token;
+    const inputApiVersion = req.body?.graph_api_version ?? req.body?.instagram_graph_api_version;
+    const inputHashtags = req.body?.default_hashtags ?? req.body?.instagram_default_hashtags;
+
+    const updates = [];
+    const nowIso = new Date().toISOString();
+    const addSetting = (key, value) => {
+      updates.push({
+        key,
+        value: String(value ?? '').trim(),
+        updated_by: req.user.id,
+        updated_at: nowIso
+      });
+    };
+
+    if (inputBusinessId !== undefined) addSetting(IG_CONFIG_DB_KEYS.businessAccountId, inputBusinessId);
+    if (inputAccessToken !== undefined) addSetting(IG_CONFIG_DB_KEYS.accessToken, inputAccessToken);
+    if (inputHashtags !== undefined) addSetting(IG_CONFIG_DB_KEYS.defaultHashtags, inputHashtags);
+
+    if (inputApiVersion !== undefined) {
+      const normalizedVersion = String(inputApiVersion || '').trim();
+      if (normalizedVersion && !/^v\d+\.\d+$/i.test(normalizedVersion)) {
+        return res.status(400).json({ error: 'Version de Graph API invalida. Ejemplo: v25.0' });
+      }
+      addSetting(IG_CONFIG_DB_KEYS.graphApiVersion, normalizedVersion || INSTAGRAM_GRAPH_API_VERSION);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No se recibieron campos para guardar' });
+    }
+
+    const { error } = await supabase
+      .from('app_settings')
+      .upsert(updates, { onConflict: 'key' });
+    if (error) {
+      if (isMissingAppSettingsTableError(error)) {
+        return res.status(500).json({
+          error: 'Falta la tabla app_settings. Ejecuta el SQL de migracion add-instagram-config-table.sql'
+        });
+      }
+      throw error;
+    }
+
+    const instagramConfig = await resolveInstagramPublishConfig();
+    const status = getInstagramPublishConfigStatus(instagramConfig);
+    res.json({
+      success: true,
+      configured: status.ok,
+      missing: status.missing,
+      source: instagramConfig.source
+    });
+  } catch (error) {
+    console.error('[/api/admin/instagram-config][PUT]', error.message);
+    res.status(500).json({ error: 'No se pudo guardar la configuracion de Instagram' });
+  }
+});
+
+// ADMIN - publicar vehículo en Instagram (cuenta oficial del marketplace)
+app.post('/api/admin/vehicles/:id/publish-instagram', authenticateToken, async (req, res) => {
+  try {
+    const admin = req.user.is_admin === true || (req.user.is_admin === undefined && await isAdmin(req.user.id));
+    if (!admin) return res.status(403).json({ error: 'Acceso denegado' });
+
+    const instagramConfig = await resolveInstagramPublishConfig();
+    const config = getInstagramPublishConfigStatus(instagramConfig);
+    if (!config.ok) {
+      return res.status(503).json({
+        error: `Instagram no está configurado en el servidor. Faltan: ${config.missing.join(', ')}`
+      });
+    }
+
+    const vehicleId = parseInt(req.params.id, 10);
+    if (isNaN(vehicleId)) return res.status(400).json({ error: 'ID de vehículo inválido' });
+
+    const { data: vehicle, error: vehicleError } = await supabase
+      .from('vehicles')
+      .select('id, user_id, title, brand, model, year, price, price_original, mileage, fuel, transmission, city, province, status, image_url, accepts_trade, accepts_financing')
+      .eq('id', vehicleId)
+      .maybeSingle();
+    if (vehicleError || !vehicle) return res.status(404).json({ error: 'Vehículo no encontrado' });
+    if (!['active', 'reserved'].includes(String(vehicle.status || ''))) {
+      return res.status(400).json({ error: 'Solo se pueden publicar vehículos activos o reservados' });
+    }
+
+    const { data: images, error: imagesError } = await supabase
+      .from('vehicle_images')
+      .select('url, is_primary, order_index')
+      .eq('vehicle_id', vehicleId)
+      .order('is_primary', { ascending: false })
+      .order('order_index', { ascending: true });
+    if (imagesError) throw imagesError;
+
+    const collectedUrls = [
+      ...(images || []).map((img) => String(img?.url || '').trim()),
+      String(vehicle.image_url || '').trim()
+    ];
+    const validUniqueUrls = [...new Set(
+      collectedUrls.filter((url) => /^https?:\/\//i.test(url))
+    )];
+    if (validUniqueUrls.length === 0) {
+      return res.status(400).json({ error: 'El vehículo necesita una imagen pública válida para Instagram' });
+    }
+
+    const [sellerUserRes, sellerProfileRes] = await Promise.all([
+      vehicle.user_id
+        ? supabase.from('users').select('username').eq('id', vehicle.user_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+      vehicle.user_id
+        ? supabase.from('profiles').select('dealership_name').eq('user_id', vehicle.user_id).maybeSingle()
+        : Promise.resolve({ data: null })
+    ]);
+    const dealershipName = String(sellerProfileRes?.data?.dealership_name || '').trim();
+    const sellerUsername = String(sellerUserRes?.data?.username || '').trim();
+    const publisherName = dealershipName || sellerUsername;
+
+    // Instagram feed carousels allow up to 10 media items.
+    const imageUrls = validUniqueUrls.slice(0, 10);
+    const detailUrl = `${getPublicAppBaseUrl(req)}/?vehicle=${vehicle.id}`;
+    const caption = buildInstagramCaption(vehicle, detailUrl, publisherName, instagramConfig.defaultHashtags);
+    const igBusinessId = instagramConfig.businessAccountId;
+    const igRequest = (endpointPath, options = {}) => instagramGraphRequest(endpointPath, {
+      ...options,
+      accessToken: instagramConfig.accessToken,
+      graphApiVersion: instagramConfig.graphApiVersion
+    });
+
+    let creationId = null;
+    if (imageUrls.length === 1) {
+      const createMedia = await igRequest(`/${igBusinessId}/media`, {
+        method: 'POST',
+        params: {
+          image_url: imageUrls[0],
+          caption
+        }
+      });
+      creationId = createMedia?.id;
+    } else {
+      const children = [];
+      for (const imageUrl of imageUrls) {
+        const childMedia = await igRequest(`/${igBusinessId}/media`, {
+          method: 'POST',
+          params: {
+            image_url: imageUrl,
+            is_carousel_item: true
+          }
+        });
+        if (!childMedia?.id) throw new Error('Instagram no devolvio ID para un item del carrusel');
+        children.push(childMedia.id);
+      }
+
+      const createCarousel = await igRequest(`/${igBusinessId}/media`, {
+        method: 'POST',
+        params: {
+          media_type: 'CAROUSEL',
+          children: children.join(','),
+          caption
+        }
+      });
+      creationId = createCarousel?.id;
+    }
+    if (!creationId) throw new Error('Instagram no devolvio el ID de creacion del post');
+
+    const publishMedia = await igRequest(`/${igBusinessId}/media_publish`, {
+      method: 'POST',
+      params: { creation_id: creationId }
+    });
+    const mediaId = publishMedia?.id;
+    if (!mediaId) throw new Error('Instagram no devolvió el ID de la publicación');
+
+    let permalink = null;
+    try {
+      const mediaInfo = await igRequest(`/${mediaId}`, {
+        method: 'GET',
+        params: { fields: 'id,permalink' }
+      });
+      permalink = mediaInfo?.permalink || null;
+    } catch (metaErr) {
+      console.warn('[instagram publish] media info warning:', metaErr.message);
+    }
+
+    await trackInstagramPostForVehicle({
+      vehicleId: vehicle.id,
+      mediaId,
+      permalink,
+      publishedBy: req.user.id
+    });
+
+    res.json({
+      success: true,
+      vehicle_id: vehicle.id,
+      images_published_count: imageUrls.length,
+      media_id: mediaId,
+      permalink,
+      detail_url: detailUrl
+    });
+  } catch (error) {
+    console.error('[/api/admin/vehicles/:id/publish-instagram]', error.message);
+    res.status(502).json({ error: error.message || 'No se pudo publicar en Instagram' });
+  }
+});
+
 app.get('/api/admin/vehicles', authenticateToken, async (req, res) => {
   try {
     const admin = req.user.is_admin === true || (req.user.is_admin === undefined && await isAdmin(req.user.id));

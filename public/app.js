@@ -2380,6 +2380,10 @@ ${vehicle.accepts_trade && isLoggedIn && !isOwner && vehicle.status === 'active'
           <div class="detail-actions-zone">
             <div class="detail-actions" style="margin-top:1.5rem;display:flex;gap:1rem;flex-direction:column;">
               <button class="btn btn-secondary share-btn" onclick="shareVehicle(${vehicle.id}, '${escapeHtml(vehicle.title).replace(/'/g, '&#39;')}', ${vehicle.price})"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="margin-right:0.5rem;"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>Compartir</button>
+              ${isAdminView ? `
+                <button id="igPublishBtn" class="btn btn-secondary" onclick="publishVehicleToInstagram(${vehicle.id}, event)"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="margin-right:0.5rem;"><path d="M7.75 2h8.5A5.75 5.75 0 0 1 22 7.75v8.5A5.75 5.75 0 0 1 16.25 22h-8.5A5.75 5.75 0 0 1 2 16.25v-8.5A5.75 5.75 0 0 1 7.75 2zm0 1.5A4.25 4.25 0 0 0 3.5 7.75v8.5a4.25 4.25 0 0 0 4.25 4.25h8.5a4.25 4.25 0 0 0 4.25-4.25v-8.5a4.25 4.25 0 0 0-4.25-4.25h-8.5zM17.5 6.25a1.25 1.25 0 1 1 0 2.5 1.25 1.25 0 0 1 0-2.5zM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 1.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z"/></svg>Publicar en Instagram</button>
+                <button class="btn btn-ghost" onclick="configureInstagramFromAdmin(event)">Config Instagram</button>
+              ` : ''}
               ${isLoggedIn && (vehicle.status !== 'sold' || isFavorite) ? `<button id="detailFavBtn" class="btn ${isFavorite ? 'btn-primary' : 'btn-secondary'}" onclick="toggleFavorite(${vehicle.id}, event)"><svg width="18" height="18" viewBox="0 0 24 24" fill="${isFavorite ? 'currentColor' : 'none'}" stroke="currentColor" style="margin-right:0.5rem;"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>${isFavorite ? 'Quitar de favoritos' : 'Guardar en favoritos'}</button>` : ''}
               ${isLoggedIn && !isOwner ? `<button class="btn btn-ghost" onclick="openReportModal(${vehicle.id})" style="color:var(--text-3);">Reportar esta publicación</button>` : ''}
               ${!isLoggedIn ? `<button class="btn btn-primary" style="width:100%" onclick="showSection('login')">Iniciar sesión para contactar, ofrecer permutas o consultar financiación</button>` : ''}
@@ -4244,8 +4248,11 @@ async function adminDeleteVehicle(id, title) {
     'Eliminar',
     async () => {
       try {
-        await request(`/vehicles/${id}`, { method: 'DELETE' });
+        const result = await request(`/vehicles/${id}`, { method: 'DELETE' });
         showToast('Publicación eliminada', 'success');
+        if (result?.instagram_cleanup?.failed > 0) {
+          showToast('La publicación web se eliminó, pero no se pudo borrar en Instagram (revisar permisos/token).', 'warning');
+        }
         // Recargar la vista actual
         const profileSection = document.getElementById('profile');
         if (profileSection && profileSection.style.display !== 'none' && currentProfileId) {
@@ -4927,6 +4934,95 @@ function instagramLabel(val) {
 function googleMapsSearchUrl(address) {
   if (!address) return '';
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(address).trim())}`;
+}
+
+async function configureInstagramFromAdmin(event) {
+  if (event) event.stopPropagation();
+  if (!currentUser?.profile?.is_admin) {
+    showToast('Solo administradores pueden configurar Instagram', 'error');
+    return;
+  }
+
+  try {
+    const current = await request('/admin/instagram-config');
+    const businessId = prompt(
+      'Instagram Business Account ID:',
+      String(current?.business_account_id || '').trim()
+    );
+    if (businessId === null) return;
+
+    const tokenInput = prompt(
+      'Access Token de Instagram (deja vacio para mantener el actual):',
+      ''
+    );
+    if (tokenInput === null) return;
+
+    const apiVersion = prompt(
+      'Version Graph API (ej: v25.0):',
+      String(current?.graph_api_version || 'v25.0').trim()
+    );
+    if (apiVersion === null) return;
+
+    const hashtags = prompt(
+      'Hashtags por defecto:',
+      String(current?.default_hashtags || '').trim()
+    );
+    if (hashtags === null) return;
+
+    const payload = {
+      business_account_id: String(businessId || '').trim(),
+      graph_api_version: String(apiVersion || '').trim(),
+      default_hashtags: String(hashtags || '').trim()
+    };
+    if (String(tokenInput || '').trim()) {
+      payload.access_token = String(tokenInput).trim();
+    }
+
+    const saved = await request('/admin/instagram-config', {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    });
+
+    if (saved?.configured) showToast('Instagram configurado y guardado en base', 'success');
+    else showToast(`Configuracion parcial. Falta: ${(saved?.missing || []).join(', ')}`, 'warning');
+  } catch (err) {
+    showToast(err.message || 'No se pudo guardar configuracion de Instagram', 'error');
+  }
+}
+
+async function publishVehicleToInstagram(vehicleId, event) {
+  if (event) event.stopPropagation();
+  if (!currentUser?.profile?.is_admin) {
+    showToast('Solo administradores pueden publicar en Instagram', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('igPublishBtn');
+  const defaultHtml = btn?.innerHTML || 'Publicar en Instagram';
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Publicando...';
+  }
+
+  try {
+    const result = await request(`/admin/vehicles/${vehicleId}/publish-instagram`, { method: 'POST' });
+    showToast('Publicado en Instagram', 'success');
+    if (result?.permalink) {
+      window.open(result.permalink, '_blank', 'noopener');
+    }
+  } catch (err) {
+    const msg = err.message || 'No se pudo publicar en Instagram';
+    showToast(msg, 'error');
+    if (currentUser?.profile?.is_admin && /Instagram no est[aá] configurado/i.test(msg)) {
+      const wantsConfigure = confirm('Falta configuración de Instagram. ¿Querés cargarla ahora?');
+      if (wantsConfigure) await configureInstagramFromAdmin();
+    }
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = defaultHtml;
+    }
+  }
 }
 
 function shareHomepage() {

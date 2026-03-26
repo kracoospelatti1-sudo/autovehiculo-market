@@ -30,6 +30,11 @@ Plataforma moderna para la compra y venta de vehículos con sistema de registro,
    SUPABASE_SERVICE_KEY=tu_service_role_key
    JWT_SECRET=una_clave_secreta_segura
    PORT=3000
+   # Opcional: publicación automática en Instagram (solo admin)
+   INSTAGRAM_BUSINESS_ACCOUNT_ID=tu_instagram_business_account_id
+   INSTAGRAM_ACCESS_TOKEN=tu_access_token_largo_de_meta
+   INSTAGRAM_GRAPH_API_VERSION=v23.0
+   INSTAGRAM_DEFAULT_HASHTAGS="#autoventa #autosusados #autos #argentina"
    ```
 
 3. **Configurar la base de datos**:
