@@ -32,6 +32,8 @@ const INSTAGRAM_GRAPH_API_VERSION = process.env.INSTAGRAM_GRAPH_API_VERSION || '
 const INSTAGRAM_BUSINESS_ACCOUNT_ID = process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID || '';
 const INSTAGRAM_ACCESS_TOKEN = process.env.INSTAGRAM_ACCESS_TOKEN || '';
 const INSTAGRAM_DEFAULT_HASHTAGS = (process.env.INSTAGRAM_DEFAULT_HASHTAGS || '#autoventa #autosusados #autos #argentina').trim();
+const INSTAGRAM_CONTAINER_READY_TIMEOUT_MS = Number.parseInt(process.env.INSTAGRAM_CONTAINER_READY_TIMEOUT_MS || '45000', 10);
+const INSTAGRAM_CONTAINER_READY_POLL_MS = Number.parseInt(process.env.INSTAGRAM_CONTAINER_READY_POLL_MS || '1500', 10);
 const IG_CONFIG_DB_KEYS = Object.freeze({
   businessAccountId: 'instagram_business_account_id',
   accessToken: 'instagram_access_token',
@@ -546,8 +548,9 @@ async function getTrackedInstagramPostsForVehicle(vehicleId) {
   try {
     const { data, error } = await supabase
       .from('vehicle_instagram_posts')
-      .select('id, media_id, permalink')
-      .eq('vehicle_id', vehicleId);
+      .select('id, media_id, permalink, created_at')
+      .eq('vehicle_id', vehicleId)
+      .order('created_at', { ascending: false });
     if (error) {
       if (isMissingVehicleInstagramPostsTableError(error)) return [];
       throw error;
@@ -714,6 +717,98 @@ async function instagramGraphRequest(endpointPath, { method = 'POST', params = {
     throw new Error(extractInstagramGraphError(payload, response.status));
   }
   return payload || {};
+}
+
+function sleep(ms = 1000) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isInstagramMediaNotReadyError(error) {
+  const message = String(error?.message || error || '').toLowerCase();
+  return message.includes('media id is not available')
+    || message.includes('media is not ready')
+    || message.includes('media not ready')
+    || message.includes('container is not ready')
+    || message.includes('try again later');
+}
+
+function isInstagramTransientError(error) {
+  const message = String(error?.message || error || '').toLowerCase();
+  return message.includes('temporarily unavailable')
+    || message.includes('timeout')
+    || message.includes('time out')
+    || message.includes('please wait')
+    || message.includes('unknown error');
+}
+
+async function waitForInstagramContainerReady(igRequest, containerId, {
+  timeoutMs = INSTAGRAM_CONTAINER_READY_TIMEOUT_MS,
+  pollMs = INSTAGRAM_CONTAINER_READY_POLL_MS
+} = {}) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    try {
+      const info = await igRequest(`/${containerId}`, {
+        method: 'GET',
+        params: { fields: 'id,status_code,status,error_message' }
+      });
+      const statusCode = String(info?.status_code || info?.status || '').toUpperCase();
+      if (!statusCode || statusCode === 'FINISHED' || statusCode === 'PUBLISHED') {
+        return info;
+      }
+      if (statusCode === 'ERROR' || statusCode === 'EXPIRED') {
+        throw new Error(`Instagram devolvió estado ${statusCode} para el contenedor ${containerId}`);
+      }
+    } catch (err) {
+      if (!isInstagramMediaNotReadyError(err) && !isInstagramTransientError(err)) {
+        throw err;
+      }
+    }
+    await sleep(pollMs);
+  }
+  throw new Error('Instagram tardó demasiado en procesar las imágenes. Intentá nuevamente.');
+}
+
+async function createCarouselContainerWithRetry(igRequest, igBusinessId, children, caption) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= 6; attempt += 1) {
+    try {
+      return await igRequest(`/${igBusinessId}/media`, {
+        method: 'POST',
+        params: {
+          media_type: 'CAROUSEL',
+          children: children.join(','),
+          caption
+        }
+      });
+    } catch (err) {
+      lastError = err;
+      if (!isInstagramMediaNotReadyError(err) && !isInstagramTransientError(err)) {
+        throw err;
+      }
+      await sleep(900 * attempt);
+    }
+  }
+  throw lastError || new Error('No se pudo crear el carrusel de Instagram');
+}
+
+async function publishInstagramCreationWithRetry(igRequest, igBusinessId, creationId) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= 4; attempt += 1) {
+    try {
+      return await igRequest(`/${igBusinessId}/media_publish`, {
+        method: 'POST',
+        params: { creation_id: creationId }
+      });
+    } catch (err) {
+      lastError = err;
+      if (!isInstagramMediaNotReadyError(err) && !isInstagramTransientError(err)) {
+        throw err;
+      }
+      await sleep(1000 * attempt);
+    }
+  }
+  throw lastError || new Error('No se pudo publicar en Instagram');
 }
 
 function normalizeLookupText(value = '') {
@@ -3720,6 +3815,23 @@ app.post('/api/admin/vehicles/:id/publish-instagram', authenticateToken, async (
       graphApiVersion: instagramConfig.graphApiVersion
     });
 
+    const recentTracked = await getTrackedInstagramPostsForVehicle(vehicle.id);
+    const recentPost = recentTracked[0] || null;
+    const recentCreatedAt = Date.parse(String(recentPost?.created_at || ''));
+    const isRecent = Number.isFinite(recentCreatedAt) && (Date.now() - recentCreatedAt) < (5 * 60 * 1000);
+    const forceRepublish = String(req.query.force || '').toLowerCase() === '1' || String(req.query.force || '').toLowerCase() === 'true';
+    if (!forceRepublish && recentPost?.media_id && isRecent) {
+      return res.json({
+        success: true,
+        already_published: true,
+        vehicle_id: vehicle.id,
+        images_published_count: imageUrls.length,
+        media_id: recentPost.media_id,
+        permalink: recentPost.permalink || null,
+        detail_url: detailUrl
+      });
+    }
+
     let creationId = null;
     if (imageUrls.length === 1) {
       const createMedia = await igRequest(`/${igBusinessId}/media`, {
@@ -3730,36 +3842,32 @@ app.post('/api/admin/vehicles/:id/publish-instagram', authenticateToken, async (
         }
       });
       creationId = createMedia?.id;
-    } else {
-      const children = [];
-      for (const imageUrl of imageUrls) {
-        const childMedia = await igRequest(`/${igBusinessId}/media`, {
-          method: 'POST',
-          params: {
-            image_url: imageUrl,
-            is_carousel_item: true
-          }
-        });
-        if (!childMedia?.id) throw new Error('Instagram no devolvio ID para un item del carrusel');
-        children.push(childMedia.id);
+      if (creationId) {
+        await waitForInstagramContainerReady(igRequest, creationId, { timeoutMs: 45000, pollMs: 1500 });
       }
-
-      const createCarousel = await igRequest(`/${igBusinessId}/media`, {
+    } else {
+      const childMediaList = await Promise.all(imageUrls.map((imageUrl) => igRequest(`/${igBusinessId}/media`, {
         method: 'POST',
         params: {
-          media_type: 'CAROUSEL',
-          children: children.join(','),
-          caption
+          image_url: imageUrl,
+          is_carousel_item: true
         }
-      });
+      })));
+      const children = childMediaList
+        .map((item) => String(item?.id || '').trim())
+        .filter(Boolean);
+      if (children.length !== imageUrls.length) {
+        throw new Error('Instagram no devolvio ID para uno o mas items del carrusel');
+      }
+      const createCarousel = await createCarouselContainerWithRetry(igRequest, igBusinessId, children, caption);
       creationId = createCarousel?.id;
+      if (creationId) {
+        await waitForInstagramContainerReady(igRequest, creationId, { timeoutMs: 60000, pollMs: 1800 });
+      }
     }
     if (!creationId) throw new Error('Instagram no devolvio el ID de creacion del post');
 
-    const publishMedia = await igRequest(`/${igBusinessId}/media_publish`, {
-      method: 'POST',
-      params: { creation_id: creationId }
-    });
+    const publishMedia = await publishInstagramCreationWithRetry(igRequest, igBusinessId, creationId);
     const mediaId = publishMedia?.id;
     if (!mediaId) throw new Error('Instagram no devolvió el ID de la publicación');
 
