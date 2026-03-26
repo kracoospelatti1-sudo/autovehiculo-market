@@ -1345,10 +1345,20 @@ select {
   right: 0.75rem;
 }
 
-.vehicle-trade-badge {
+.vehicle-badges {
   position: absolute;
-  bottom: 0.75rem;
   left: 0.75rem;
+  bottom: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  z-index: 2;
+  max-width: calc(100% - 1.5rem);
+}
+
+.vehicle-trade-badge {
+  position: static;
   font-size: 0.7rem;
   font-weight: 700;
   padding: 0.35rem 0.75rem;
@@ -1368,6 +1378,11 @@ select {
 .vehicle-trade-badge.trade-no {
   background: rgba(10, 10, 15, 0.6);
   color: var(--text-3);
+}
+
+.vehicle-trade-badge.finance-yes {
+  background: rgba(59, 130, 246, 0.24);
+  color: #93c5fd;
 }
 
 
@@ -4411,6 +4426,12 @@ select {
     padding-top: 0.5rem;
   }
 
+  .vehicle-badges {
+    gap: 0.22rem;
+    left: 0.55rem;
+    bottom: 0.55rem;
+  }
+
   .vehicle-trade-badge {
     font-size: 0.62rem;
     padding: 0.2rem 0.45rem;
@@ -5814,6 +5835,10 @@ select {
     margin-top: auto;
     padding-top: 0.38rem;
     min-height: 26px;
+  }
+
+  .vehicles-grid .vehicle-badges {
+    gap: 0.2rem;
   }
 
   .vehicles-grid .vehicle-trade-badge {

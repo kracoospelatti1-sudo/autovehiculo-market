@@ -1439,7 +1439,7 @@ app.post('/api/vehicles', authenticateToken, async (req, res) => {
     }
     const admin = req.user.is_admin === true || await isAdmin(req.user.id);
 
-    let { title, brand, model, year, price, price_original, price_currency, mileage, fuel, transmission, description, city, province, images, accepts_trade, vehicle_type, body_type, drivetrain, engine_cc, version, contact_phone, contact_address } = req.body;
+    let { title, brand, model, year, price, price_original, price_currency, mileage, fuel, transmission, description, city, province, images, accepts_trade, accepts_financing, vehicle_type, body_type, drivetrain, engine_cc, version, contact_phone, contact_address } = req.body;
     if (!admin && (contact_phone || contact_address)) {
       return res.status(403).json({ error: 'Solo administradores pueden definir telefono o direccion personalizada.' });
     }
@@ -1497,6 +1497,7 @@ app.post('/api/vehicles', authenticateToken, async (req, res) => {
       status: 'active',
       view_count: 0,
       accepts_trade: !!accepts_trade,
+      accepts_financing: !!accepts_financing,
       vehicle_type: vehicleType,
       body_type: resolvedBodyType,
       drivetrain: resolvedDrivetrain,
@@ -1627,6 +1628,7 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
       }
     }
     if (req.body.accepts_trade !== undefined) updates.accepts_trade = !!req.body.accepts_trade;
+    if (req.body.accepts_financing !== undefined) updates.accepts_financing = !!req.body.accepts_financing;
     if (vehicle_type !== undefined) {
       const validTypes = ['auto', 'moto'];
       if (!validTypes.includes(vehicle_type)) return res.status(400).json({ error: 'Tipo inválido' });

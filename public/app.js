@@ -1,4 +1,4 @@
-﻿const PLACEHOLDER_IMG = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"><rect width="400" height="300" fill="#1a1a2e"/><text x="200" y="140" text-anchor="middle" fill="#444" font-size="48">&#x1F697;</text><text x="200" y="185" text-anchor="middle" fill="#555" font-size="16">Sin imagen</text></svg>')}`;
+const PLACEHOLDER_IMG = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"><rect width="400" height="300" fill="#1a1a2e"/><text x="200" y="140" text-anchor="middle" fill="#444" font-size="48">&#x1F697;</text><text x="200" y="185" text-anchor="middle" fill="#555" font-size="16">Sin imagen</text></svg>')}`;
 
 const MAX_VEHICLE_IMAGES = 15;
 let currentUser = null;
@@ -1462,7 +1462,7 @@ async function loadVehicles(page = 1, scrollToResults = false) {
           <div class="vehicle-img-overlay"></div>
           <span class="vehicle-badge">${escapeHtml(String(v.year))}</span>
           ${v.status === 'sold' ? '<span class="vehicle-badge badge-sold">VENDIDO</span>' : ''}
-          ${v.status !== 'sold' ? `<span class="vehicle-trade-badge ${v.accepts_trade ? 'trade-yes' : 'trade-no'}">${v.accepts_trade ? '🔄 Permuta' : 'Sin permuta'}</span>` : ''}
+          ${buildVehicleStatusBadges(v)}
           ${v.status !== 'sold' ? `<button class="favorite-btn ${userFavoriteIds.has(v.id) ? 'active' : ''}" data-vehicle-id="${v.id}" onclick="toggleFavorite(${v.id}, event)" aria-label="Agregar a favoritos"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>` : ''}
         </div>
         <div class="vehicle-info">
@@ -1602,6 +1602,24 @@ function isCompactVehicleCardsMobile() {
   return typeof window !== 'undefined'
     && !!window.matchMedia
     && window.matchMedia('(max-width: 768px)').matches;
+}
+
+function buildVehicleStatusBadges(v, { compact = false } = {}) {
+  if (!v || v.status === 'sold') return '';
+
+  const tradeLabel = v.accepts_trade
+    ? (compact ? 'Permuta' : '🔄 Permuta')
+    : 'Sin permuta';
+  const badges = [
+    `<span class="vehicle-trade-badge ${v.accepts_trade ? 'trade-yes' : 'trade-no'}">${tradeLabel}</span>`
+  ];
+
+  if (v.accepts_financing) {
+    const financingLabel = compact ? 'Financiación' : '💳 Financiación';
+    badges.push(`<span class="vehicle-trade-badge finance-yes">${financingLabel}</span>`);
+  }
+
+  return `<div class="vehicle-badges">${badges.join('')}</div>`;
 }
 
 function buildVehicleMetaHtml(v) {
@@ -2084,6 +2102,15 @@ ${vehicle.accepts_trade && isLoggedIn && !isOwner && vehicle.status === 'active'
               <button class="btn btn-primary" style="white-space:nowrap;" onclick="openTradeModal(${vehicle.id})">Proponer permuta</button>
             </div>
           ` : ''}
+          ${vehicle.accepts_financing && isLoggedIn && !isOwner && vehicle.status === 'active' ? `
+            <div style="margin-top:0.75rem;background:rgba(59,130,246,0.07);border:1px solid rgba(59,130,246,0.22);border-radius:var(--radius-md);padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+              <div>
+                <div style="font-weight:600;font-size:0.95rem;">💳 Este vendedor ofrece financiación</div>
+                <div style="font-size:0.82rem;color:var(--text-2);margin-top:2px;">Podés consultar opciones y requisitos por chat</div>
+              </div>
+              <button class="btn btn-secondary" style="white-space:nowrap;" onclick="const qm=document.getElementById('quickMsgInput'); if(qm){qm.value='¿Ofreces financiación?'; qm.focus();}">Consultar financiación</button>
+            </div>
+          ` : ''}
 
           ${isLoggedIn && !isOwner && vehicle.status === 'active' ? `
             <div class="marketplace-chat-box" style="margin-top:1.5rem;background:var(--dark-2);padding:1.5rem;border-radius:var(--radius-lg);border:1px solid var(--border);" id="chatBoxContainer">
@@ -2097,6 +2124,7 @@ ${vehicle.accepts_trade && isLoggedIn && !isOwner && vehicle.status === 'active'
                   <button class="btn btn-ghost btn-sm" onclick="document.getElementById('quickMsgInput').value = '¿Sigue disponible?'">¿Sigue disponible?</button>
                   <button class="btn btn-ghost btn-sm" onclick="document.getElementById('quickMsgInput').value = '¿Cuál es el precio final?'">¿Precio final?</button>
                   <button class="btn btn-ghost btn-sm" onclick="document.getElementById('quickMsgInput').value = '¿Aceptas permutas?'">¿Permutas?</button>
+                  ${vehicle.accepts_financing ? `<button class="btn btn-ghost btn-sm" onclick="document.getElementById('quickMsgInput').value = '¿Ofreces financiación?'">¿Financiación?</button>` : ''}
                 </div>
                 <div class="chat-input-row" style="display:flex;gap:0.5rem;">
                   <input type="text" id="quickMsgInput" placeholder="Envía un mensaje..." style="flex:1;">
@@ -2111,7 +2139,7 @@ ${vehicle.accepts_trade && isLoggedIn && !isOwner && vehicle.status === 'active'
               <button class="btn btn-secondary share-btn" onclick="shareVehicle(${vehicle.id}, '${escapeHtml(vehicle.title).replace(/'/g, '&#39;')}', ${vehicle.price})"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="margin-right:0.5rem;"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>Compartir</button>
               ${isLoggedIn && (vehicle.status !== 'sold' || isFavorite) ? `<button id="detailFavBtn" class="btn ${isFavorite ? 'btn-primary' : 'btn-secondary'}" onclick="toggleFavorite(${vehicle.id}, event)"><svg width="18" height="18" viewBox="0 0 24 24" fill="${isFavorite ? 'currentColor' : 'none'}" stroke="currentColor" style="margin-right:0.5rem;"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>${isFavorite ? 'Quitar de favoritos' : 'Guardar en favoritos'}</button>` : ''}
               ${isLoggedIn && !isOwner ? `<button class="btn btn-ghost" onclick="openReportModal(${vehicle.id})" style="color:var(--text-3);">Reportar esta publicación</button>` : ''}
-              ${!isLoggedIn ? `<button class="btn btn-primary" style="width:100%" onclick="showSection('login')">Iniciar sesión para contactar y ofrecer permutas</button>` : ''}
+              ${!isLoggedIn ? `<button class="btn btn-primary" style="width:100%" onclick="showSection('login')">Iniciar sesión para contactar, ofrecer permutas o consultar financiación</button>` : ''}
             </div>
           </div>
           ${isAdminView ? `
@@ -2414,6 +2442,7 @@ async function handlePublish(e) {
       province: province,
       description: document.getElementById('publishDescription').value,
       accepts_trade: document.getElementById('publishAcceptsTrade').checked,
+      accepts_financing: document.getElementById('publishAcceptsFinancing')?.checked || false,
       vehicle_type: publishVehicleType,
       body_type: publishVehicleType === 'auto' ? publishBodyType : null,
       drivetrain: normalizedDrivetrainValue(document.getElementById('publishDrivetrain')?.value) || null,
@@ -2597,6 +2626,8 @@ async function openEditModal(id, e) {
     editDescEl.removeEventListener('input', markEditDescriptionEdited);
     editDescEl.addEventListener('input', markEditDescriptionEdited);
     document.getElementById('editAcceptsTrade').checked = !!v.accepts_trade;
+    const editFinancingEl = document.getElementById('editAcceptsFinancing');
+    if (editFinancingEl) editFinancingEl.checked = !!v.accepts_financing;
     const editCCEl = document.getElementById('editEngineCC');
     if (editCCEl) editCCEl.value = v.engine_cc || '';
     toggleEngineCCField('edit');
@@ -2694,6 +2725,7 @@ async function handleEditVehicle(e) {
         status: document.getElementById('editStatus').value,
         description: document.getElementById('editDescription').value,
         accepts_trade: document.getElementById('editAcceptsTrade').checked,
+        accepts_financing: document.getElementById('editAcceptsFinancing')?.checked || false,
         vehicle_type: editVehicleType,
         body_type: editVehicleType === 'auto' ? editBodyType : null,
         drivetrain: normalizedDrivetrainValue(document.getElementById('editDrivetrain')?.value) || null,
@@ -3679,7 +3711,7 @@ async function viewProfile(id) {
           <div class="vehicle-img-overlay"></div>
           <span class="vehicle-badge">${escapeHtml(String(v.year))}</span>
           ${v.status === 'sold' ? '<span class="vehicle-badge badge-sold">VENDIDO</span>' : ''}
-          ${v.status !== 'sold' ? `<span class="vehicle-trade-badge ${v.accepts_trade ? 'trade-yes' : 'trade-no'}">${v.accepts_trade ? 'Permuta' : 'Sin permuta'}</span>` : ''}
+          ${buildVehicleStatusBadges(v, { compact: true })}
           ${v.status !== 'sold' ? `<button class="favorite-btn ${userFavoriteIds.has(v.id) ? 'active' : ''}" data-vehicle-id="${v.id}" onclick="toggleFavorite(${v.id}, event)" aria-label="Agregar a favoritos"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>` : ''}
         </div>
         <div class="vehicle-info">
@@ -5328,7 +5360,7 @@ async function loadHomeRecent() {
           <div class="vehicle-img-overlay"></div>
           <span class="vehicle-badge">${escapeHtml(String(v.year))}</span>
           ${v.status === 'sold' ? '<span class="vehicle-badge badge-sold">VENDIDO</span>' : ''}
-          ${v.status !== 'sold' ? `<span class="vehicle-trade-badge ${v.accepts_trade ? 'trade-yes' : 'trade-no'}">${v.accepts_trade ? '🔄 Permuta' : 'Sin permuta'}</span>` : ''}
+          ${buildVehicleStatusBadges(v)}
           ${v.status !== 'sold' ? `<button class="favorite-btn ${userFavoriteIds.has(v.id) ? 'active' : ''}" data-vehicle-id="${v.id}" onclick="toggleFavorite(${v.id}, event)" aria-label="Agregar a favoritos"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>` : ''}
         </div>
         <div class="vehicle-info">

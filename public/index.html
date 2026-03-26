@@ -752,14 +752,24 @@
             <p style="font-size:0.78rem;color:var(--text-2);margin:0.25rem 0 0;">Opcional. Debe incluir calle y numero. Al tocarla en el detalle abre Google Maps.</p>
           </div>
           <div class="form-group"
-            style="display:flex;align-items:center;gap:0.75rem;background:var(--dark-2);padding:1rem;border-radius:var(--radius-md);border:1px solid var(--border);">
-            <input type="checkbox" id="publishAcceptsTrade"
-              style="width:18px;height:18px;accent-color:var(--primary);cursor:pointer;">
-            <div>
-              <label for="publishAcceptsTrade" style="cursor:pointer;font-weight:600;margin:0;">🔄 Acepto
-                permutas</label>
-              <p style="font-size:0.8rem;color:var(--text-2);margin:0;">Otros usuarios podrán proponerte intercambiar
-                vehículos</p>
+            style="background:var(--dark-2);padding:1rem;border-radius:var(--radius-md);border:1px solid var(--border);display:flex;flex-direction:column;gap:0.85rem;">
+            <div style="display:flex;align-items:center;gap:0.75rem;">
+              <input type="checkbox" id="publishAcceptsTrade"
+                style="width:18px;height:18px;accent-color:var(--primary);cursor:pointer;">
+              <div>
+                <label for="publishAcceptsTrade" style="cursor:pointer;font-weight:600;margin:0;">🔄 Acepto
+                  permutas</label>
+                <p style="font-size:0.8rem;color:var(--text-2);margin:0;">Otros usuarios podrán proponerte intercambiar
+                  vehículos</p>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:0.75rem;">
+              <input type="checkbox" id="publishAcceptsFinancing"
+                style="width:18px;height:18px;accent-color:var(--primary);cursor:pointer;">
+              <div>
+                <label for="publishAcceptsFinancing" style="cursor:pointer;font-weight:600;margin:0;">💳 Ofrezco financiación</label>
+                <p style="font-size:0.8rem;color:var(--text-2);margin:0;">Los interesados verán que este vehículo puede evaluarse con financiación</p>
+              </div>
             </div>
           </div>
           <button type="submit" class="btn btn-primary" style="width:100%;" id="publishBtn">Publicar Vehículo</button>
@@ -1034,10 +1044,17 @@
             <div id="editImagePreview" class="image-preview-grid"></div>
           </div>
           <div class="form-group"
-            style="display:flex;align-items:center;gap:0.75rem;background:var(--dark-3);padding:0.75rem 1rem;border-radius:var(--radius-md);border:1px solid var(--border);">
-            <input type="checkbox" id="editAcceptsTrade"
-              style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer;">
-            <label for="editAcceptsTrade" style="cursor:pointer;font-size:0.9rem;margin:0;">🔄 Acepto permutas</label>
+            style="display:flex;flex-direction:column;gap:0.65rem;background:var(--dark-3);padding:0.75rem 1rem;border-radius:var(--radius-md);border:1px solid var(--border);">
+            <div style="display:flex;align-items:center;gap:0.75rem;">
+              <input type="checkbox" id="editAcceptsTrade"
+                style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer;">
+              <label for="editAcceptsTrade" style="cursor:pointer;font-size:0.9rem;margin:0;">🔄 Acepto permutas</label>
+            </div>
+            <div style="display:flex;align-items:center;gap:0.75rem;">
+              <input type="checkbox" id="editAcceptsFinancing"
+                style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer;">
+              <label for="editAcceptsFinancing" style="cursor:pointer;font-size:0.9rem;margin:0;">💳 Ofrezco financiación</label>
+            </div>
           </div>
           <div class="form-group" id="editEngineCCGroup" style="display:none;">
             <label for="editEngineCC">Cilindrada (cc)</label>
