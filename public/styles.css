@@ -3330,6 +3330,88 @@ select {
   padding: 1.5rem;
 }
 
+.prestito-modal-content {
+  width: 560px;
+  max-width: 95vw;
+}
+
+.prestito-modal-subtitle {
+  color: var(--text-2);
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.prestito-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.prestito-email-group {
+  grid-column: 1 / -1;
+}
+
+.prestito-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.25rem 0 1rem;
+}
+
+.prestito-modal-actions .btn {
+  flex: 1 1 160px;
+}
+
+.prestito-quote-info {
+  background: rgba(59, 130, 246, 0.09);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: var(--radius-md);
+  padding: 0.7rem 0.85rem;
+  margin-bottom: 0.8rem;
+  color: var(--text);
+  font-size: 0.86rem;
+}
+
+.prestito-table-wrap {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: 0.8rem;
+}
+
+.prestito-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.prestito-table th,
+.prestito-table td {
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.prestito-table th {
+  text-align: left;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-2);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.prestito-table td {
+  font-size: 0.9rem;
+}
+
+.prestito-table tr:last-child td {
+  border-bottom: none;
+}
+
+.prestito-disclaimer {
+  color: var(--text-3);
+  font-size: 0.78rem;
+  margin: 0;
+}
+
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -3363,6 +3445,16 @@ select {
 .star.active {
   color: var(--warning);
   transform: scale(1.1);
+}
+
+@media (max-width: 640px) {
+  .prestito-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .prestito-modal-actions .btn {
+    flex: 1 1 100%;
+  }
 }
 
 /* ===== TOAST ===== */

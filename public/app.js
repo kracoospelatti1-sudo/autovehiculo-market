@@ -15,6 +15,8 @@ let reportVehicleId = null;
 let rateConversationId = null;
 let rateRecipientId = null;
 let rateVehicleId = null;
+let prestitoVehicleContext = null;
+let prestitoConfigCache = null;
 let lastMessageId = 0;
 let isLoadingMessages = false;
 let pollCount = 0;
@@ -184,6 +186,7 @@ function closeTopAccessibleModal() {
   else if (top.id === 'tradeModal') closeTradeModal();
   else if (top.id === 'reportModal') closeReportModal();
   else if (top.id === 'rateModal') closeRateModal();
+  else if (top.id === 'prestitoModal') closePrestitoQuoteModal();
   else if (top.id === 'confirmModal') closeConfirmModal();
   else if (top.id === 'editProfileModal') closeEditProfileModal();
   else closeAccessibleModal(top.id);
@@ -656,6 +659,7 @@ function initAccessibilitySemantics() {
     { id: 'tradeModal', label: 'Proponer permuta' },
     { id: 'reportModal', label: 'Reportar publicación' },
     { id: 'rateModal', label: 'Calificar vendedor' },
+    { id: 'prestitoModal', label: 'Cotizador Préstito' },
     { id: 'confirmModal', label: 'Confirmación' },
     { id: 'editProfileModal', label: 'Editar perfil' }
   ];
@@ -2345,13 +2349,16 @@ ${vehicle.accepts_trade && isLoggedIn && !isOwner && vehicle.status === 'active'
               <button class="btn btn-primary" style="white-space:nowrap;" onclick="openTradeModal(${vehicle.id})">Proponer permuta</button>
             </div>
           ` : ''}
-          ${vehicle.accepts_financing && isLoggedIn && !isOwner && vehicle.status === 'active' ? `
+          ${vehicle.accepts_financing && !isOwner && vehicle.status === 'active' ? `
             <div style="margin-top:0.75rem;background:rgba(59,130,246,0.07);border:1px solid rgba(59,130,246,0.22);border-radius:var(--radius-md);padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
               <div>
                 <div style="font-weight:600;font-size:0.95rem;">💳 Este vendedor ofrece financiación</div>
-                <div style="font-size:0.82rem;color:var(--text-2);margin-top:2px;">Podés consultar opciones y requisitos por chat</div>
+                <div style="font-size:0.82rem;color:var(--text-2);margin-top:2px;">Podés simular cuotas y consultar requisitos</div>
               </div>
-              <button class="btn btn-secondary" style="white-space:nowrap;" onclick="const qm=document.getElementById('quickMsgInput'); if(qm){qm.value='¿Ofreces financiación?'; qm.focus();}">Consultar financiación</button>
+              <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                <button class="btn btn-primary" style="white-space:nowrap;" onclick="openPrestitoQuoteModal(${vehicle.id}, ${Number(vehicle.year || 0)}, ${Number(vehicle.price || 0)}, ${Number(vehicle.price_original || 0)}, '${escapeHtml(vehicle.title).replace(/'/g, '&#39;')}')">Cotizar con Préstito</button>
+                ${isLoggedIn ? `<button class="btn btn-secondary" style="white-space:nowrap;" onclick="const qm=document.getElementById('quickMsgInput'); if(qm){qm.value='¿Ofreces financiación?'; qm.focus();}">Consultar por chat</button>` : ''}
+              </div>
             </div>
           ` : ''}
 
@@ -4593,6 +4600,237 @@ async function updateTradeCardStatuses() {
   } catch {}
 }
 
+const PRESTITO_FALLBACK_CONFIG = Object.freeze({
+  interesAutoR1: 1.015,
+  interesAutoR2: 0.87,
+  interesAutoR3: 0.72,
+  cuotasAutoR1: 24,
+  cuotasAutoR2: 36,
+  cuotasAutoR3: 48,
+  intervaloAuto: 2
+});
+
+function normalizePrestitoAmount(value = '') {
+  return String(value || '').replace(/\D/g, '');
+}
+
+function handlePrestitoAmountInput(event) {
+  const target = event?.target || document.getElementById('prestitoAmount');
+  if (!target) return;
+  const clean = normalizePrestitoAmount(target.value);
+  target.value = clean ? formatNumber(Number(clean)) : '';
+}
+
+function parsePrestitoAmountInput() {
+  const amountEl = document.getElementById('prestitoAmount');
+  const clean = normalizePrestitoAmount(amountEl?.value || '');
+  return Number(clean || 0);
+}
+
+function prestitoPMT(ir, np, pv, fv = 0, type = 0) {
+  if (!ir) return -(pv + fv) / np;
+  const pvif = Math.pow(1 + ir, np);
+  let pmt = -ir * (pv * pvif + fv) / (pvif - 1);
+  if (type === 1) pmt /= (1 + ir);
+  return pmt;
+}
+
+function getPrestitoRangeConfig(config, modelYear) {
+  const year = Number(modelYear);
+  const currentYear = new Date().getFullYear();
+  const age = currentYear - year;
+  if (!Number.isFinite(age) || age < 0 || age > 15) {
+    return { eligible: false, age };
+  }
+  if (age >= 11) {
+    return { eligible: true, age, interest: Number(config.interesAutoR1), cuotas: Number(config.cuotasAutoR1), intervalo: Number(config.intervaloAuto) };
+  }
+  if (age >= 8) {
+    return { eligible: true, age, interest: Number(config.interesAutoR2), cuotas: Number(config.cuotasAutoR2), intervalo: Number(config.intervaloAuto) };
+  }
+  return { eligible: true, age, interest: Number(config.interesAutoR3), cuotas: Number(config.cuotasAutoR3), intervalo: Number(config.intervaloAuto) };
+}
+
+async function getPrestitoQuoteConfig(force = false) {
+  if (prestitoConfigCache && !force) return prestitoConfigCache;
+  try {
+    const data = await request('/partners/prestito/config');
+    const cfg = data?.config || {};
+    prestitoConfigCache = {
+      interesAutoR1: Number(cfg.interesAutoR1) || PRESTITO_FALLBACK_CONFIG.interesAutoR1,
+      interesAutoR2: Number(cfg.interesAutoR2) || PRESTITO_FALLBACK_CONFIG.interesAutoR2,
+      interesAutoR3: Number(cfg.interesAutoR3) || PRESTITO_FALLBACK_CONFIG.interesAutoR3,
+      cuotasAutoR1: Number(cfg.cuotasAutoR1) || PRESTITO_FALLBACK_CONFIG.cuotasAutoR1,
+      cuotasAutoR2: Number(cfg.cuotasAutoR2) || PRESTITO_FALLBACK_CONFIG.cuotasAutoR2,
+      cuotasAutoR3: Number(cfg.cuotasAutoR3) || PRESTITO_FALLBACK_CONFIG.cuotasAutoR3,
+      intervaloAuto: Number(cfg.intervaloAuto) || PRESTITO_FALLBACK_CONFIG.intervaloAuto
+    };
+  } catch {
+    prestitoConfigCache = { ...PRESTITO_FALLBACK_CONFIG };
+  }
+  return prestitoConfigCache;
+}
+
+async function calculatePrestitoQuote() {
+  const yearEl = document.getElementById('prestitoModelYear');
+  const infoEl = document.getElementById('prestitoQuoteInfo');
+  const rowsEl = document.getElementById('prestitoQuoteRows');
+  const tableWrap = document.getElementById('prestitoTableWrap');
+  if (!yearEl || !infoEl || !rowsEl || !tableWrap) return;
+
+  const modelYear = parseInt(yearEl.value, 10);
+  const amount = parsePrestitoAmountInput();
+  if (!Number.isFinite(modelYear) || modelYear < 2000) {
+    showToast('Ingresá un año de modelo válido', 'error');
+    return;
+  }
+  if (!Number.isFinite(amount) || amount <= 0) {
+    showToast('Ingresá un importe válido', 'error');
+    return;
+  }
+
+  const maxFinancingAmount = Number(prestitoVehicleContext?.maxFinancingAmount || 0);
+  if (maxFinancingAmount > 0 && amount > maxFinancingAmount) {
+    showToast(`El importe no puede superar el 50% del vehículo ($${formatNumber(maxFinancingAmount)})`, 'warning');
+    return;
+  }
+
+  const config = await getPrestitoQuoteConfig();
+  const range = getPrestitoRangeConfig(config, modelYear);
+  if (!range.eligible) {
+    tableWrap.style.display = 'none';
+    rowsEl.innerHTML = '';
+    infoEl.textContent = 'Préstito financia autos con antigüedad de hasta 15 años.';
+    return;
+  }
+
+  const cuotas = Math.max(2, Number(range.cuotas || 24));
+  const intervalo = Math.max(1, Number(range.intervalo || 2));
+  const startAt = Math.max(2, intervalo + 2);
+  const monthlyRate = Number(range.interest || 0) / 12;
+
+  const rows = [];
+  for (let n = startAt; n <= cuotas; n += intervalo) {
+    const cuotaEstimada = Math.round(prestitoPMT(monthlyRate, n, amount * -1));
+    rows.push({ cuotas: n, cuota: cuotaEstimada });
+  }
+  if (!rows.length) {
+    const cuotaEstimada = Math.round(prestitoPMT(monthlyRate, cuotas, amount * -1));
+    rows.push({ cuotas, cuota: cuotaEstimada });
+  }
+
+  rowsEl.innerHTML = rows.map((row) => `
+    <tr>
+      <td>${row.cuotas}</td>
+      <td>$ ${formatNumber(row.cuota)}</td>
+    </tr>
+  `).join('');
+
+  const tasaAnual = Math.round(Number(range.interest || 0) * 1000) / 10;
+  infoEl.textContent = `Modelo ${modelYear} (${range.age} años) · Hasta ${cuotas} cuotas · Tasa de referencia ${tasaAnual}% anual`;
+  tableWrap.style.display = 'block';
+}
+
+function openPrestitoQuoteModal(vehicleId, vehicleYear, vehiclePriceUsd, vehiclePriceArs, vehicleTitle = '') {
+  const yearEl = document.getElementById('prestitoModelYear');
+  const amountEl = document.getElementById('prestitoAmount');
+  const emailEl = document.getElementById('prestitoEmail');
+  const rowsEl = document.getElementById('prestitoQuoteRows');
+  const tableWrap = document.getElementById('prestitoTableWrap');
+  const infoEl = document.getElementById('prestitoQuoteInfo');
+  const titleEl = document.getElementById('prestitoVehicleTitle');
+
+  const numericYear = Number(vehicleYear || 0);
+  const numericPriceUsd = Number(vehiclePriceUsd || 0);
+  const numericPriceArs = Number(vehiclePriceArs || 0);
+  const maxFinancingAmount = numericPriceArs > 0 ? Math.round(numericPriceArs * 0.5) : 0;
+
+  prestitoVehicleContext = {
+    vehicleId: Number(vehicleId || 0),
+    year: Number.isFinite(numericYear) && numericYear > 0 ? numericYear : new Date().getFullYear(),
+    priceUsd: Number.isFinite(numericPriceUsd) ? numericPriceUsd : 0,
+    priceArs: Number.isFinite(numericPriceArs) ? numericPriceArs : 0,
+    maxFinancingAmount
+  };
+
+  if (titleEl) {
+    const safeTitle = String(vehicleTitle || '').trim();
+    titleEl.textContent = safeTitle
+      ? `Simulá cuotas para ${safeTitle}`
+      : 'Simulá tus cuotas en pesos para este vehículo.';
+  }
+  if (yearEl) yearEl.value = String(prestitoVehicleContext.year);
+  if (amountEl) amountEl.value = maxFinancingAmount > 0 ? formatNumber(maxFinancingAmount) : '';
+  if (emailEl) emailEl.value = String(currentUser?.email || '').trim();
+  if (rowsEl) rowsEl.innerHTML = '';
+  if (tableWrap) tableWrap.style.display = 'none';
+  if (infoEl) {
+    infoEl.textContent = maxFinancingAmount > 0
+      ? `Monto máximo estimado (50%): $${formatNumber(maxFinancingAmount)}`
+      : 'Ingresá monto y año para calcular cuotas estimadas.';
+  }
+
+  openAccessibleModal('prestitoModal', { initialFocusSelector: '#prestitoAmount' });
+  calculatePrestitoQuote().catch(() => {});
+}
+
+function closePrestitoQuoteModal() {
+  closeAccessibleModal('prestitoModal');
+  prestitoVehicleContext = null;
+}
+
+async function submitPrestitoLead() {
+  const btn = document.getElementById('prestitoLeadBtn');
+  const email = String(document.getElementById('prestitoEmail')?.value || '').trim();
+  const modelYear = parseInt(document.getElementById('prestitoModelYear')?.value || '', 10);
+  const amount = parsePrestitoAmountInput();
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    showToast('Ingresá un email válido para enviar la solicitud', 'error');
+    return;
+  }
+  if (!Number.isFinite(modelYear) || modelYear < 2000) {
+    showToast('Ingresá un año válido', 'error');
+    return;
+  }
+  if (!Number.isFinite(amount) || amount <= 0) {
+    showToast('Ingresá un importe válido', 'error');
+    return;
+  }
+
+  const maxFinancingAmount = Number(prestitoVehicleContext?.maxFinancingAmount || 0);
+  if (maxFinancingAmount > 0 && amount > maxFinancingAmount) {
+    showToast(`El importe no puede superar el 50% del vehículo ($${formatNumber(maxFinancingAmount)})`, 'warning');
+    return;
+  }
+
+  const defaultLabel = btn?.textContent || 'Enviar a Préstito';
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Enviando...';
+  }
+  try {
+    await request('/partners/prestito/lead', {
+      method: 'POST',
+      body: JSON.stringify({
+        tipo: 'Auto',
+        modelo: modelYear,
+        importe: amount,
+        correo: email,
+        vehicle_id: prestitoVehicleContext?.vehicleId || null
+      })
+    });
+    showToast('Solicitud enviada a Préstito. Te van a contactar por email.', 'success');
+  } catch (err) {
+    showToast(err.message || 'No se pudo enviar a Préstito', 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = defaultLabel;
+    }
+  }
+}
+
 async function toggleVerify(id) {
   try {
     const res = await request(`/admin/users/${id}/verify`, { method: 'PUT' });
@@ -4678,6 +4916,7 @@ function closeAllModals() {
   if (isVisibleElement(document.getElementById('tradeModal'))) closeTradeModal();
   if (isVisibleElement(document.getElementById('reportModal'))) closeReportModal();
   if (isVisibleElement(document.getElementById('rateModal'))) closeRateModal();
+  if (isVisibleElement(document.getElementById('prestitoModal'))) closePrestitoQuoteModal();
   if (isVisibleElement(document.getElementById('confirmModal'))) closeConfirmModal();
   if (isVisibleElement(document.getElementById('editProfileModal'))) closeEditProfileModal();
   modalStack = [];

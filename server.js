@@ -1127,6 +1127,17 @@ async function handleWsMessage(ws, user, msg) {
 // ===== DÓLAR BLUE =====
 let dolarCache = { rate: null, timestamp: 0 };
 const DOLAR_CACHE_TTL = 10 * 60 * 1000; // 10 minutos
+const PRESTITO_CONFIG_TTL = 6 * 60 * 60 * 1000; // 6 horas
+let prestitoConfigCache = { config: null, timestamp: 0 };
+const PRESTITO_DEFAULT_CONFIG = Object.freeze({
+  interesAutoR1: 1.015,
+  interesAutoR2: 0.87,
+  interesAutoR3: 0.72,
+  cuotasAutoR1: 24,
+  cuotasAutoR2: 36,
+  cuotasAutoR3: 48,
+  intervaloAuto: 2
+});
 
 async function fetchDolarBlue() {
   const now = Date.now();
@@ -1140,6 +1151,45 @@ async function fetchDolarBlue() {
   const data = await res.json();
   dolarCache = { rate: data, timestamp: now };
   return data;
+}
+
+function sanitizePrestitoConfig(raw = {}) {
+  const toNum = (v, fallback) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : fallback;
+  };
+  return {
+    interesAutoR1: toNum(raw.interesAutoR1, PRESTITO_DEFAULT_CONFIG.interesAutoR1),
+    interesAutoR2: toNum(raw.interesAutoR2, PRESTITO_DEFAULT_CONFIG.interesAutoR2),
+    interesAutoR3: toNum(raw.interesAutoR3, PRESTITO_DEFAULT_CONFIG.interesAutoR3),
+    cuotasAutoR1: Math.max(2, Math.floor(toNum(raw.cuotasAutoR1, PRESTITO_DEFAULT_CONFIG.cuotasAutoR1))),
+    cuotasAutoR2: Math.max(2, Math.floor(toNum(raw.cuotasAutoR2, PRESTITO_DEFAULT_CONFIG.cuotasAutoR2))),
+    cuotasAutoR3: Math.max(2, Math.floor(toNum(raw.cuotasAutoR3, PRESTITO_DEFAULT_CONFIG.cuotasAutoR3))),
+    intervaloAuto: Math.max(1, Math.floor(toNum(raw.intervaloAuto, PRESTITO_DEFAULT_CONFIG.intervaloAuto)))
+  };
+}
+
+async function fetchPrestitoConfig() {
+  const now = Date.now();
+  if (prestitoConfigCache.config && (now - prestitoConfigCache.timestamp) < PRESTITO_CONFIG_TTL) {
+    return { config: prestitoConfigCache.config, source: 'cache' };
+  }
+  try {
+    const response = await fetch('https://www.prestito.com.ar/assets/js/config.json', {
+      signal: AbortSignal.timeout(6000)
+    });
+    if (!response.ok) throw new Error(`Prestito config HTTP ${response.status}`);
+    const payload = await response.json();
+    const config = sanitizePrestitoConfig(payload || {});
+    prestitoConfigCache = { config, timestamp: now };
+    return { config, source: 'live' };
+  } catch (err) {
+    console.warn('[prestito config] live fetch warning:', err.message);
+    if (prestitoConfigCache.config) {
+      return { config: prestitoConfigCache.config, source: 'cache-stale' };
+    }
+    return { config: PRESTITO_DEFAULT_CONFIG, source: 'default' };
+  }
 }
 
 // ─── WebSocket Server ────────────────────────────────────────────────────────
@@ -1240,6 +1290,68 @@ app.get('/api/dolar', async (_req, res) => {
     console.error('Error fetching dolar blue:', err.message);
     if (dolarCache.rate) return res.json({ ...dolarCache.rate, stale: true });
     res.status(503).json({ error: 'No se pudo obtener la cotización' });
+  }
+});
+
+app.get('/api/partners/prestito/config', async (_req, res) => {
+  try {
+    const result = await fetchPrestitoConfig();
+    res.set('Cache-Control', 'public, max-age=300');
+    res.json({
+      provider: 'prestito',
+      source: result.source,
+      config: result.config
+    });
+  } catch (error) {
+    console.error('[/api/partners/prestito/config]', error.message);
+    res.status(503).json({ error: 'No se pudo obtener configuración de Préstito' });
+  }
+});
+
+app.post('/api/partners/prestito/lead', async (req, res) => {
+  try {
+    const tipo = String(req.body?.tipo || 'Auto').trim() || 'Auto';
+    const modelo = parseInt(req.body?.modelo, 10);
+    const importeRaw = Number(req.body?.importe);
+    const correo = String(req.body?.correo || '').trim();
+
+    if (!Number.isFinite(modelo) || modelo < 2000 || modelo > (new Date().getFullYear() + 1)) {
+      return res.status(400).json({ error: 'Modelo inválido' });
+    }
+    if (!Number.isFinite(importeRaw) || importeRaw <= 0) {
+      return res.status(400).json({ error: 'Importe inválido' });
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) {
+      return res.status(400).json({ error: 'Email inválido' });
+    }
+
+    const body = new URLSearchParams({
+      tipo,
+      modelo: String(modelo),
+      importe: String(Math.round(importeRaw)),
+      correo
+    });
+    const response = await fetch('https://www.prestito.com.ar/save.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+      signal: AbortSignal.timeout(8000)
+    });
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      throw new Error(`Prestito save HTTP ${response.status} ${text.slice(0, 120)}`);
+    }
+
+    const text = await response.text().catch(() => '');
+    res.json({
+      success: true,
+      provider: 'prestito',
+      message: text || 'Simulación enviada correctamente'
+    });
+  } catch (error) {
+    console.error('[/api/partners/prestito/lead]', error.message);
+    res.status(502).json({ error: 'No se pudo enviar la simulación a Préstito' });
   }
 });
 
