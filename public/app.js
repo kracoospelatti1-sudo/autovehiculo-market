@@ -40,6 +40,7 @@ let currentSectionId = 'home';
 let vehiclesCurrentPage = 1;
 let vehiclesHistorySyncTimer = null;
 let isHandlingPopState = false;
+const VEHICLE_CARD_EXPERIMENT = 'v2';
 
 const VEHICLES_STATE_STORAGE_KEY = 'vehicles:list-state:v1';
 const VEHICLES_FILTER_IDS = [
@@ -61,6 +62,10 @@ const VEHICLES_FILTER_IDS = [
 
 if (typeof window !== 'undefined' && 'scrollRestoration' in window.history) {
   window.history.scrollRestoration = 'manual';
+}
+
+if (typeof document !== 'undefined') {
+  document.documentElement.setAttribute('data-vehicle-card-experiment', VEHICLE_CARD_EXPERIMENT);
 }
 
 function ensureLeafletCss() {
