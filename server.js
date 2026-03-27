@@ -34,6 +34,7 @@ const INSTAGRAM_ACCESS_TOKEN = process.env.INSTAGRAM_ACCESS_TOKEN || '';
 const INSTAGRAM_DEFAULT_HASHTAGS = (process.env.INSTAGRAM_DEFAULT_HASHTAGS || '#autoventa #autosusados #autos #argentina').trim();
 const INSTAGRAM_CONTAINER_READY_TIMEOUT_MS = Number.parseInt(process.env.INSTAGRAM_CONTAINER_READY_TIMEOUT_MS || '45000', 10);
 const INSTAGRAM_CONTAINER_READY_POLL_MS = Number.parseInt(process.env.INSTAGRAM_CONTAINER_READY_POLL_MS || '1500', 10);
+const INSTAGRAM_GRAPH_TIMEOUT_MS = Number.parseInt(process.env.INSTAGRAM_GRAPH_TIMEOUT_MS || '8000', 10);
 const FINANCING_PROVIDER_VALUES = new Set(['prestito', 'propia']);
 const IG_CONFIG_DB_KEYS = Object.freeze({
   businessAccountId: 'instagram_business_account_id',
@@ -705,7 +706,7 @@ async function instagramGraphRequest(endpointPath, { method = 'POST', params = {
     const query = new URLSearchParams({ ...safeParams, access_token: token });
     response = await fetch(`${url}?${query.toString()}`, {
       method,
-      signal: AbortSignal.timeout(15000)
+      signal: AbortSignal.timeout(INSTAGRAM_GRAPH_TIMEOUT_MS)
     });
   } else {
     const body = new URLSearchParams({ ...safeParams, access_token: token });
@@ -713,7 +714,7 @@ async function instagramGraphRequest(endpointPath, { method = 'POST', params = {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body,
-      signal: AbortSignal.timeout(15000)
+      signal: AbortSignal.timeout(INSTAGRAM_GRAPH_TIMEOUT_MS)
     });
   }
 
@@ -778,7 +779,7 @@ async function waitForInstagramContainerReady(igRequest, containerId, {
 
 async function createCarouselContainerWithRetry(igRequest, igBusinessId, children, caption) {
   let lastError = null;
-  for (let attempt = 1; attempt <= 4; attempt += 1) {
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
     try {
       return await igRequest(`/${igBusinessId}/media`, {
         method: 'POST',
@@ -793,7 +794,7 @@ async function createCarouselContainerWithRetry(igRequest, igBusinessId, childre
       if (!isInstagramMediaNotReadyError(err) && !isInstagramTransientError(err)) {
         throw err;
       }
-      await sleep(700 * attempt);
+      await sleep(500 * attempt);
     }
   }
   throw lastError || new Error('No se pudo crear el carrusel de Instagram');
@@ -801,7 +802,7 @@ async function createCarouselContainerWithRetry(igRequest, igBusinessId, childre
 
 async function createInstagramImageContainerWithRetry(igRequest, igBusinessId, imageUrl, { isCarouselItem = false, caption = '' } = {}) {
   let lastError = null;
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
     try {
       const params = {
         image_url: imageUrl
@@ -831,7 +832,7 @@ async function createInstagramImageContainerWithRetry(igRequest, igBusinessId, i
 
 async function publishInstagramCreationWithRetry(igRequest, igBusinessId, creationId) {
   let lastError = null;
-  for (let attempt = 1; attempt <= 4; attempt += 1) {
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
     try {
       return await igRequest(`/${igBusinessId}/media_publish`, {
         method: 'POST',
@@ -842,7 +843,7 @@ async function publishInstagramCreationWithRetry(igRequest, igBusinessId, creati
       if (!isInstagramMediaNotReadyError(err) && !isInstagramTransientError(err)) {
         throw err;
       }
-      await sleep(1000 * attempt);
+      await sleep(800 * attempt);
     }
   }
   throw lastError || new Error('No se pudo publicar en Instagram');
