@@ -701,13 +701,17 @@ async function instagramGraphRequest(endpointPath, { method = 'POST', params = {
   let response;
   if (method === 'GET' || method === 'DELETE') {
     const query = new URLSearchParams({ ...safeParams, access_token: token });
-    response = await fetch(`${url}?${query.toString()}`, { method });
+    response = await fetch(`${url}?${query.toString()}`, {
+      method,
+      signal: AbortSignal.timeout(15000)
+    });
   } else {
     const body = new URLSearchParams({ ...safeParams, access_token: token });
     response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body
+      body,
+      signal: AbortSignal.timeout(15000)
     });
   }
 
@@ -791,6 +795,36 @@ async function createCarouselContainerWithRetry(igRequest, igBusinessId, childre
     }
   }
   throw lastError || new Error('No se pudo crear el carrusel de Instagram');
+}
+
+async function createInstagramImageContainerWithRetry(igRequest, igBusinessId, imageUrl, { isCarouselItem = false, caption = '' } = {}) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= 5; attempt += 1) {
+    try {
+      const params = {
+        image_url: imageUrl
+      };
+      if (isCarouselItem) {
+        params.is_carousel_item = true;
+      } else if (caption) {
+        params.caption = caption;
+      }
+      const response = await igRequest(`/${igBusinessId}/media`, {
+        method: 'POST',
+        params
+      });
+      const containerId = String(response?.id || '').trim();
+      if (!containerId) throw new Error('Instagram no devolvio ID del contenedor de imagen');
+      return { ...response, id: containerId };
+    } catch (err) {
+      lastError = err;
+      if (!isInstagramMediaNotReadyError(err) && !isInstagramTransientError(err)) {
+        throw err;
+      }
+      await sleep(700 * attempt);
+    }
+  }
+  throw lastError || new Error('No se pudo crear el contenedor de imagen en Instagram');
 }
 
 async function publishInstagramCreationWithRetry(igRequest, igBusinessId, creationId) {
@@ -3973,25 +4007,27 @@ app.post('/api/admin/vehicles/:id/publish-instagram', authenticateToken, async (
 
     let creationId = null;
     if (imageUrls.length === 1) {
-      const createMedia = await igRequest(`/${igBusinessId}/media`, {
-        method: 'POST',
-        params: {
-          image_url: imageUrls[0],
-          caption
-        }
-      });
+      const createMedia = await createInstagramImageContainerWithRetry(
+        igRequest,
+        igBusinessId,
+        imageUrls[0],
+        { isCarouselItem: false, caption }
+      );
       creationId = createMedia?.id;
       if (creationId) {
         await waitForInstagramContainerReady(igRequest, creationId, { timeoutMs: 45000, pollMs: 1500 });
       }
     } else {
-      const childMediaList = await Promise.all(imageUrls.map((imageUrl) => igRequest(`/${igBusinessId}/media`, {
-        method: 'POST',
-        params: {
-          image_url: imageUrl,
-          is_carousel_item: true
-        }
-      })));
+      const childMediaList = [];
+      for (const imageUrl of imageUrls) {
+        const child = await createInstagramImageContainerWithRetry(
+          igRequest,
+          igBusinessId,
+          imageUrl,
+          { isCarouselItem: true }
+        );
+        childMediaList.push(child);
+      }
       const children = childMediaList
         .map((item) => String(item?.id || '').trim())
         .filter(Boolean);
@@ -4038,7 +4074,30 @@ app.post('/api/admin/vehicles/:id/publish-instagram', authenticateToken, async (
     });
   } catch (error) {
     console.error('[/api/admin/vehicles/:id/publish-instagram]', error.message);
-    res.status(502).json({ error: error.message || 'No se pudo publicar en Instagram' });
+    try {
+      const fallbackVehicleId = parseInt(req.params.id, 10);
+      if (!isNaN(fallbackVehicleId)) {
+        const recentTracked = await getTrackedInstagramPostsForVehicle(fallbackVehicleId);
+        const recent = recentTracked[0] || null;
+        const recentCreatedAt = Date.parse(String(recent?.created_at || ''));
+        const withinWindow = Number.isFinite(recentCreatedAt) && (Date.now() - recentCreatedAt) < (10 * 60 * 1000);
+        if (recent?.media_id && withinWindow && !res.headersSent) {
+          return res.json({
+            success: true,
+            recovered_from_error: true,
+            already_published: true,
+            vehicle_id: fallbackVehicleId,
+            media_id: recent.media_id,
+            permalink: recent.permalink || null
+          });
+        }
+      }
+    } catch (fallbackErr) {
+      console.warn('[/api/admin/vehicles/:id/publish-instagram][fallback]', fallbackErr.message);
+    }
+    if (!res.headersSent) {
+      res.status(502).json({ error: error.message || 'No se pudo publicar en Instagram' });
+    }
   }
 });
 

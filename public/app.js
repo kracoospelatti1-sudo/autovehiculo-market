@@ -2220,22 +2220,25 @@ async function viewVehicle(id, options = {}) {
     const whatsappText = encodeURIComponent(`Hola, te contacto desde la pagina *Autoventa* por el siguiente anuncio: https://autoventa.online/?vehicle=${vehicle.id}`);
     const prestitoWhatsappText = encodeURIComponent(`Hola, vi en *Autoventa* este vehículo (${vehicle.title}). Quiero consultar financiación con Préstito: https://autoventa.online/?vehicle=${vehicle.id}`);
     const ownFinancingWhatsappText = encodeURIComponent(`Hola, vi en *Autoventa* este vehículo (${vehicle.title}). Quiero consultar la financiación propia del vendedor: https://autoventa.online/?vehicle=${vehicle.id}`);
-    const financingProvider = String(vehicle.financing_provider || (vehicle.accepts_financing ? 'prestito' : '')).toLowerCase();
+    const financingProvider = String(vehicle.financing_provider || '').trim().toLowerCase();
     const isOwnFinancing = financingProvider === 'propia';
-    const financingUsesPrestito = !isOwnFinancing;
+    const financingUsesPrestito = financingProvider === 'prestito';
     const financingTitleText = isOwnFinancing
       ? 'Este vendedor ofrece financiacion propia'
       : 'Este vendedor ofrece financiacion';
-    const financingSubtitleText = isOwnFinancing
-      ? 'Consulta condiciones directamente con el vendedor'
-      : 'Podes simular cuotas y consultar requisitos';
+    const financingSubtitleText = financingUsesPrestito
+      ? 'Podes simular cuotas y consultar requisitos'
+      : 'Consulta condiciones directamente con el vendedor';
     const financingPrimaryCtaHtml = financingUsesPrestito
       ? `<button class="btn btn-primary financing-cta-btn" onclick="openPrestitoQuoteModal(${vehicle.id}, ${Number(vehicle.year || 0)}, ${Number(vehicle.price || 0)}, ${Number(vehicle.price_original || 0)}, '${escapeHtml(vehicle.title).replace(/'/g, '&#39;')}')">Cotizar con Prestito</button>`
       : '';
+    const financingQuickMessage = financingUsesPrestito
+      ? 'Quiero consultar financiacion con Prestito.'
+      : (isOwnFinancing ? 'Quiero consultar financiacion propia.' : 'Quiero consultar financiacion.');
     const financingSecondaryCtaHtml = (vehicle.seller_profile?.phone && vehicle.seller_profile?.show_phone !== false)
-      ? `<a href="https://wa.me/${escapeHtml(profileWhatsapp)}?text=${financingUsesPrestito ? prestitoWhatsappText : ownFinancingWhatsappText}" target="_blank" rel="noopener" class="btn btn-secondary financing-cta-btn">${financingUsesPrestito ? 'Consultar por chat de Prestito' : 'Consultar financiacion propia'}</a>`
+      ? `<a href="https://wa.me/${escapeHtml(profileWhatsapp)}?text=${financingUsesPrestito ? prestitoWhatsappText : ownFinancingWhatsappText}" target="_blank" rel="noopener" class="btn btn-secondary financing-cta-btn">Consultar con el vendedor</a>`
       : (isLoggedIn
-          ? `<button class="btn btn-secondary financing-cta-btn" onclick="const qm=document.getElementById('quickMsgInput'); if(qm){qm.value='${financingUsesPrestito ? '¿Ofreces financiación?' : 'Quiero consultar financiación propia.'}'; qm.focus();}">Consultar por chat</button>`
+          ? `<button class="btn btn-secondary financing-cta-btn" onclick="const qm=document.getElementById('quickMsgInput'); if(qm){qm.value='${financingQuickMessage}'; qm.focus();}">Consultar por chat</button>`
           : '');
     const descriptionParagraphs = String(vehicle.description || '')
       .split(/\n\s*\n/)
@@ -2437,7 +2440,7 @@ ${vehicle.accepts_trade && isLoggedIn && !isOwner && vehicle.status === 'active'
               ` : ''}
               ${isLoggedIn && (vehicle.status !== 'sold' || isFavorite) ? `<button id="detailFavBtn" class="btn ${isFavorite ? 'btn-primary' : 'btn-secondary'}" onclick="toggleFavorite(${vehicle.id}, event)"><svg width="18" height="18" viewBox="0 0 24 24" fill="${isFavorite ? 'currentColor' : 'none'}" stroke="currentColor" style="margin-right:0.5rem;"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>${isFavorite ? 'Quitar de favoritos' : 'Guardar en favoritos'}</button>` : ''}
               ${isLoggedIn && !isOwner ? `<button class="btn btn-ghost" onclick="openReportModal(${vehicle.id})" style="color:var(--text-3);">Reportar esta publicación</button>` : ''}
-              ${!isLoggedIn ? `<button class="btn btn-primary" style="width:100%" onclick="showSection('login')">Iniciar sesión para contactar, ofrecer permutas o consultar financiación</button>` : ''}
+              ${!isLoggedIn ? `<button class="btn btn-primary" style="width:100%" onclick="showSection('login')">Iniciar sesión para mejorar la experiencia</button>` : ''}
             </div>
           </div>
           ${isAdminView ? `
@@ -2752,7 +2755,10 @@ async function handlePublish(e) {
       contact_address: document.getElementById('publishContactAddress')?.value?.trim() || null,
       images: urls
     };
-    await request('/vehicles', { method: 'POST', body: JSON.stringify(data) });
+    const createdVehicle = await request('/vehicles', { method: 'POST', body: JSON.stringify(data) });
+    if (acceptsFinancing && createdVehicle && !Object.prototype.hasOwnProperty.call(createdVehicle, 'financing_provider')) {
+      showToast('No se guardo el tipo de financiacion. Ejecuta la migracion add-financing-provider-to-vehicles.sql', 'error');
+    }
     showToast('¡Vehículo publicado!', 'success');
     resetPublishForm();
     showSection('my-vehicles');
@@ -3009,7 +3015,7 @@ async function handleEditVehicle(e) {
     }
     const editImageUrls = await uploadEditImages();
     const autoTitle = `${editBrand} ${editModel} ${editVersion} ${editYear}`.replace(/\s+/g, ' ').trim();
-    await request(`/vehicles/${id}`, {
+    const updatedVehicle = await request(`/vehicles/${id}`, {
       method: 'PUT',
       body: JSON.stringify({
         title: autoTitle,
@@ -3041,6 +3047,9 @@ async function handleEditVehicle(e) {
         images: editImageUrls
       })
     });
+    if (editAcceptsFinancing && updatedVehicle && !Object.prototype.hasOwnProperty.call(updatedVehicle, 'financing_provider')) {
+      showToast('No se guardo el tipo de financiacion. Ejecuta la migracion add-financing-provider-to-vehicles.sql', 'error');
+    }
     showToast('¡Publicación actualizada!', 'success');
     closeEditModal();
     if (String(currentVehicleId) === String(id)) {

@@ -2079,6 +2079,8 @@ select {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+  width: 100%;
+  justify-content: center;
 }
 
 .financing-cta-buttons .financing-cta-btn {
