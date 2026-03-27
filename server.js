@@ -755,7 +755,7 @@ async function waitForInstagramContainerReady(igRequest, containerId, {
     try {
       const info = await igRequest(`/${containerId}`, {
         method: 'GET',
-        params: { fields: 'id,status_code,status,error_message' }
+        params: { fields: 'id,status_code,status' }
       });
       const statusCode = String(info?.status_code || info?.status || '').toUpperCase();
       if (!statusCode || statusCode === 'FINISHED' || statusCode === 'PUBLISHED') {
