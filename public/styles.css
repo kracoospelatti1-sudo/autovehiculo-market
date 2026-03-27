@@ -2085,6 +2085,30 @@ select {
   white-space: nowrap;
 }
 
+.financing-card-copy {
+  min-width: 220px;
+}
+
+.financing-card-title {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  line-height: 1.2;
+}
+
+.financing-prestito-logo {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 2px;
+  box-shadow: 0 2px 7px rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+}
+
 /* Chat box (marketplace) */
 .marketplace-chat-box {
   background: var(--dark-2);
@@ -3484,6 +3508,14 @@ select {
 }
 
 @media (max-width: 680px) {
+  .financing-card-copy {
+    width: 100%;
+  }
+
+  .financing-card-title {
+    font-size: 0.9rem;
+  }
+
   .financing-cta-buttons {
     width: 100%;
     flex-direction: column;

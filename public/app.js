@@ -2352,8 +2352,11 @@ ${vehicle.accepts_trade && isLoggedIn && !isOwner && vehicle.status === 'active'
           ` : ''}
           ${vehicle.accepts_financing && vehicle.status !== 'sold' ? `
             <div style="margin-top:0.75rem;background:rgba(59,130,246,0.07);border:1px solid rgba(59,130,246,0.22);border-radius:var(--radius-md);padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
-              <div>
-                <div style="font-weight:600;font-size:0.95rem;">💳 Este vendedor ofrece financiación</div>
+              <div class="financing-card-copy">
+                <div class="financing-card-title">
+                  <img src="/logoprestito.png" alt="Préstito" class="financing-prestito-logo" loading="lazy">
+                  <span>Este vendedor ofrece financiación</span>
+                </div>
                 <div style="font-size:0.82rem;color:var(--text-2);margin-top:2px;">Podés simular cuotas y consultar requisitos</div>
               </div>
               <div class="financing-cta-buttons">
