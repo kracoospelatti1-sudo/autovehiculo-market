@@ -1235,8 +1235,12 @@ async function request(endpoint, options = {}) {
   const text = contentType.includes('application/json') ? '' : await response.text().catch(() => '');
   if (!response.ok) {
     const fallbackHttpMsg = `HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''}`;
-    const serverText = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 180);
-    const err = new Error(data.error || data.message || serverText || fallbackHttpMsg);
+    const rawText = String(text || '').trim();
+    const looksLikeHtml = /<!doctype|<html|<head|<body/i.test(rawText) || rawText.startsWith('<');
+    const normalizedText = looksLikeHtml
+      ? ''
+      : rawText.replace(/\s+/g, ' ').slice(0, 180);
+    const err = new Error(data.error || data.message || normalizedText || fallbackHttpMsg);
     err.status = response.status;
     if (data.needsVerification) err.needsVerification = true;
     throw err;
