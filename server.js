@@ -640,6 +640,27 @@ function normalizeProvince(value = '') {
     .trim();
 }
 
+function buildInstagramCompatibleImageUrl(url = '') {
+  const raw = String(url || '').trim();
+  if (!/^https?:\/\//i.test(raw)) return raw;
+
+  // If the source is Supabase public storage, use on-the-fly render/crop
+  // so Instagram always receives a supported feed ratio (4:5).
+  const sourceWithoutQuery = raw.split('?')[0];
+  const match = sourceWithoutQuery.match(/^(https?:\/\/[^/]+)\/storage\/v1\/object\/public\/(.+)$/i);
+  if (!match) return raw;
+
+  const base = match[1];
+  const objectPath = match[2];
+  const qs = new URLSearchParams({
+    width: '1080',
+    height: '1350',
+    resize: 'cover',
+    quality: '90'
+  });
+  return `${base}/storage/v1/render/image/public/${objectPath}?${qs.toString()}`;
+}
+
 function buildInstagramCaption(vehicle, detailUrl, publisherName = '', hashtags = INSTAGRAM_DEFAULT_HASHTAGS) {
   const lines = [];
   const usd = Number(vehicle?.price || 0);
@@ -3995,7 +4016,10 @@ app.post('/api/admin/vehicles/:id/publish-instagram', authenticateToken, async (
     const publisherName = dealershipName || sellerUsername;
 
     // Instagram feed carousels allow up to 10 media items.
-    const imageUrls = validUniqueUrls.slice(0, 10);
+    // Use IG-compatible rendered URLs when possible (4:5 crop).
+    const imageUrls = validUniqueUrls
+      .slice(0, 10)
+      .map((url) => buildInstagramCompatibleImageUrl(url));
     const detailUrl = `${getPublicAppBaseUrl(req)}/?vehicle=${vehicle.id}`;
     const caption = buildInstagramCaption(vehicle, detailUrl, publisherName, instagramConfig.defaultHashtags);
     const igBusinessId = instagramConfig.businessAccountId;
