@@ -670,6 +670,8 @@ function buildInstagramCaption(vehicle, detailUrl, publisherName = '', hashtags 
     lines.push('');
     lines.push(String(hashtags).trim());
   }
+  lines.push('');
+  lines.push('Consultame por privado o al 2352 487435.');
   let caption = lines.join('\n').trim();
   if (caption.length > 2200) caption = `${caption.slice(0, 2197)}...`;
   return caption;

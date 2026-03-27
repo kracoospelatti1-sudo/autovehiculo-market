@@ -1868,18 +1868,7 @@ function buildVehicleStatusBadges(v, { compact = false } = {}) {
   ];
 
   if (v.accepts_financing) {
-    const financingProvider = String(v.financing_provider || '').trim().toLowerCase();
-    const financingLabel = compact
-      ? (financingProvider === 'propia'
-          ? 'Fin. propia'
-          : financingProvider === 'prestito'
-            ? 'Fin. Prestito'
-            : 'Financiación')
-      : (financingProvider === 'propia'
-          ? '💳 Financiación propia'
-          : financingProvider === 'prestito'
-            ? '💳 Financiación Prestito'
-            : '💳 Financiación');
+    const financingLabel = compact ? 'Financiación' : '💳 Financiación';
     badges.push(`<span class="vehicle-trade-badge finance-yes">${financingLabel}</span>`);
   }
 
