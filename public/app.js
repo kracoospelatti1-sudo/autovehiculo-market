@@ -1028,6 +1028,15 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
   });
+
+  ['publish', 'edit'].forEach(prefix => {
+    const financingCheckbox = document.getElementById(`${prefix}AcceptsFinancing`);
+    if (financingCheckbox) {
+      financingCheckbox.addEventListener('change', () => toggleFinancingProviderField(prefix));
+      toggleFinancingProviderField(prefix);
+    }
+  });
+
   updateMobileFilterApplyButton();
   window.addEventListener('resize', updateMobileFilterApplyButton);
 });
@@ -1051,6 +1060,16 @@ function toggleBodyTypeField(prefix = 'publish') {
   const visible = shouldShowBodyTypeField(prefix);
   group.style.display = visible ? '' : 'none';
   if (!visible) select.value = '';
+}
+
+function toggleFinancingProviderField(prefix = 'publish') {
+  const checkbox = document.getElementById(`${prefix}AcceptsFinancing`);
+  const group = document.getElementById(`${prefix}FinancingProviderGroup`);
+  const select = document.getElementById(`${prefix}FinancingProvider`);
+  if (!checkbox || !group || !select) return;
+  const visible = checkbox.checked === true;
+  group.style.display = visible ? 'block' : 'none';
+  if (!visible) select.value = 'prestito';
 }
 
 function normalizeTextForCompare(value = '') {
@@ -1395,6 +1414,9 @@ function resetPublishForm() {
   }
   const publishDrivetrainEl = document.getElementById('publishDrivetrain');
   if (publishDrivetrainEl) publishDrivetrainEl.value = '';
+  const publishFinancingProviderEl = document.getElementById('publishFinancingProvider');
+  if (publishFinancingProviderEl) publishFinancingProviderEl.value = 'prestito';
+  toggleFinancingProviderField('publish');
 
   const pubCurrencyEl = document.getElementById('publishCurrency');
   if (pubCurrencyEl) {
@@ -2197,6 +2219,24 @@ async function viewVehicle(id, options = {}) {
     const sellerMapsUrl = sellerLocationQuery ? googleMapsSearchUrl(sellerLocationQuery) : '';
     const whatsappText = encodeURIComponent(`Hola, te contacto desde la pagina *Autoventa* por el siguiente anuncio: https://autoventa.online/?vehicle=${vehicle.id}`);
     const prestitoWhatsappText = encodeURIComponent(`Hola, vi en *Autoventa* este vehículo (${vehicle.title}). Quiero consultar financiación con Préstito: https://autoventa.online/?vehicle=${vehicle.id}`);
+    const ownFinancingWhatsappText = encodeURIComponent(`Hola, vi en *Autoventa* este vehículo (${vehicle.title}). Quiero consultar la financiación propia del vendedor: https://autoventa.online/?vehicle=${vehicle.id}`);
+    const financingProvider = String(vehicle.financing_provider || (vehicle.accepts_financing ? 'prestito' : '')).toLowerCase();
+    const isOwnFinancing = financingProvider === 'propia';
+    const financingUsesPrestito = !isOwnFinancing;
+    const financingTitleText = isOwnFinancing
+      ? 'Este vendedor ofrece financiacion propia'
+      : 'Este vendedor ofrece financiacion';
+    const financingSubtitleText = isOwnFinancing
+      ? 'Consulta condiciones directamente con el vendedor'
+      : 'Podes simular cuotas y consultar requisitos';
+    const financingPrimaryCtaHtml = financingUsesPrestito
+      ? `<button class="btn btn-primary financing-cta-btn" onclick="openPrestitoQuoteModal(${vehicle.id}, ${Number(vehicle.year || 0)}, ${Number(vehicle.price || 0)}, ${Number(vehicle.price_original || 0)}, '${escapeHtml(vehicle.title).replace(/'/g, '&#39;')}')">Cotizar con Prestito</button>`
+      : '';
+    const financingSecondaryCtaHtml = (vehicle.seller_profile?.phone && vehicle.seller_profile?.show_phone !== false)
+      ? `<a href="https://wa.me/${escapeHtml(profileWhatsapp)}?text=${financingUsesPrestito ? prestitoWhatsappText : ownFinancingWhatsappText}" target="_blank" rel="noopener" class="btn btn-secondary financing-cta-btn">${financingUsesPrestito ? 'Consultar por chat de Prestito' : 'Consultar financiacion propia'}</a>`
+      : (isLoggedIn
+          ? `<button class="btn btn-secondary financing-cta-btn" onclick="const qm=document.getElementById('quickMsgInput'); if(qm){qm.value='${financingUsesPrestito ? '¿Ofreces financiación?' : 'Quiero consultar financiación propia.'}'; qm.focus();}">Consultar por chat</button>`
+          : '');
     const descriptionParagraphs = String(vehicle.description || '')
       .split(/\n\s*\n/)
       .map(p => p.trim())
@@ -2354,17 +2394,14 @@ ${vehicle.accepts_trade && isLoggedIn && !isOwner && vehicle.status === 'active'
             <div style="margin-top:0.75rem;background:rgba(59,130,246,0.07);border:1px solid rgba(59,130,246,0.22);border-radius:var(--radius-md);padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
               <div class="financing-card-copy">
                 <div class="financing-card-title">
-                  <img src="/logoprestito.png" alt="Préstito" class="financing-prestito-logo" loading="lazy">
-                  <span>Este vendedor ofrece financiación</span>
+                  ${financingUsesPrestito ? `<img src="/logoprestito.png" alt="Prestito" class="financing-prestito-logo" loading="lazy">` : ''}
+                  <span>${financingTitleText}</span>
                 </div>
-                <div style="font-size:0.82rem;color:var(--text-2);margin-top:2px;">Podés simular cuotas y consultar requisitos</div>
+                <div style="font-size:0.82rem;color:var(--text-2);margin-top:2px;">${financingSubtitleText}</div>
               </div>
               <div class="financing-cta-buttons">
-                <button class="btn btn-primary financing-cta-btn" onclick="openPrestitoQuoteModal(${vehicle.id}, ${Number(vehicle.year || 0)}, ${Number(vehicle.price || 0)}, ${Number(vehicle.price_original || 0)}, '${escapeHtml(vehicle.title).replace(/'/g, '&#39;')}')">Cotizar con Préstito</button>
-                ${(vehicle.seller_profile?.phone && vehicle.seller_profile?.show_phone !== false)
-                  ? `<a href="https://wa.me/${escapeHtml(profileWhatsapp)}?text=${prestitoWhatsappText}" target="_blank" rel="noopener" class="btn btn-secondary financing-cta-btn">Consultar por chat de Préstito</a>`
-                  : (isLoggedIn ? `<button class="btn btn-secondary financing-cta-btn" onclick="const qm=document.getElementById('quickMsgInput'); if(qm){qm.value='¿Ofreces financiación?'; qm.focus();}">Consultar por chat</button>` : '')
-                }
+                ${financingPrimaryCtaHtml}
+                ${financingSecondaryCtaHtml}
               </div>
             </div>
           ` : ''}
@@ -2685,6 +2722,7 @@ async function handlePublish(e) {
     const publishRawPrice = parseFloat(document.getElementById('publishPrice').value) || null;
     const publishPriceUSD = getPriceInUSD('publish');
     const publishFrozenArs = publishCurrency === 'ARS' ? publishRawPrice : (dolarRate?.venta ? Math.round(publishPriceUSD * dolarRate.venta) : null);
+    const acceptsFinancing = document.getElementById('publishAcceptsFinancing')?.checked || false;
     const data = {
       title: document.getElementById('publishTitle').value,
       brand: document.getElementById('publishBrand').value,
@@ -2702,7 +2740,10 @@ async function handlePublish(e) {
       province: province,
       description: document.getElementById('publishDescription').value,
       accepts_trade: document.getElementById('publishAcceptsTrade').checked,
-      accepts_financing: document.getElementById('publishAcceptsFinancing')?.checked || false,
+      accepts_financing: acceptsFinancing,
+      financing_provider: acceptsFinancing
+        ? (document.getElementById('publishFinancingProvider')?.value || 'prestito')
+        : null,
       vehicle_type: publishVehicleType,
       body_type: publishVehicleType === 'auto' ? (publishBodyType || null) : null,
       drivetrain: normalizedDrivetrainValue(document.getElementById('publishDrivetrain')?.value) || null,
@@ -2888,6 +2929,13 @@ async function openEditModal(id, e) {
     document.getElementById('editAcceptsTrade').checked = !!v.accepts_trade;
     const editFinancingEl = document.getElementById('editAcceptsFinancing');
     if (editFinancingEl) editFinancingEl.checked = !!v.accepts_financing;
+    const editFinancingProviderEl = document.getElementById('editFinancingProvider');
+    if (editFinancingProviderEl) {
+      editFinancingProviderEl.value = String(v.financing_provider || 'prestito').toLowerCase() === 'propia'
+        ? 'propia'
+        : 'prestito';
+    }
+    toggleFinancingProviderField('edit');
     const editCCEl = document.getElementById('editEngineCC');
     if (editCCEl) editCCEl.value = v.engine_cc || '';
     toggleEngineCCField('edit');
@@ -2948,6 +2996,7 @@ async function handleEditVehicle(e) {
     const editVersion = document.getElementById('editVersion').value;
     const editVehicleType = document.getElementById('editVehicleTypeTop')?.value || 'auto';
     const editBodyType = document.getElementById('editBodyType')?.value || '';
+    const editAcceptsFinancing = document.getElementById('editAcceptsFinancing')?.checked || false;
     const editCurrency = document.getElementById('editCurrency')?.value || 'USD';
     const editRawPrice = parseFloat(document.getElementById('editPrice').value) || null;
     const editPriceUSD = getPriceInUSD('edit');
@@ -2979,7 +3028,10 @@ async function handleEditVehicle(e) {
         status: document.getElementById('editStatus').value,
         description: document.getElementById('editDescription').value,
         accepts_trade: document.getElementById('editAcceptsTrade').checked,
-        accepts_financing: document.getElementById('editAcceptsFinancing')?.checked || false,
+        accepts_financing: editAcceptsFinancing,
+        financing_provider: editAcceptsFinancing
+          ? (document.getElementById('editFinancingProvider')?.value || 'prestito')
+          : null,
         vehicle_type: editVehicleType,
         body_type: editVehicleType === 'auto' ? (editBodyType || null) : null,
         drivetrain: normalizedDrivetrainValue(document.getElementById('editDrivetrain')?.value) || null,

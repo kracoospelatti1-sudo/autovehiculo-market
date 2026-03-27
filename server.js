@@ -34,6 +34,7 @@ const INSTAGRAM_ACCESS_TOKEN = process.env.INSTAGRAM_ACCESS_TOKEN || '';
 const INSTAGRAM_DEFAULT_HASHTAGS = (process.env.INSTAGRAM_DEFAULT_HASHTAGS || '#autoventa #autosusados #autos #argentina').trim();
 const INSTAGRAM_CONTAINER_READY_TIMEOUT_MS = Number.parseInt(process.env.INSTAGRAM_CONTAINER_READY_TIMEOUT_MS || '45000', 10);
 const INSTAGRAM_CONTAINER_READY_POLL_MS = Number.parseInt(process.env.INSTAGRAM_CONTAINER_READY_POLL_MS || '1500', 10);
+const FINANCING_PROVIDER_VALUES = new Set(['prestito', 'propia']);
 const IG_CONFIG_DB_KEYS = Object.freeze({
   businessAccountId: 'instagram_business_account_id',
   accessToken: 'instagram_access_token',
@@ -848,6 +849,11 @@ function canonicalDrivetrain(value = '') {
     .replace(/\*/g, 'x');
   if (v === '4x2' || v === '4x4') return v;
   return '';
+}
+
+function normalizeFinancingProvider(value = '') {
+  const v = String(value || '').trim().toLowerCase();
+  return FINANCING_PROVIDER_VALUES.has(v) ? v : 'prestito';
 }
 
 function extractBodyTypeFromAttributes(attrs = []) {
@@ -1950,7 +1956,7 @@ app.post('/api/vehicles', authenticateToken, async (req, res) => {
     }
     const admin = req.user.is_admin === true || await isAdmin(req.user.id);
 
-    let { title, brand, model, year, price, price_original, price_currency, mileage, fuel, transmission, description, city, province, images, accepts_trade, accepts_financing, vehicle_type, body_type, drivetrain, engine_cc, version, contact_phone, contact_address } = req.body;
+    let { title, brand, model, year, price, price_original, price_currency, mileage, fuel, transmission, description, city, province, images, accepts_trade, accepts_financing, financing_provider, vehicle_type, body_type, drivetrain, engine_cc, version, contact_phone, contact_address } = req.body;
     if (!admin && (contact_phone || contact_address)) {
       return res.status(403).json({ error: 'Solo administradores pueden definir telefono o direccion personalizada.' });
     }
@@ -1994,6 +2000,11 @@ app.post('/api/vehicles', authenticateToken, async (req, res) => {
       ? (normalizedDrivetrain || null)
       : null;
 
+    const acceptsFinancing = !!accepts_financing;
+    const resolvedFinancingProvider = acceptsFinancing
+      ? normalizeFinancingProvider(financing_provider)
+      : null;
+
     const insertPayload = {
       user_id: req.user.id,
       title,
@@ -2010,7 +2021,8 @@ app.post('/api/vehicles', authenticateToken, async (req, res) => {
       status: 'active',
       view_count: 0,
       accepts_trade: !!accepts_trade,
-      accepts_financing: !!accepts_financing,
+      accepts_financing: acceptsFinancing,
+      financing_provider: resolvedFinancingProvider,
       vehicle_type: vehicleType,
       body_type: resolvedBodyType,
       drivetrain: resolvedDrivetrain,
@@ -2080,7 +2092,7 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
     if (isNaN(vid)) return res.status(400).json({ error: 'ID inválido' });
     const { data: vehicle, error: vehicleError } = await supabase
       .from('vehicles')
-      .select('user_id, price, body_type, brand, model, vehicle_type')
+      .select('user_id, price, body_type, brand, model, vehicle_type, accepts_financing, financing_provider')
       .eq('id', vid)
       .maybeSingle(); // BUG-08
 
@@ -2093,7 +2105,7 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'No tienes permiso' });
     }
 
-    const { title, brand, model, year, price, price_original, price_currency, mileage, fuel, transmission, description, city, province, status, vehicle_type, body_type, drivetrain, engine_cc, version, contact_phone, contact_address, images } = req.body;
+    const { title, brand, model, year, price, price_original, price_currency, mileage, fuel, transmission, description, city, province, status, vehicle_type, body_type, drivetrain, engine_cc, version, contact_phone, contact_address, images, financing_provider } = req.body;
 
     let updates = { updated_at: new Date().toISOString() };
     let effectiveBodyType = vehicle.body_type || '';
@@ -2141,7 +2153,22 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
       }
     }
     if (req.body.accepts_trade !== undefined) updates.accepts_trade = !!req.body.accepts_trade;
-    if (req.body.accepts_financing !== undefined) updates.accepts_financing = !!req.body.accepts_financing;
+    const hasAcceptsFinancingInput = req.body.accepts_financing !== undefined;
+    const hasFinancingProviderInput = financing_provider !== undefined;
+    if (hasAcceptsFinancingInput || hasFinancingProviderInput) {
+      const nextAcceptsFinancing = hasAcceptsFinancingInput
+        ? !!req.body.accepts_financing
+        : (vehicle.accepts_financing === true);
+      updates.accepts_financing = nextAcceptsFinancing;
+      if (nextAcceptsFinancing) {
+        const currentProvider = normalizeFinancingProvider(vehicle.financing_provider || 'prestito');
+        updates.financing_provider = hasFinancingProviderInput
+          ? normalizeFinancingProvider(financing_provider)
+          : currentProvider;
+      } else {
+        updates.financing_provider = null;
+      }
+    }
     if (vehicle_type !== undefined) {
       const validTypes = ['auto', 'moto'];
       if (!validTypes.includes(vehicle_type)) return res.status(400).json({ error: 'Tipo inválido' });

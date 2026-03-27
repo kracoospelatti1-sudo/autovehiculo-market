@@ -771,6 +771,13 @@
                 <p style="font-size:0.8rem;color:var(--text-2);margin:0;">Los interesados verán que este vehículo puede evaluarse con financiación</p>
               </div>
             </div>
+            <div id="publishFinancingProviderGroup" style="display:none;padding-left:2rem;">
+              <label for="publishFinancingProvider" style="font-size:0.82rem;color:var(--text-2);margin-bottom:0.35rem;display:block;">Tipo de financiación</label>
+              <select id="publishFinancingProvider" style="max-width:260px;">
+                <option value="prestito">Préstito</option>
+                <option value="propia">Propia</option>
+              </select>
+            </div>
           </div>
           <button type="submit" class="btn btn-primary" style="width:100%;" id="publishBtn">Publicar Vehículo</button>
         </form>
@@ -1054,6 +1061,13 @@
               <input type="checkbox" id="editAcceptsFinancing"
                 style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer;">
               <label for="editAcceptsFinancing" style="cursor:pointer;font-size:0.9rem;margin:0;">💳 Ofrezco financiación</label>
+            </div>
+            <div id="editFinancingProviderGroup" style="display:none;padding-left:1.9rem;">
+              <label for="editFinancingProvider" style="font-size:0.82rem;color:var(--text-2);margin-bottom:0.35rem;display:block;">Tipo de financiación</label>
+              <select id="editFinancingProvider" style="max-width:250px;">
+                <option value="prestito">Préstito</option>
+                <option value="propia">Propia</option>
+              </select>
             </div>
           </div>
           <div class="form-group" id="editEngineCCGroup" style="display:none;">
@@ -1341,7 +1355,7 @@
       if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
     };
   </script>
-  <script src="app.js?v=64" defer></script>
+  <script src="app.js?v=65" defer></script>
   <script>
     // AdSense: cargar únicamente tras interacción real para mejorar score mobile inicial
     (function () {
