@@ -749,6 +749,19 @@ function isInstagramTransientError(error) {
     || message.includes('unknown error');
 }
 
+function isInstagramSkippableMediaError(error) {
+  const message = String(error?.message || error || '').toLowerCase();
+  return message.includes('aspect ratio is not supported')
+    || message.includes('relacion de aspecto')
+    || message.includes('relación de aspecto')
+    || message.includes('only photo or video can be accepted')
+    || message.includes('error al descargar el contenido multimedia')
+    || message.includes('could not retrieve media')
+    || message.includes('unsupported format')
+    || message.includes('[code 36003]')
+    || message.includes('[code 9004]');
+}
+
 async function waitForInstagramContainerReady(igRequest, containerId, {
   timeoutMs = INSTAGRAM_CONTAINER_READY_TIMEOUT_MS,
   pollMs = INSTAGRAM_CONTAINER_READY_POLL_MS
@@ -4020,7 +4033,7 @@ app.post('/api/admin/vehicles/:id/publish-instagram', authenticateToken, async (
       );
       creationId = createMedia?.id;
     } else {
-      const childMediaList = await Promise.all(
+      const settledChildren = await Promise.allSettled(
         imageUrls.map((imageUrl) => createInstagramImageContainerWithRetry(
           igRequest,
           igBusinessId,
@@ -4028,15 +4041,46 @@ app.post('/api/admin/vehicles/:id/publish-instagram', authenticateToken, async (
           { isCarouselItem: true }
         ))
       );
-      const children = childMediaList
-        .map((item) => String(item?.id || '').trim())
-        .filter(Boolean);
-      if (children.length !== imageUrls.length) {
-        throw new Error('Instagram no devolvio ID para uno o mas items del carrusel');
+
+      const validChildren = [];
+      const validImageUrls = [];
+      for (let i = 0; i < settledChildren.length; i += 1) {
+        const result = settledChildren[i];
+        const sourceUrl = imageUrls[i];
+        if (result.status === 'fulfilled') {
+          const childId = String(result.value?.id || '').trim();
+          if (childId) {
+            validChildren.push(childId);
+            validImageUrls.push(sourceUrl);
+          }
+          continue;
+        }
+        const reason = result.reason;
+        if (isInstagramSkippableMediaError(reason)) {
+          console.warn('[instagram publish] skipping invalid media url:', sourceUrl, '-', String(reason?.message || reason));
+          continue;
+        }
+        throw reason;
       }
-      publishStage = 'create-carousel';
-      const createCarousel = await createCarouselContainerWithRetry(igRequest, igBusinessId, children, caption);
-      creationId = createCarousel?.id;
+
+      if (validChildren.length === 0) {
+        throw new Error('Ninguna imagen del vehículo cumple los requisitos de Instagram');
+      }
+
+      if (validChildren.length === 1) {
+        publishStage = 'fallback-single-media';
+        const fallbackMedia = await createInstagramImageContainerWithRetry(
+          igRequest,
+          igBusinessId,
+          validImageUrls[0],
+          { isCarouselItem: false, caption }
+        );
+        creationId = fallbackMedia?.id;
+      } else {
+        publishStage = 'create-carousel';
+        const createCarousel = await createCarouselContainerWithRetry(igRequest, igBusinessId, validChildren, caption);
+        creationId = createCarousel?.id;
+      }
     }
     if (!creationId) throw new Error('Instagram no devolvio el ID de creacion del post');
 
