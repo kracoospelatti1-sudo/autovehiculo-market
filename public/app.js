@@ -2196,6 +2196,7 @@ async function viewVehicle(id, options = {}) {
     const sellerLocationQuery = [sellerAddress, sellerCity, sellerProvince].filter(Boolean).join(', ');
     const sellerMapsUrl = sellerLocationQuery ? googleMapsSearchUrl(sellerLocationQuery) : '';
     const whatsappText = encodeURIComponent(`Hola, te contacto desde la pagina *Autoventa* por el siguiente anuncio: https://autoventa.online/?vehicle=${vehicle.id}`);
+    const prestitoWhatsappText = encodeURIComponent(`Hola, vi en *Autoventa* este vehículo (${vehicle.title}). Quiero consultar financiación con Préstito: https://autoventa.online/?vehicle=${vehicle.id}`);
     const descriptionParagraphs = String(vehicle.description || '')
       .split(/\n\s*\n/)
       .map(p => p.trim())
@@ -2357,7 +2358,10 @@ ${vehicle.accepts_trade && isLoggedIn && !isOwner && vehicle.status === 'active'
               </div>
               <div class="financing-cta-buttons">
                 <button class="btn btn-primary financing-cta-btn" onclick="openPrestitoQuoteModal(${vehicle.id}, ${Number(vehicle.year || 0)}, ${Number(vehicle.price || 0)}, ${Number(vehicle.price_original || 0)}, '${escapeHtml(vehicle.title).replace(/'/g, '&#39;')}')">Cotizar con Préstito</button>
-                ${isLoggedIn ? `<button class="btn btn-secondary financing-cta-btn" onclick="const qm=document.getElementById('quickMsgInput'); if(qm){qm.value='¿Ofreces financiación?'; qm.focus();}">Consultar por chat</button>` : ''}
+                ${(vehicle.seller_profile?.phone && vehicle.seller_profile?.show_phone !== false)
+                  ? `<a href="https://wa.me/${escapeHtml(profileWhatsapp)}?text=${prestitoWhatsappText}" target="_blank" rel="noopener" class="btn btn-secondary financing-cta-btn">Consultar por chat de Préstito</a>`
+                  : (isLoggedIn ? `<button class="btn btn-secondary financing-cta-btn" onclick="const qm=document.getElementById('quickMsgInput'); if(qm){qm.value='¿Ofreces financiación?'; qm.focus();}">Consultar por chat</button>` : '')
+                }
               </div>
             </div>
           ` : ''}
