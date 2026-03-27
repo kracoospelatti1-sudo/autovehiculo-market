@@ -2076,15 +2076,26 @@ select {
 }
 
 .financing-cta-buttons {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.5rem;
-  flex-wrap: wrap;
   width: 100%;
-  justify-content: center;
+  max-width: 560px;
+  margin: 0 auto;
 }
 
 .financing-cta-buttons .financing-cta-btn {
   white-space: nowrap;
+  width: 100%;
+  min-width: 0;
+  justify-content: center;
+  text-align: center;
+}
+
+.financing-cta-buttons .financing-cta-btn:only-child {
+  grid-column: 1 / -1;
+  justify-self: center;
+  max-width: 360px;
 }
 
 .financing-card-copy {
@@ -3527,13 +3538,18 @@ select {
 
   .financing-cta-buttons {
     width: 100%;
-    flex-direction: column;
+    max-width: none;
+    grid-template-columns: 1fr;
     gap: 0.45rem;
   }
 
   .financing-cta-buttons .financing-cta-btn {
     width: 100%;
     min-width: 0;
+  }
+
+  .financing-cta-buttons .financing-cta-btn:only-child {
+    max-width: none;
   }
 }
 
