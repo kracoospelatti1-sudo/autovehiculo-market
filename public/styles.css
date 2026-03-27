@@ -2087,15 +2087,22 @@ select {
 
 .financing-card-copy {
   min-width: 220px;
+  text-align: center;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .financing-card-title {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.45rem;
   font-weight: 600;
   font-size: 0.95rem;
   line-height: 1.2;
+  width: 100%;
 }
 
 .financing-prestito-logo {
