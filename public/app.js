@@ -2355,9 +2355,9 @@ ${vehicle.accepts_trade && isLoggedIn && !isOwner && vehicle.status === 'active'
                 <div style="font-weight:600;font-size:0.95rem;">💳 Este vendedor ofrece financiación</div>
                 <div style="font-size:0.82rem;color:var(--text-2);margin-top:2px;">Podés simular cuotas y consultar requisitos</div>
               </div>
-              <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-                <button class="btn btn-primary" style="white-space:nowrap;" onclick="openPrestitoQuoteModal(${vehicle.id}, ${Number(vehicle.year || 0)}, ${Number(vehicle.price || 0)}, ${Number(vehicle.price_original || 0)}, '${escapeHtml(vehicle.title).replace(/'/g, '&#39;')}')">Cotizar con Préstito</button>
-                ${isLoggedIn ? `<button class="btn btn-secondary" style="white-space:nowrap;" onclick="const qm=document.getElementById('quickMsgInput'); if(qm){qm.value='¿Ofreces financiación?'; qm.focus();}">Consultar por chat</button>` : ''}
+              <div class="financing-cta-buttons">
+                <button class="btn btn-primary financing-cta-btn" onclick="openPrestitoQuoteModal(${vehicle.id}, ${Number(vehicle.year || 0)}, ${Number(vehicle.price || 0)}, ${Number(vehicle.price_original || 0)}, '${escapeHtml(vehicle.title).replace(/'/g, '&#39;')}')">Cotizar con Préstito</button>
+                ${isLoggedIn ? `<button class="btn btn-secondary financing-cta-btn" onclick="const qm=document.getElementById('quickMsgInput'); if(qm){qm.value='¿Ofreces financiación?'; qm.focus();}">Consultar por chat</button>` : ''}
               </div>
             </div>
           ` : ''}

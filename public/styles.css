@@ -2075,6 +2075,16 @@ select {
   text-align: center;
 }
 
+.financing-cta-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.financing-cta-buttons .financing-cta-btn {
+  white-space: nowrap;
+}
+
 /* Chat box (marketplace) */
 .marketplace-chat-box {
   background: var(--dark-2);
@@ -3471,6 +3481,19 @@ select {
   color: var(--dark-4);
   cursor: pointer;
   transition: var(--transition);
+}
+
+@media (max-width: 680px) {
+  .financing-cta-buttons {
+    width: 100%;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+
+  .financing-cta-buttons .financing-cta-btn {
+    width: 100%;
+    min-width: 0;
+  }
 }
 
 .star:hover,
