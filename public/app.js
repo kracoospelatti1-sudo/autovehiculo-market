@@ -1232,8 +1232,12 @@ async function request(endpoint, options = {}) {
   if (response.status === 204) return {};
   const contentType = response.headers.get('content-type') || '';
   const data = contentType.includes('application/json') ? await response.json() : {};
+  const text = contentType.includes('application/json') ? '' : await response.text().catch(() => '');
   if (!response.ok) {
-    const err = new Error(data.error || 'Error');
+    const fallbackHttpMsg = `HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''}`;
+    const serverText = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 180);
+    const err = new Error(data.error || data.message || serverText || fallbackHttpMsg);
+    err.status = response.status;
     if (data.needsVerification) err.needsVerification = true;
     throw err;
   }

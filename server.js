@@ -4015,19 +4015,17 @@ app.post('/api/admin/vehicles/:id/publish-instagram', authenticateToken, async (
       );
       creationId = createMedia?.id;
       if (creationId) {
-        await waitForInstagramContainerReady(igRequest, creationId, { timeoutMs: 45000, pollMs: 1500 });
+        await waitForInstagramContainerReady(igRequest, creationId, { timeoutMs: 25000, pollMs: 1200 });
       }
     } else {
-      const childMediaList = [];
-      for (const imageUrl of imageUrls) {
-        const child = await createInstagramImageContainerWithRetry(
+      const childMediaList = await Promise.all(
+        imageUrls.map((imageUrl) => createInstagramImageContainerWithRetry(
           igRequest,
           igBusinessId,
           imageUrl,
           { isCarouselItem: true }
-        );
-        childMediaList.push(child);
-      }
+        ))
+      );
       const children = childMediaList
         .map((item) => String(item?.id || '').trim())
         .filter(Boolean);
@@ -4037,7 +4035,7 @@ app.post('/api/admin/vehicles/:id/publish-instagram', authenticateToken, async (
       const createCarousel = await createCarouselContainerWithRetry(igRequest, igBusinessId, children, caption);
       creationId = createCarousel?.id;
       if (creationId) {
-        await waitForInstagramContainerReady(igRequest, creationId, { timeoutMs: 60000, pollMs: 1800 });
+        await waitForInstagramContainerReady(igRequest, creationId, { timeoutMs: 30000, pollMs: 1400 });
       }
     }
     if (!creationId) throw new Error('Instagram no devolvio el ID de creacion del post');
