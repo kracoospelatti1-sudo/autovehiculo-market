@@ -776,7 +776,7 @@ async function waitForInstagramContainerReady(igRequest, containerId, {
 
 async function createCarouselContainerWithRetry(igRequest, igBusinessId, children, caption) {
   let lastError = null;
-  for (let attempt = 1; attempt <= 6; attempt += 1) {
+  for (let attempt = 1; attempt <= 4; attempt += 1) {
     try {
       return await igRequest(`/${igBusinessId}/media`, {
         method: 'POST',
@@ -791,7 +791,7 @@ async function createCarouselContainerWithRetry(igRequest, igBusinessId, childre
       if (!isInstagramMediaNotReadyError(err) && !isInstagramTransientError(err)) {
         throw err;
       }
-      await sleep(900 * attempt);
+      await sleep(700 * attempt);
     }
   }
   throw lastError || new Error('No se pudo crear el carrusel de Instagram');
@@ -799,7 +799,7 @@ async function createCarouselContainerWithRetry(igRequest, igBusinessId, childre
 
 async function createInstagramImageContainerWithRetry(igRequest, igBusinessId, imageUrl, { isCarouselItem = false, caption = '' } = {}) {
   let lastError = null;
-  for (let attempt = 1; attempt <= 5; attempt += 1) {
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
     try {
       const params = {
         image_url: imageUrl
@@ -821,7 +821,7 @@ async function createInstagramImageContainerWithRetry(igRequest, igBusinessId, i
       if (!isInstagramMediaNotReadyError(err) && !isInstagramTransientError(err)) {
         throw err;
       }
-      await sleep(700 * attempt);
+      await sleep(500 * attempt);
     }
   }
   throw lastError || new Error('No se pudo crear el contenedor de imagen en Instagram');
@@ -3921,6 +3921,7 @@ app.put('/api/admin/instagram-config', authenticateToken, async (req, res) => {
 
 // ADMIN - publicar vehículo en Instagram (cuenta oficial del marketplace)
 app.post('/api/admin/vehicles/:id/publish-instagram', authenticateToken, async (req, res) => {
+  let publishStage = 'init';
   try {
     const admin = req.user.is_admin === true || (req.user.is_admin === undefined && await isAdmin(req.user.id));
     if (!admin) return res.status(403).json({ error: 'Acceso denegado' });
@@ -4005,6 +4006,7 @@ app.post('/api/admin/vehicles/:id/publish-instagram', authenticateToken, async (
       });
     }
 
+    publishStage = 'create-container';
     let creationId = null;
     if (imageUrls.length === 1) {
       const createMedia = await createInstagramImageContainerWithRetry(
@@ -4014,9 +4016,6 @@ app.post('/api/admin/vehicles/:id/publish-instagram', authenticateToken, async (
         { isCarouselItem: false, caption }
       );
       creationId = createMedia?.id;
-      if (creationId) {
-        await waitForInstagramContainerReady(igRequest, creationId, { timeoutMs: 25000, pollMs: 1200 });
-      }
     } else {
       const childMediaList = await Promise.all(
         imageUrls.map((imageUrl) => createInstagramImageContainerWithRetry(
@@ -4032,20 +4031,20 @@ app.post('/api/admin/vehicles/:id/publish-instagram', authenticateToken, async (
       if (children.length !== imageUrls.length) {
         throw new Error('Instagram no devolvio ID para uno o mas items del carrusel');
       }
+      publishStage = 'create-carousel';
       const createCarousel = await createCarouselContainerWithRetry(igRequest, igBusinessId, children, caption);
       creationId = createCarousel?.id;
-      if (creationId) {
-        await waitForInstagramContainerReady(igRequest, creationId, { timeoutMs: 30000, pollMs: 1400 });
-      }
     }
     if (!creationId) throw new Error('Instagram no devolvio el ID de creacion del post');
 
+    publishStage = 'publish-media';
     const publishMedia = await publishInstagramCreationWithRetry(igRequest, igBusinessId, creationId);
     const mediaId = publishMedia?.id;
     if (!mediaId) throw new Error('Instagram no devolvió el ID de la publicación');
 
     let permalink = null;
     try {
+      publishStage = 'fetch-permalink';
       const mediaInfo = await igRequest(`/${mediaId}`, {
         method: 'GET',
         params: { fields: 'id,permalink' }
@@ -4071,7 +4070,10 @@ app.post('/api/admin/vehicles/:id/publish-instagram', authenticateToken, async (
       detail_url: detailUrl
     });
   } catch (error) {
-    console.error('[/api/admin/vehicles/:id/publish-instagram]', error.message);
+    const rawMsg = String(error?.message || '').trim();
+    const stageTag = rawMsg.toLowerCase().includes('etapa ') ? '' : `Etapa publish-instagram/${publishStage}: `;
+    const normalizedError = `${stageTag}${rawMsg || 'No se pudo publicar en Instagram'}`.trim();
+    console.error('[/api/admin/vehicles/:id/publish-instagram]', normalizedError);
     try {
       const fallbackVehicleId = parseInt(req.params.id, 10);
       if (!isNaN(fallbackVehicleId)) {
@@ -4094,7 +4096,7 @@ app.post('/api/admin/vehicles/:id/publish-instagram', authenticateToken, async (
       console.warn('[/api/admin/vehicles/:id/publish-instagram][fallback]', fallbackErr.message);
     }
     if (!res.headersSent) {
-      res.status(502).json({ error: error.message || 'No se pudo publicar en Instagram' });
+      res.status(502).json({ error: normalizedError });
     }
   }
 });
