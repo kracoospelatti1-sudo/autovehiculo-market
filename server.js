@@ -36,6 +36,7 @@ const INSTAGRAM_CONTAINER_READY_TIMEOUT_MS = Number.parseInt(process.env.INSTAGR
 const INSTAGRAM_CONTAINER_READY_POLL_MS = Number.parseInt(process.env.INSTAGRAM_CONTAINER_READY_POLL_MS || '1500', 10);
 const INSTAGRAM_GRAPH_TIMEOUT_MS = Number.parseInt(process.env.INSTAGRAM_GRAPH_TIMEOUT_MS || '8000', 10);
 const FINANCING_PROVIDER_VALUES = new Set(['prestito', 'propia']);
+const ADMIN_CONTACT_REQUEST_STATUS_VALUES = new Set(['pending', 'reviewed', 'resolved', 'dismissed']);
 const IG_CONFIG_DB_KEYS = Object.freeze({
   businessAccountId: 'instagram_business_account_id',
   accessToken: 'instagram_access_token',
@@ -384,6 +385,11 @@ app.use(express.static('public', {
 const globalLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 500, message: { error: 'Demasiadas solicitudes, intenta en 15 minutos' } });
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 15, message: { error: 'Demasiados intentos. Esperá 15 minutos.' } });
 const messageLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, message: { error: 'Enviás mensajes demasiado rápido' } });
+const adminContactRequestLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 8,
+  message: { error: 'Demasiadas consultas enviadas. Intentá de nuevo en una hora.' }
+});
 app.use('/api/', globalLimiter);
 app.use('/api/login', authLimiter);
 app.use('/api/register', authLimiter);
@@ -452,6 +458,12 @@ function isMissingVehicleInstagramPostsTableError(error) {
   const code = String(error?.code || '').toUpperCase();
   const msg = `${error?.message || ''} ${error?.details || ''}`.toLowerCase();
   return code === 'PGRST205' || (msg.includes('vehicle_instagram_posts') && msg.includes('does not exist'));
+}
+
+function isMissingAdminContactRequestsTableError(error) {
+  const code = String(error?.code || '').toUpperCase();
+  const msg = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase();
+  return code === 'PGRST205' || code === '42P01' || (msg.includes('admin_contact_requests') && msg.includes('does not exist'));
 }
 
 async function loadInstagramPublishConfigFromDb() {
@@ -693,7 +705,7 @@ function buildInstagramCaption(vehicle, detailUrl, publisherName = '', hashtags 
     lines.push(String(hashtags).trim());
   }
   lines.push('');
-  lines.push('Consultame por privado o al 2352 487435.');
+  lines.push('Escribime por mensaje privado o por WhatsApp al 2352 487435.');
   let caption = lines.join('\n').trim();
   if (caption.length > 2200) caption = `${caption.slice(0, 2197)}...`;
   return caption;
@@ -3829,6 +3841,107 @@ app.post('/api/reports', authenticateToken, async (req, res) => {
   }
 });
 
+// CONTACTO CON ADMINISTRACIÓN (público)
+app.post('/api/admin/contact-requests', optionalAuth, adminContactRequestLimiter, async (req, res) => {
+  try {
+    const reason = String(req.body?.reason || '').trim();
+    const contact = String(req.body?.contact || '').trim();
+    const message = String(req.body?.message || '').trim();
+    const captchaToken = String(req.body?.captchaToken || '').trim();
+
+    const hcaptchaSecret = process.env.HCAPTCHA_SECRET;
+    if (hcaptchaSecret) {
+      if (!captchaToken) return res.status(400).json({ error: 'Captcha requerido' });
+      const verifyBody = new URLSearchParams({
+        secret: hcaptchaSecret,
+        response: captchaToken
+      });
+      const requesterIpRaw = String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '')
+        .split(',')[0]
+        .trim();
+      if (requesterIpRaw) verifyBody.set('remoteip', requesterIpRaw);
+      const verifyRes = await fetch('https://hcaptcha.com/siteverify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: verifyBody.toString()
+      });
+      const verifyData = await verifyRes.json();
+      if (!verifyData?.success) return res.status(400).json({ error: 'Captcha inválido. Intentá de nuevo.' });
+    }
+
+    if (reason.length < 3 || reason.length > 120) {
+      return res.status(400).json({ error: 'Ingresá un motivo válido (3 a 120 caracteres).' });
+    }
+    if (contact.length < 5 || contact.length > 180) {
+      return res.status(400).json({ error: 'Ingresá un contacto válido (5 a 180 caracteres).' });
+    }
+    if (message.length > 2000) {
+      return res.status(400).json({ error: 'El detalle no puede superar los 2000 caracteres.' });
+    }
+
+    const requesterId = req.user?.id || null;
+    const requesterIp = String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '')
+      .split(',')[0]
+      .trim()
+      .slice(0, 120);
+    const requesterUserAgent = String(req.headers['user-agent'] || '').slice(0, 240);
+
+    const { data: created, error: insertError } = await supabase
+      .from('admin_contact_requests')
+      .insert({
+        requester_user_id: requesterId,
+        reason,
+        contact,
+        message: message || null,
+        status: 'pending',
+        requester_ip: requesterIp || null,
+        requester_user_agent: requesterUserAgent || null
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      if (isMissingAdminContactRequestsTableError(insertError)) {
+        return res.status(500).json({ error: 'Falta migración de base: ejecutá add-admin-contact-requests.sql' });
+      }
+      throw insertError;
+    }
+
+    const { data: adminProfiles, error: adminProfilesError } = await supabase
+      .from('profiles')
+      .select('user_id')
+      .eq('is_admin', true)
+      .limit(200);
+    if (adminProfilesError) {
+      console.warn('[admin contact requests] admin lookup warning:', adminProfilesError.message);
+    }
+
+    const adminIds = [...new Set((adminProfiles || []).map((row) => String(row.user_id || '').trim()).filter(Boolean))];
+    if (adminIds.length > 0) {
+      const reasonPreview = reason.length > 60 ? `${reason.slice(0, 57)}...` : reason;
+      const contactPreview = contact.length > 50 ? `${contact.slice(0, 47)}...` : contact;
+      await Promise.allSettled(
+        adminIds.map((adminId) => pushNotif(adminId, {
+          type: 'admin_contact_request',
+          title: 'Nueva consulta al administrador',
+          message: `${reasonPreview} · Contacto: ${contactPreview}`,
+          link: 'admin/contact-requests',
+          read: false
+        }))
+      );
+    }
+
+    res.json({
+      success: true,
+      id: created?.id || null,
+      message: 'Consulta enviada. El administrador la va a revisar pronto.'
+    });
+  } catch (error) {
+    console.error('[/api/admin/contact-requests][POST]', error?.message || error);
+    res.status(500).json({ error: 'No se pudo enviar la consulta al administrador' });
+  }
+});
+
 // STATS
 app.get('/api/stats', authenticateToken, async (req, res) => {
   try {
@@ -4277,6 +4390,100 @@ app.put('/api/admin/reports/:id', authenticateToken, async (req, res) => {
   }
 });
 
+app.get('/api/admin/contact-requests', authenticateToken, async (req, res) => {
+  try {
+    const admin = req.user.is_admin === true || (req.user.is_admin === undefined && await isAdmin(req.user.id));
+    if (!admin) return res.status(403).json({ error: 'Acceso denegado' });
+
+    const requestedStatus = String(req.query.status || 'all').trim().toLowerCase();
+    if (requestedStatus !== 'all' && !ADMIN_CONTACT_REQUEST_STATUS_VALUES.has(requestedStatus)) {
+      return res.status(400).json({ error: `Estado inválido. Valores permitidos: all, ${[...ADMIN_CONTACT_REQUEST_STATUS_VALUES].join(', ')}` });
+    }
+
+    let query = supabase
+      .from('admin_contact_requests')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(300);
+
+    if (requestedStatus !== 'all') {
+      query = query.eq('status', requestedStatus);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      if (isMissingAdminContactRequestsTableError(error)) {
+        return res.status(500).json({ error: 'Falta migración de base: ejecutá add-admin-contact-requests.sql' });
+      }
+      throw error;
+    }
+
+    const requesterIds = [...new Set((data || []).map((row) => String(row.requester_user_id || '').trim()).filter(Boolean))];
+    const handledByIds = [...new Set((data || []).map((row) => String(row.handled_by || '').trim()).filter(Boolean))];
+    const userIds = [...new Set([...requesterIds, ...handledByIds])];
+    const { data: users } = userIds.length > 0
+      ? await supabase.from('users').select('id, username, email').in('id', userIds)
+      : { data: [] };
+    const usersMap = Object.fromEntries((users || []).map((u) => [String(u.id), u]));
+
+    res.json((data || []).map((row) => ({
+      ...row,
+      requester: row.requester_user_id ? (usersMap[String(row.requester_user_id)] || null) : null,
+      handled_by_user: row.handled_by ? (usersMap[String(row.handled_by)] || null) : null
+    })));
+  } catch (error) {
+    console.error('[/api/admin/contact-requests][GET]', error?.message || error);
+    res.status(500).json({ error: 'No se pudieron cargar las consultas al administrador' });
+  }
+});
+
+app.put('/api/admin/contact-requests/:id', authenticateToken, async (req, res) => {
+  try {
+    const admin = req.user.is_admin === true || (req.user.is_admin === undefined && await isAdmin(req.user.id));
+    if (!admin) return res.status(403).json({ error: 'Acceso denegado' });
+
+    const status = String(req.body?.status || '').trim().toLowerCase();
+    if (!ADMIN_CONTACT_REQUEST_STATUS_VALUES.has(status)) {
+      return res.status(400).json({ error: `Estado inválido. Valores permitidos: ${[...ADMIN_CONTACT_REQUEST_STATUS_VALUES].join(', ')}` });
+    }
+
+    const adminNoteRaw = req.body?.admin_note;
+    const adminNote = adminNoteRaw == null ? null : String(adminNoteRaw).trim().slice(0, 1000);
+    const nextUpdate = {
+      status,
+      admin_note: adminNote
+    };
+
+    if (status === 'pending') {
+      nextUpdate.handled_by = null;
+      nextUpdate.handled_at = null;
+    } else {
+      nextUpdate.handled_by = req.user.id;
+      nextUpdate.handled_at = new Date().toISOString();
+    }
+
+    const { data, error } = await supabase
+      .from('admin_contact_requests')
+      .update(nextUpdate)
+      .eq('id', req.params.id)
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      if (isMissingAdminContactRequestsTableError(error)) {
+        return res.status(500).json({ error: 'Falta migración de base: ejecutá add-admin-contact-requests.sql' });
+      }
+      throw error;
+    }
+    if (!data) return res.status(404).json({ error: 'Consulta no encontrada' });
+
+    res.json(data);
+  } catch (error) {
+    console.error('[/api/admin/contact-requests/:id][PUT]', error?.message || error);
+    res.status(500).json({ error: 'No se pudo actualizar la consulta' });
+  }
+});
+
 app.get('/api/admin/users', authenticateToken, async (req, res) => {
   try {
     const admin = req.user.is_admin === true || (req.user.is_admin === undefined && await isAdmin(req.user.id));
@@ -4467,6 +4674,20 @@ app.get('/api/admin/stats', authenticateToken, async (req, res) => {
     const { count: vehicles } = await supabase.from('vehicles').select('*', { count: 'exact', head: true });
     const { count: activeVehicles } = await supabase.from('vehicles').select('*', { count: 'exact', head: true }).eq('status', 'active');
     const { count: reports } = await supabase.from('reports').select('*', { count: 'exact', head: true }).eq('status', 'pending');
+    let pendingAdminContactRequests = 0;
+    try {
+      const { count, error: contactCountError } = await supabase
+        .from('admin_contact_requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending');
+      if (contactCountError) {
+        if (!isMissingAdminContactRequestsTableError(contactCountError)) throw contactCountError;
+      } else {
+        pendingAdminContactRequests = count || 0;
+      }
+    } catch (contactCountErr) {
+      console.warn('[/api/admin/stats][admin_contact_requests]', contactCountErr?.message || contactCountErr);
+    }
     const { count: conversations } = await supabase.from('conversations').select('*', { count: 'exact', head: true });
 
     res.json({
@@ -4474,6 +4695,7 @@ app.get('/api/admin/stats', authenticateToken, async (req, res) => {
       vehicles: vehicles || 0,
       active_vehicles: activeVehicles || 0,
       pending_reports: reports || 0,
+      pending_admin_contact_requests: pendingAdminContactRequests || 0,
       conversations: conversations || 0
     });
   } catch (error) {

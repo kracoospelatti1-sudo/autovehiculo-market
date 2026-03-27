@@ -101,6 +101,7 @@
     <div class="nav-links nav-links-center">
       <a href="/" onclick="showSection('home');return false;" id="navHome">Inicio</a>
       <a href="/?section=vehicles" onclick="showSection('vehicles');return false;" id="navVehicles">Vehículos</a>
+      <a href="/?section=support" onclick="showSection('support');return false;" id="navSupport">Contacto</a>
       <a href="/?section=favorites" onclick="showSection('favorites');return false;" id="navFavorites" style="display:none;">Favoritos</a>
       <a href="/?section=following-feed" onclick="showSection('following-feed');return false;" id="navFollowing" style="display:none;">Siguiendo</a>
       <a href="/?section=my-vehicles" onclick="showSection('my-vehicles');return false;" id="navMyVehicles" style="display:none;">Mis Anuncios</a>
@@ -318,7 +319,7 @@
           </div>
           <span id="registerPasswordStrengthLabel" class="password-strength-label"></span>
           <!-- Captcha -->
-          <div class="h-captcha" data-sitekey="d28a3f78-282e-428e-b27c-e2c66ef65ab8" data-size="normal" style="margin-top:1.25rem;"></div>
+          <div id="registerCaptcha" class="h-captcha" data-sitekey="d28a3f78-282e-428e-b27c-e2c66ef65ab8" data-size="normal" style="margin-top:1.25rem;"></div>
           <button type="submit" class="btn btn-primary" style="width:100%;margin-top:1rem;padding:0.9rem;font-size:1rem;" id="registerBtn">
             Crear cuenta
           </button>
@@ -464,6 +465,40 @@
               registro</button>
           </div>
         </div>
+      </div>
+    </section>
+
+    <!-- CONTACTO ADMIN -->
+    <section id="support" class="section" style="display:none;">
+      <div class="form-container fade-in">
+        <div class="register-header">
+          <div class="register-icon"><i data-lucide="life-buoy"></i></div>
+          <h2>Contacto con administración</h2>
+          <p class="subtitle">Dejá un motivo y un dato de contacto. Esta información solo la ve el equipo admin.</p>
+        </div>
+        <form onsubmit="submitAdminContactRequest(event)">
+          <div class="form-group">
+            <label for="supportReason">Motivo *</label>
+            <select id="supportReason" required>
+              <option value="">Seleccionar motivo</option>
+              <option value="Problema técnico">Problema técnico</option>
+              <option value="Duda comercial">Duda comercial</option>
+              <option value="Reclamo">Reclamo</option>
+              <option value="Consulta general">Consulta general</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="supportContact">Tu contacto *</label>
+            <input id="supportContact" type="text" maxlength="180" placeholder="Email, WhatsApp o teléfono" required>
+          </div>
+          <div class="form-group">
+            <label for="supportMessage">Detalle adicional (opcional)</label>
+            <textarea id="supportMessage" rows="5" maxlength="2000" placeholder="Contanos brevemente qué pasó o qué necesitás."></textarea>
+          </div>
+          <div id="supportCaptcha" class="h-captcha" data-sitekey="d28a3f78-282e-428e-b27c-e2c66ef65ab8" data-size="normal" style="margin-top:1rem;"></div>
+          <button id="supportSubmitBtn" class="btn btn-primary" type="submit" style="width:100%;">Enviar a administración</button>
+        </form>
       </div>
     </section>
 
@@ -890,6 +925,7 @@
       <div id="adminStats" class="admin-stats"></div>
       <div class="admin-tabs">
         <button class="admin-tab active" onclick="showAdminTab('reports', this)">Reportes</button>
+        <button class="admin-tab" onclick="showAdminTab('contact-requests', this)">Consultas</button>
         <button class="admin-tab" onclick="showAdminTab('vehicles', this)">Vehículos</button>
         <button class="admin-tab" onclick="showAdminTab('users', this)">Usuarios</button>
       </div>
@@ -1316,6 +1352,8 @@
         Anuncios</a>
       <a href="/?section=notifications" onclick="closeMobileMenu(); showSection('notifications'); return false;" class="mobile-menu-item"><i data-lucide="bell"></i>
         Notificaciones</a>
+      <a href="/?section=support" onclick="closeMobileMenu(); showSection('support'); return false;" class="mobile-menu-item"><i data-lucide="life-buoy"></i>
+        Contacto admin</a>
       <a id="mobileMenuAdmin" href="/?section=admin" onclick="closeMobileMenu(); showSection('admin'); return false;" class="mobile-menu-item"
         style="display:none;"><i data-lucide="shield-check"></i> Admin</a>
       <div style="height:1px;background:var(--border);margin:0.5rem 0.75rem;"></div>
@@ -1326,8 +1364,9 @@
 
   <footer class="site-footer">
     <span>© 2026 Autoventa</span>
+    <a href="/?section=support" onclick="showSection('support');return false;" style="cursor:pointer;">Contacto admin</a>
     <a href="/?section=terms" onclick="showSection('terms');return false;" style="cursor:pointer;">Términos y Condiciones</a>
-    <span style="color:var(--text-3);font-size:0.75rem;">v1.0.14</span>
+    <span style="color:var(--text-3);font-size:0.75rem;">v1.0.16</span>
   </footer>
 
   <!-- Edit Profile Modal -->
@@ -1355,7 +1394,7 @@
       if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
     };
   </script>
-  <script src="app.js?v=68" defer></script>
+  <script src="app.js?v=70" defer></script>
   <script>
     // AdSense: cargar únicamente tras interacción real para mejorar score mobile inicial
     (function () {

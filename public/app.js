@@ -29,6 +29,7 @@ let leafletCssLoaded = false;
 let homeRecentLoadedAt = 0;
 let publicStatsLoadedAt = 0;
 let lucideLoadPromise = null;
+let hCaptchaLoadPromise = null;
 let myVehiclesPage = 1;
 let myVehiclesHasMore = false;
 let profileVehiclesPage = 1;
@@ -110,14 +111,72 @@ function loadLucideIcons() {
 }
 
 function loadHCaptcha() {
-  return new Promise((resolve) => {
-    if (window.hcaptcha) return resolve();
+  if (window.hcaptcha) return Promise.resolve();
+  if (hCaptchaLoadPromise) return hCaptchaLoadPromise;
+  hCaptchaLoadPromise = new Promise((resolve) => {
     const script = document.createElement('script');
     script.src = 'https://js.hcaptcha.com/1/api.js';
     script.async = true;
     script.onload = resolve;
+    script.onerror = () => resolve();
     document.head.appendChild(script);
   });
+  return hCaptchaLoadPromise;
+}
+
+function renderHCaptchaContainer(container) {
+  if (!container || !window.hcaptcha) return;
+  if (container.dataset.hcaptchaWidgetId !== undefined && container.dataset.hcaptchaWidgetId !== '') return;
+  const sitekey = String(container.dataset.sitekey || '').trim();
+  if (!sitekey) return;
+  try {
+    const widgetId = window.hcaptcha.render(container, {
+      sitekey,
+      size: container.dataset.size || 'normal'
+    });
+    container.dataset.hcaptchaWidgetId = String(widgetId);
+  } catch (e) {
+    // Ignore re-render errors; widget can already be mounted by hCaptcha internals.
+  }
+}
+
+function ensureHCaptchaForSection(sectionId) {
+  if (!['register', 'support'].includes(sectionId)) return;
+  loadHCaptcha().then(() => {
+    const section = document.getElementById(sectionId);
+    if (!section) return;
+    setTimeout(() => {
+      section.querySelectorAll('.h-captcha').forEach((container) => renderHCaptchaContainer(container));
+    }, 50);
+  });
+}
+
+function getHCaptchaToken(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container || !window.hcaptcha) return '';
+  const widgetIdRaw = container.dataset.hcaptchaWidgetId;
+  if (widgetIdRaw === undefined || widgetIdRaw === '') return '';
+  const widgetId = Number(widgetIdRaw);
+  if (!Number.isFinite(widgetId)) return '';
+  try {
+    return String(window.hcaptcha.getResponse(widgetId) || '').trim();
+  } catch {
+    return '';
+  }
+}
+
+function resetHCaptchaWidget(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container || !window.hcaptcha) return;
+  const widgetIdRaw = container.dataset.hcaptchaWidgetId;
+  if (widgetIdRaw === undefined || widgetIdRaw === '') return;
+  const widgetId = Number(widgetIdRaw);
+  if (!Number.isFinite(widgetId)) return;
+  try {
+    window.hcaptcha.reset(widgetId);
+  } catch {
+    // no-op
+  }
 }
 
 function isVisibleElement(el) {
@@ -1262,7 +1321,7 @@ function showSection(sectionId, options = {}) {
   if (currentUser && (sectionId === 'login' || sectionId === 'register')) return;
   // Push state para que el botón atrás funcione dentro del SPA
   if (pushHistory) {
-    const publicSections = ['home', 'vehicles', 'login', 'register', 'forgot-password', 'terms'];
+    const publicSections = ['home', 'vehicles', 'support', 'login', 'register', 'forgot-password', 'terms'];
     const profileRoute = sectionId === 'profile' && currentProfileId
       ? `/?section=profile&profile=${encodeURIComponent(String(currentProfileId))}`
       : null;
@@ -1300,18 +1359,14 @@ function showSection(sectionId, options = {}) {
     else if (sectionId === 'following-feed') loadFollowingFeed(1, true);
     else if (sectionId === 'admin') loadAdmin();
     else if (sectionId === 'register') {
-      // Render hCaptcha when section becomes visible (needed with render=explicit)
-      loadHCaptcha().then(() => {
-        setTimeout(() => {
-          const container = document.querySelector('.h-captcha');
-          if (container && window.hcaptcha && !container.querySelector('iframe')) {
-            try { hcaptcha.render(container, { sitekey: container.dataset.sitekey }); } catch(e) {}
-          }
-        }, 50);
-      });
+      ensureHCaptchaForSection('register');
     }
     else if (sectionId === 'publish') {
       resetPublishForm();
+    }
+    else if (sectionId === 'support') {
+      prefillSupportContact();
+      ensureHCaptchaForSection('support');
     }
   }
   if (sectionId !== 'messages') stopPolling();
@@ -1354,6 +1409,7 @@ function setBottomNavActive(sectionId) {
     'following-feed': 4,
     'my-vehicles': 4,
     'notifications': 4,
+    'support': 4,
     'profile': 4,
     'admin': 4,
   };
@@ -1514,7 +1570,7 @@ async function handleRegister(e) {
   const username = document.getElementById('registerUsername').value;
   const email = document.getElementById('registerEmail').value;
   const password = document.getElementById('registerPassword').value;
-  let captchaToken = document.querySelector('[name="h-captcha-response"]')?.value || '';
+  let captchaToken = getHCaptchaToken('registerCaptcha');
   if (!captchaToken) {
     showToast('Por favor completá el captcha', 'error');
     btn.disabled = false;
@@ -1539,7 +1595,7 @@ async function handleRegister(e) {
     }
   } catch (err) {
     showToast(err.message, 'error');
-    if (window.hcaptcha) window.hcaptcha.reset();
+    resetHCaptchaWidget('registerCaptcha');
   }
   finally {
     btn.disabled = false;
@@ -3773,10 +3829,11 @@ const NOTIF_ICONS = {
   new_vehicle:   `<svg viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99z"/></svg>`,
   rating:        `<svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>`,
   favorite_sold: `<svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`,
+  admin_contact_request: `<svg viewBox="0 0 24 24"><path d="M12 1l9 4v6c0 5.55-3.84 10.74-9 12-5.16-1.26-9-6.45-9-12V5l9-4zm-1 11l6-6-1.41-1.41L11 9.17 8.41 6.59 7 8l4 4z"/></svg>`,
 };
 function notifIcon(type) {
   const svg = NOTIF_ICONS[type] || `<svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>`;
-  const colors = { message:'#60a5fa', trade_offer:'#f59e0b', trade_accepted:'#22c55e', trade_rejected:'#ef4444', follow:'#a78bfa', new_vehicle:'#f59e0b', rating:'#facc15', favorite_sold:'#ef4444' };
+  const colors = { message:'#60a5fa', trade_offer:'#f59e0b', trade_accepted:'#22c55e', trade_rejected:'#ef4444', follow:'#a78bfa', new_vehicle:'#f59e0b', rating:'#facc15', favorite_sold:'#ef4444', admin_contact_request:'#38bdf8' };
   const bg = colors[type] || 'var(--text-3)';
   return `<div class="notification-icon" style="background:${bg}22;color:${bg};">${svg}</div>`;
 }
@@ -3859,6 +3916,11 @@ async function handleNotificationClick(link, id) {
     viewProfile(link.split('/').pop());
   } else if (link === 'trade-offers') {
     showSection('my-vehicles');
+  } else if (link === 'admin/contact-requests') {
+    if (currentUser?.profile?.is_admin) {
+      adminPreferredTab = 'contact-requests';
+      showSection('admin');
+    }
   }
 }
 
@@ -4272,16 +4334,29 @@ async function saveProfile(e) {
 }
 
 // ADMIN
+let adminPreferredTab = null;
+
+function renderAdminStats(stats = {}) {
+  document.getElementById('adminStats').innerHTML = `
+    <div class="admin-stat"><div class="number">${stats.users || 0}</div><div class="label">Usuarios</div></div>
+    <div class="admin-stat"><div class="number">${stats.vehicles || 0}</div><div class="label">Vehículos</div></div>
+    <div class="admin-stat"><div class="number">${stats.active_vehicles || 0}</div><div class="label">Activos</div></div>
+    <div class="admin-stat"><div class="number">${stats.pending_reports || 0}</div><div class="label">Reportes pendientes</div></div>
+    <div class="admin-stat"><div class="number">${stats.pending_admin_contact_requests || 0}</div><div class="label">Consultas pendientes</div></div>
+  `;
+}
+
+async function refreshAdminStats() {
+  const stats = await request('/admin/stats');
+  renderAdminStats(stats || {});
+}
+
 async function loadAdmin() {
   try {
-    const stats = await request('/admin/stats');
-    document.getElementById('adminStats').innerHTML = `
-      <div class="admin-stat"><div class="number">${stats.users || 0}</div><div class="label">Usuarios</div></div>
-      <div class="admin-stat"><div class="number">${stats.vehicles || 0}</div><div class="label">Vehículos</div></div>
-      <div class="admin-stat"><div class="number">${stats.active_vehicles || 0}</div><div class="label">Activos</div></div>
-      <div class="admin-stat"><div class="number">${stats.pending_reports || 0}</div><div class="label">Reportes pendientes</div></div>
-    `;
-    showAdminTab('reports');
+    await refreshAdminStats();
+    const nextTab = adminPreferredTab || 'reports';
+    adminPreferredTab = null;
+    showAdminTab(nextTab);
   } catch (err) { showToast(err.message, 'error'); }
 }
 
@@ -4289,6 +4364,7 @@ function showAdminTab(tab, el) {
   document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
   (el || document.querySelector(`.admin-tab[onclick*="'${tab}'"]`))?.classList.add('active');
   if (tab === 'reports') loadAdminReports();
+  else if (tab === 'contact-requests') loadAdminContactRequests();
   else if (tab === 'users') loadAdminUsers();
   else if (tab === 'vehicles') loadAdminVehicles(1);
 }
@@ -4322,6 +4398,68 @@ async function loadAdminReports() {
       </div>
     ` : '<p>Sin reportes</p>';
   } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function loadAdminContactRequests() {
+  try {
+    const requests = await request('/admin/contact-requests');
+    document.getElementById('adminContent').innerHTML = requests?.length ? `
+      <div class="table-responsive">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Motivo</th>
+              <th>Contacto</th>
+              <th>Usuario</th>
+              <th>Detalle</th>
+              <th>Estado</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${requests.map((item) => `
+              <tr>
+                <td>${formatRelTime(item.created_at)}</td>
+                <td>${escapeHtml(item.reason || '-')}</td>
+                <td style="max-width:220px;word-break:break-word;">${escapeHtml(item.contact || '-')}</td>
+                <td>${escapeHtml(item.requester?.username || item.requester?.email || 'Anónimo')}</td>
+                <td style="max-width:280px;word-break:break-word;">${escapeHtml(item.message || '-')}</td>
+                <td>
+                  <span style="font-size:0.75rem;padding:2px 7px;border-radius:5px;font-weight:600;
+                    background:${item.status === 'pending' ? 'rgba(245,158,11,0.12)' : item.status === 'resolved' ? 'rgba(34,197,94,0.12)' : item.status === 'dismissed' ? 'rgba(239,68,68,0.12)' : 'rgba(59,130,246,0.12)'};
+                    color:${item.status === 'pending' ? '#f59e0b' : item.status === 'resolved' ? '#22c55e' : item.status === 'dismissed' ? '#ef4444' : '#60a5fa'};"
+                  >${escapeHtml(item.status || 'pending')}</span>
+                </td>
+                <td style="display:flex;gap:0.35rem;flex-wrap:wrap;">
+                  ${item.status !== 'resolved' ? `<button class="btn btn-sm btn-secondary" onclick="updateAdminContactRequestStatus(${item.id}, 'resolved')">Resolver</button>` : ''}
+                  ${item.status !== 'reviewed' ? `<button class="btn btn-sm btn-ghost" onclick="updateAdminContactRequestStatus(${item.id}, 'reviewed')">Revisar</button>` : ''}
+                  ${item.status !== 'dismissed' ? `<button class="btn btn-sm btn-danger" onclick="updateAdminContactRequestStatus(${item.id}, 'dismissed')">Descartar</button>` : ''}
+                  ${item.status !== 'pending' ? `<button class="btn btn-sm btn-ghost" onclick="updateAdminContactRequestStatus(${item.id}, 'pending')">Reabrir</button>` : ''}
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    ` : '<p>Sin consultas al administrador</p>';
+  } catch (err) {
+    showToast(err.message || 'No se pudieron cargar las consultas', 'error');
+  }
+}
+
+async function updateAdminContactRequestStatus(id, status) {
+  try {
+    await request(`/admin/contact-requests/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ status })
+    });
+    showToast('Consulta actualizada', 'success');
+    loadAdminContactRequests();
+    refreshAdminStats().catch(() => {});
+  } catch (err) {
+    showToast(err.message || 'No se pudo actualizar la consulta', 'error');
+  }
 }
 
 async function adminDeleteVehicle(id, title) {
@@ -5567,6 +5705,7 @@ function updateNav() {
   
   document.getElementById('navHome').style.display = 'flex';
   document.getElementById('navVehicles').style.display = 'flex';
+  document.getElementById('navSupport').style.display = 'flex';
   
   if (isLogged) {
     loadLucideIcons();
@@ -5810,6 +5949,77 @@ function tryPublish() {
   } else {
     showToast('Debes iniciar sesión para publicar', 'warning');
     showSection('login');
+  }
+}
+
+function prefillSupportContact() {
+  const contactEl = document.getElementById('supportContact');
+  if (!contactEl) return;
+  if (String(contactEl.value || '').trim()) return;
+
+  const profilePhone = String(currentUser?.profile?.phone || '').trim();
+  const userEmail = String(currentUser?.email || '').trim();
+  const userUsername = String(currentUser?.username || '').trim();
+  if (profilePhone) {
+    contactEl.value = profilePhone;
+    return;
+  }
+  if (userEmail) {
+    contactEl.value = userEmail;
+    return;
+  }
+  if (userUsername) {
+    contactEl.value = `@${userUsername}`;
+  }
+}
+
+async function submitAdminContactRequest(event) {
+  event.preventDefault();
+  const reason = String(document.getElementById('supportReason')?.value || '').trim();
+  const contact = String(document.getElementById('supportContact')?.value || '').trim();
+  const message = String(document.getElementById('supportMessage')?.value || '').trim();
+  const captchaToken = getHCaptchaToken('supportCaptcha');
+
+  if (!reason) {
+    showToast('Seleccioná un motivo', 'error');
+    return;
+  }
+  if (contact.length < 5) {
+    showToast('Ingresá un contacto válido', 'error');
+    return;
+  }
+  if (!captchaToken) {
+    showToast('Completá el captcha para enviar el reclamo', 'error');
+    ensureHCaptchaForSection('support');
+    return;
+  }
+
+  const submitBtn = document.getElementById('supportSubmitBtn');
+  const defaultText = submitBtn?.textContent || 'Enviar a administración';
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Enviando...';
+  }
+
+  try {
+    await request('/admin/contact-requests', {
+      method: 'POST',
+      body: JSON.stringify({ reason, contact, message, captchaToken })
+    });
+    showToast('Consulta enviada. Te va a contactar el administrador.', 'success');
+    const messageEl = document.getElementById('supportMessage');
+    const reasonEl = document.getElementById('supportReason');
+    if (reasonEl) reasonEl.value = '';
+    if (messageEl) messageEl.value = '';
+    resetHCaptchaWidget('supportCaptcha');
+  } catch (err) {
+    showToast(err.message || 'No se pudo enviar la consulta', 'error');
+    resetHCaptchaWidget('supportCaptcha');
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = defaultText;
+    }
   }
 }
 
