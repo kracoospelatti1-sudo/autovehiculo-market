@@ -678,7 +678,7 @@
           <div class="form-group">
             <label for="publishVehicleType">Tipo de vehículo *</label>
             <select id="publishVehicleType" required
-              onchange="toggleEngineCCField('publish'); toggleBodyTypeField('publish'); toggleDrivetrainField('publish'); updateVehicleTypeOptions('publish'); initBrandFilters()">
+              onchange="toggleEngineCCField('publish'); toggleBodyTypeField('publish'); toggleDrivetrainField('publish'); updateVehicleTypeOptions('publish'); updatePublishBrands()">
               <option value="auto">Autos</option>
               <option value="utilitario">Utilitarios</option>
               <option value="moto">Motos</option>
@@ -1477,7 +1477,7 @@
       if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
     };
   </script>
-  <script src="app.js?v=92" defer></script>
+  <script src="app.js?v=93" defer></script>
   <script>
     // AdSense: cargar únicamente tras interacción real para mejorar score mobile inicial
     (function () {

@@ -4818,46 +4818,72 @@ app.get('/api/brands', (req, res) => {
 });
 
 // PROXY: get versions from deruedas.com.ar by brand, model, year and type
-app.get('/api/deruedas-versions', async (req, res) => {
-  const { brand, model, year, type } = req.query;
-  if (!brand || !model || !year) return res.json({ versions: [] });
+// ── deruedas.com.ar proxy helpers ────────────────────────────────────────────
+const _https = require('https');
+const TYPE_TO_SEG = { auto: 1, utilitario: 2, moto: 3, cuatri: 4, camion: 5 };
+const DR_HEADERS = { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://www.deruedas.com.ar/publicar.asp', 'X-Requested-With': 'XMLHttpRequest' };
 
-  const typeToSegmento = { auto: 1, utilitario: 2, moto: 3, cuatri: 4, camion: 5 };
-  const segmento = typeToSegmento[type] || 1;
-
-  const https = require('https');
-  const params = new URLSearchParams({ campo: 'version', segmento, anio: year, marca: brand, modelo: model, version: 0, soloActivas: 0 });
-  const url = `https://www.deruedas.com.ar/mmv.asp?${params}`;
-
-  const fetchDR = (seg) => new Promise((resolve) => {
-    const p = new URLSearchParams({ campo: 'version', segmento: seg, anio: year, marca: brand, modelo: model, version: 0, soloActivas: 0 });
-    const options = { hostname: 'www.deruedas.com.ar', path: `/mmv.asp?${p}`, headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://www.deruedas.com.ar/publicar.asp', 'X-Requested-With': 'XMLHttpRequest' } };
-    https.get(options, (r) => {
+function fetchDR(params) {
+  return new Promise((resolve) => {
+    const p = new URLSearchParams({ marca: 0, modelo: 0, version: 0, soloActivas: 0, ...params });
+    _https.get({ hostname: 'www.deruedas.com.ar', path: `/mmv.asp?${p}`, headers: DR_HEADERS }, (r) => {
       let data = '';
       r.on('data', c => data += c);
       r.on('end', () => {
-        try {
-          const parsed = JSON.parse(data.replace(/'/g, '"'));
-          resolve(parsed.lista || []);
-        } catch { resolve([]); }
+        try { resolve(JSON.parse(data.replace(/'/g, '"')).lista || []); }
+        catch { resolve([]); }
       });
     }).on('error', () => resolve([]));
   });
+}
 
+function parseDRNames(list) {
+  return [...new Set(list.map(v => { const i = v.indexOf(','); return (i !== -1 ? v.slice(i + 1) : v).trim(); }))].sort();
+}
+
+// GET /api/deruedas-brands?type=auto
+app.get('/api/deruedas-brands', async (req, res) => {
+  const segmento = TYPE_TO_SEG[req.query.type] || 1;
   try {
-    let versions = await fetchDR(segmento);
-    // fallback: if no results try segmento 1 (broader)
-    if (versions.length === 0 && segmento !== 1) versions = await fetchDR(1);
-    // parse "ID,Name" format → keep only the name part
-    const names = [...new Set(versions.map(v => {
-      const comma = v.indexOf(',');
-      return comma !== -1 ? v.slice(comma + 1).trim() : v.trim();
-    }))].sort();
+    // fetch without year to get all brands for this type
+    const lista = await fetchDR({ campo: 'marca', segmento, anio: 0 });
+    const brands = lista.map(b => b.trim()).filter(Boolean).sort();
     res.set('Cache-Control', 'public, max-age=3600');
-    res.json({ versions: names });
-  } catch (err) {
-    res.json({ versions: [] });
-  }
+    res.json({ brands });
+  } catch { res.json({ brands: [] }); }
+});
+
+// GET /api/deruedas-models?type=auto&brand=Volkswagen&year=2020
+app.get('/api/deruedas-models', async (req, res) => {
+  const { brand, year, type } = req.query;
+  if (!brand) return res.json({ models: [] });
+  const segmento = TYPE_TO_SEG[type] || 1;
+  try {
+    const lista = await fetchDR({ campo: 'modelo', segmento, anio: year || 0, marca: brand });
+    // try all segmentos if empty
+    let models = parseDRNames(lista);
+    if (!models.length) {
+      const all = await Promise.all(Object.values(TYPE_TO_SEG).map(seg =>
+        fetchDR({ campo: 'modelo', segmento: seg, anio: year || 0, marca: brand })
+      ));
+      models = parseDRNames(all.flat());
+    }
+    res.set('Cache-Control', 'public, max-age=3600');
+    res.json({ models });
+  } catch { res.json({ models: [] }); }
+});
+
+// GET /api/deruedas-versions?brand=VW&model=Gol&year=2020&type=auto
+app.get('/api/deruedas-versions', async (req, res) => {
+  const { brand, model, year, type } = req.query;
+  if (!brand || !model || !year) return res.json({ versions: [] });
+  const segmento = TYPE_TO_SEG[type] || 1;
+  try {
+    let lista = await fetchDR({ campo: 'version', segmento, anio: year, marca: brand, modelo: model });
+    if (!lista.length && segmento !== 1) lista = await fetchDR({ campo: 'version', segmento: 1, anio: year, marca: brand, modelo: model });
+    res.set('Cache-Control', 'public, max-age=3600');
+    res.json({ versions: parseDRNames(lista) });
+  } catch { res.json({ versions: [] }); }
 });
 
 // DIAGNOSTIC: check which FK tables reference a vehicle (temp endpoint)

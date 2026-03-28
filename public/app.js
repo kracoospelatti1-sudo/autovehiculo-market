@@ -1481,6 +1481,7 @@ function resetPublishForm() {
   toggleDrivetrainField('publish');
   updateVehicleTypeOptions('publish');
   initBrandFilters();
+  updatePublishBrands();
   const publishBrandEl = document.getElementById('publishBrand');
   if (publishBrandEl) {
     publishBrandEl.value = '';
@@ -2242,17 +2243,41 @@ function populateSelect(selectEl, options, placeholder) {
   options.forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; selectEl.appendChild(o); });
 }
 
-function updatePublishModels() {
-  const brand = document.getElementById('publishBrand').value;
-  const modelSel = document.getElementById('publishModel');
+async function updatePublishBrands() {
   const type = document.getElementById('publishVehicleType')?.value || 'auto';
-  const brands = getBrandsForType(type);
-  const models = (brand && brands[brand]) ? brands[brand] : [];
-  if (modelSel) populateSelect(modelSel, models, 'Seleccionar modelo');
+  const brandSel = document.getElementById('publishBrand');
+  if (!brandSel) return;
+  populateSelect(brandSel, [], 'Cargando marcas...');
+  try {
+    const data = await request(`/deruedas-brands?type=${type}`);
+    populateSelect(brandSel, data.brands || [], 'Seleccionar marca');
+  } catch {
+    // fallback to local data
+    const brands = sortedBrandKeys(getBrandsForType(type), type);
+    populateSelect(brandSel, brands, 'Seleccionar marca');
+  }
+  populateSelect(document.getElementById('publishModel'), [], 'Seleccionar modelo');
+  const vSel = document.getElementById('publishVersion');
+  if (vSel) { populateSelect(vSel, [], 'Seleccionar versión'); vSel.disabled = true; }
+}
+
+async function updatePublishModels() {
+  const brand = document.getElementById('publishBrand').value;
+  const type = document.getElementById('publishVehicleType')?.value || 'auto';
+  const modelSel = document.getElementById('publishModel');
   const publishVersionSel = document.getElementById('publishVersion');
   if (publishVersionSel) { populateSelect(publishVersionSel, [], 'Seleccionar versión'); publishVersionSel.disabled = true; }
   const publishBodyTypeEl = document.getElementById('publishBodyType');
   if (publishBodyTypeEl) publishBodyTypeEl.value = '';
+  if (!brand || !modelSel) { toggleBodyTypeField('publish'); toggleDrivetrainField('publish'); return; }
+  populateSelect(modelSel, [], 'Cargando modelos...');
+  try {
+    const data = await request(`/deruedas-models?brand=${encodeURIComponent(brand)}&type=${type}`);
+    populateSelect(modelSel, data.models || [], 'Seleccionar modelo');
+  } catch {
+    const brands = getBrandsForType(type);
+    populateSelect(modelSel, brands[brand] || [], 'Seleccionar modelo');
+  }
   toggleBodyTypeField('publish');
   toggleDrivetrainField('publish');
 }
@@ -5908,42 +5933,48 @@ function markEditDescriptionEdited() {
   if (f) f.dataset.userEdited = 'true';
 }
 
-function updateEditBrands() {
+async function updateEditBrands() {
   initYearSelect('editYear');
   const type = document.getElementById('editVehicleTypeTop')?.value || 'auto';
-  const brandsObj = getBrandsForType(type);
   const select = document.getElementById('editBrand');
   if (!select) return;
   const prev = select.value;
-  select.innerHTML = '<option value="">Seleccionar marca</option>';
-  sortedBrandKeys(brandsObj, type).forEach(brand => {
-    const opt = document.createElement('option');
-    opt.value = brand;
-    opt.textContent = brand;
-    select.appendChild(opt);
-  });
-  select.value = prev || '';
+  populateSelect(select, [], 'Cargando marcas...');
+  try {
+    const data = await request(`/deruedas-brands?type=${type}`);
+    populateSelect(select, data.brands || [], 'Seleccionar marca');
+  } catch {
+    const brandsObj = getBrandsForType(type);
+    populateSelect(select, sortedBrandKeys(brandsObj, type), 'Seleccionar marca');
+  }
+  if (prev) select.value = prev;
   initBrandPicker('editBrand');
-  updateEditModels();
+  await updateEditModels();
   toggleEngineCCField('edit');
   toggleBodyTypeField('edit');
   toggleDrivetrainField('edit');
 }
 
-function updateEditModels() {
+async function updateEditModels() {
   const brand = document.getElementById('editBrand')?.value || '';
   const type = document.getElementById('editVehicleTypeTop')?.value || 'auto';
-  const brandsObj = getBrandsForType(type);
   const modelSel = document.getElementById('editModel');
   if (!modelSel) return;
   const prev = modelSel.value;
-  const models = (brand && brandsObj[brand]) ? brandsObj[brand] : [];
-  populateSelect(modelSel, models, 'Seleccionar modelo');
-  if (prev && models.includes(prev)) modelSel.value = prev;
   const editVersionSel = document.getElementById('editVersion');
   if (editVersionSel) { populateSelect(editVersionSel, [], 'Seleccionar versión'); editVersionSel.disabled = true; }
   const editBodyTypeEl = document.getElementById('editBodyType');
   if (editBodyTypeEl) editBodyTypeEl.value = '';
+  if (!brand) { populateSelect(modelSel, [], 'Seleccionar modelo'); toggleBodyTypeField('edit'); toggleDrivetrainField('edit'); return; }
+  populateSelect(modelSel, [], 'Cargando modelos...');
+  try {
+    const data = await request(`/deruedas-models?brand=${encodeURIComponent(brand)}&type=${type}`);
+    populateSelect(modelSel, data.models || [], 'Seleccionar modelo');
+  } catch {
+    const brandsObj = getBrandsForType(type);
+    populateSelect(modelSel, brandsObj[brand] || [], 'Seleccionar modelo');
+  }
+  if (prev) modelSel.value = prev;
   toggleBodyTypeField('edit');
   toggleDrivetrainField('edit');
 }
