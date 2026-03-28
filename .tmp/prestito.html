@@ -1,0 +1,398 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>PrÃ©stito | PrÃ©stamos para autos.</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <link rel="shortcut icon" href="images/favicon.png">
+  <link rel="stylesheet" href="css/bundle.css">
+  <link rel="stylesheet" href="css/hody-icons.css">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="assets/css/styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700&family=Open+Sans:wght@400;600;700&display=swap"
+    rel="stylesheet" type="text/css">
+  <script src="https://apps.elfsight.com/p/platform.js" defer></script>
+  <div class="elfsight-app-cd98d0d4-f2ae-4767-9d3f-76bc1bf6294a"></div>
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-V003RZ5EVS"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+
+    gtag('config', 'G-V003RZ5EVS');
+  </script>
+</head>
+
+<body>
+
+  <div id="wrapper">
+    <nav id="navbar">
+      <div class="navbar-wrapper">
+        <div class="container">
+          <div class="logo">
+            <a href="index.html">
+              <img class="logo-light" src="images/logo-light.png" alt="">
+              <img class="logo-dark" src="images/logo-dark.png" alt="">
+            </a>
+          </div>
+          <div class="menu-extras">
+            <div class="menu-item">
+              <div class="nav-toggle">
+                <a class="menu-toggle" href="#">
+                  <div class="hamburger">
+                    <div class="hamburger-box">
+                      <div class="hamburger-inner"></div>
+                    </div>
+                  </div>
+                </a>
+              </div>
+            </div>
+          </div>
+          <div id="navigation">
+            <ul class="navigation-menu nav">
+              <li><a href="#home" data-scroll="true">Inicio</a>
+              </li>
+              <li><a href="#empresa" data-scroll="true">La Empresa</a>
+              </li>
+              <li><a href="#servicios" data-scroll="true">Servicios</a>
+              </li>
+              <li><a href="#requisitos" data-scroll="true">Requisitos</a>
+              </li>
+              <li><a href="#agencias" data-scroll="true">Agencias</a>
+              </li>
+              <li><a href="#contacto" data-scroll="true">Contacto</a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <section class="page-title parallax-section" id="home">
+      <div class="row-parallax-bg">
+        <div class="parallax-wrapper">
+          <div class="parallax-bg">
+            <img src="images/bg_prestito.jpg" alt="">
+          </div>
+        </div>
+        <div class="parallax-overlay"></div>
+      </div>
+      <div class="centrize">
+        <div class="v-center">
+          <div class="container">
+            <div class="row">
+              <div class="col-md-5 col-md-offset-0 col-sm-10 col-sm-offset-1 mb-15 mt-15">
+                <div class="title visible-md visible-lg">
+                  <h2 class="font-big fw-400" data-custom-color="#FF9900">El auto que te gusta, en cuotas.</h2>
+                  <h4 class="font-big fw-400">No dejes pasar esta oportunidad y sacÃ¡ un prÃ©stamo para tu prÃ³ximo auto.</h4>
+                </div>
+              </div>
+              <div class="col-md-5 col-md-offset-2">
+                <div class="row">
+                  <div class="pricing-table black-text" data-animation="fadeInRight" data-delay="300">
+                    <div class="price">
+                      <h2>SIMULÃ TU CRÃDITO</h2>
+                      <h4>Y SOLICITALO HOY</h4>
+                    </div>
+                    <ul class="features nav">
+                      <li><span>CrÃ©dito para autos de hasta 15 aÃ±os
+							<select id="tipo" style="width: 0;height: 0;opacity: 0;">
+                            <option value="0" selected="">Auto</option>
+                            <option value="1">Moto</option>
+                          </select></span>
+                      </li>
+                      <div style="display:flex;" id="modelo-div">
+                        <li>
+                          <h5>IngresÃ¡ el modelo del auto</h5><select id="modelo"></select>
+                        </li>
+                      </div>                      
+                      <li>
+                        <h5>IngresÃ¡ el monto que necesitÃ¡s* <br>(sin puntos ni espacios)</h5><input type="text" id="importe">
+                      </li>
+                      <li>
+                        <h5>IngresÃ¡ tu e-mail</h5><input type="email" id="email" required>
+                      </li>
+                    </ul>
+                    <div class="pricing-footer"><a class="btn btn-color btn-shadow" id="calcular"
+                        href="#openModal">CALCULAR CUOTAS</a><br>
+                      <h5>*Hasta el 50% del valor del vehÃ­culo.<br>
+                        Cuotas fijas y en pesos. </h5>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section id="empresa">
+      <div class="container">
+        <div class="row">
+          <div class="col-md-8 col-md-offset-2">
+            <div class="title text-center">
+              <h1>Tu prÃ©stamo<br> mÃ¡s fÃ¡cil y seguro</h1>
+              <p class="fw-300">Somos una empresa de crÃ©ditos prendarios de Chivilcoy que ofrece la posibilidad de
+                acceder al auto de forma <span class="typed-words colored-text fw-400"
+                  data-strings="[&quot;fÃ¡cil,&quot;, &quot;simple,&quot;, &quot;segura.&quot;]"></span>
+                <br>Con la tranquilidad que brindan <span class="gold-text">las cuotas fijas y en pesos.
+              </p>
+            </div>
+          </div>
+        </div>
+    </section>
+    <section class="split-section gradient">
+      <div class="side-background">
+        <div class="col-md-6 img-side img-right visible-md visible-lg">
+          <div class="img-holder with-border">
+            <img class="bg-img" src="images/bg-image-30.jpg" alt="">
+          </div>
+        </div>
+      </div>
+      <div class="container">
+        <div class="col-sm-7 col-md-5">
+          <div class="row">
+            <div class="title">
+              <h2 class="gold-text">Sobre Nosotros</h2>
+            </div>
+            <div class="section-content">
+              <div class="icon-box-side" data-animation="fadeInRight" data-delay="300"><i
+                  class="hc-todo-txt gold-text"></i>
+                <div class="ib-content">
+                  <p>Nuestra misiÃ³n es facilitar a las personas el acceso a la movilidad deseada mediante un acuerdo
+                    transparente y sensato
+                    a travÃ©s del asesoramiento y la atenciÃ³n personalizada.</p>
+                </div>
+              </div>
+              <div class="icon-box-side" data-animation="fadeInRight" data-delay="600"><i
+                  class="hc-people gold-text"></i>
+                <div class="ib-content">
+                  <p>Tenemos la visiÃ³n de ser reconocidos por las personas y empresas de Chivilcoy y la Provincia de
+                    Buenos Aires por proporcionar una herramienta de soluciÃ³n financiera y capitalizaciÃ³n responsable.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="parallax-section" id="servicios">
+      <div class="row-parallax-bg">
+        <div class="parallax-wrapper">
+          <div class="parallax-bg">
+            <img src="images/bg-image-2.jpg" alt="">
+          </div>
+          <div class="parallax-overlay"></div>
+        </div>
+      </div>
+      <div class="container">
+        <div class="row">
+          <div class="row pb-25 pt-25">
+            <div class="col-md-4" data-animation="fadeInLeft">
+              <div class="title txt-sm-center">
+                <h1><span class="gold-text"><em>PrÃ©stito</em></span><br>
+                  <span class="cursive-font">Lo hacemos posible
+                </h1>
+              </div>
+            </div>
+            <div class="col-md-5 col-sm-5 col-md-offset-2 mt-25">
+              <ul class="check-list">
+                <li data-animation="fadeInRight">AccedÃ© a un prÃ©stamo prendario
+                </li>
+                <li data-animation="fadeInRight">Cuotas fijas y en pesos</li>
+                <li data-animation="fadeInRight">Hasta 50% del valor del vehÃ­culo</li>
+                <li data-animation="fadeInRight">De 2 a 48 cuotas fijas</li>
+                <li data-animation="fadeInRight">AprobaciÃ³n en 24 hs.</li>
+                <li data-animation="fadeInRight">De particular o agencia</li>
+                <li data-animation="fadeInRight">Asesoramiento personalizado</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+    </section>
+    <section id="requisitos" class="gradient">
+      <div class="container">
+        <div class="row">
+          <div class="col-md-5 mt-50" data-animation="fadeInLeft">
+            <div class="title">
+              <h1 class="gold-text">AccedÃ© <br><span class="fw-400">rÃ¡pido y fÃ¡cil </span></h1>
+            </div>
+          </div>
+          <div class="col-md-5 col-md-offset-1">
+            <div class="title" data-animation="fadeInRight">
+              <div class="title-icon" data-custom-bg="#FF9900"><i class="hc-todo-txt"></i>
+              </div>
+              <h3 class="fw-400">Requisitos MÃ­nimos</h3>
+              <br>
+              <div class="skill">
+                <h5 class="skill-name">Ser mayor de 18 aÃ±os<span class="skill-perc"></span></h5>
+                <div class="progress">
+                  <div class="progress-bar" role="progressbar" data-progress="100"></div>
+                </div>
+              </div>
+              <div class="skill">
+                <h5 class="skill-name">DNI<span class="skill-perc"></span></h5>
+                <div class="progress">
+                  <div class="progress-bar" role="progressbar" data-progress="100"></div>
+                </div>
+                <div class="skill">
+                  <h5 class="skill-name">Comprobante de ingresos<span class="skill-perc"></span></h5>
+                  <div class="progress">
+                    <div class="progress-bar" role="progressbar" data-progress="100"></div>
+                  </div>
+                </div>
+                <div class="skill">
+                  <h5 class="skill-name">Servicio (telÃ©fono, luz o gas)<span class="skill-perc"></span></h5>
+                  <div class="progress">
+                    <div class="progress-bar" role="progressbar" data-progress="100"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+    </section>
+    <section id="agencias" class="parallax-section">
+      <div class="row-parallax-bg">
+        <div class="parallax-wrapper">
+          <div class="parallax-bg">
+            <img src="images/bg-image-27.jpg" alt="">
+          </div>
+          <div class="parallax-overlay semilight-overlay"></div>
+        </div>
+      </div>
+      <div class="container">
+        <div class="row">
+          <div class="col-md-8 col-md-offset-2">
+            <div class="title text-center">
+              <h2 class="cursive-font font-big">SumÃ¡ tu agencia</h2>
+              <p><em>PrÃ©stito</em> brinda a las agencias de autos las herramientas
+                para concretar y aumentar sus ventas de forma rÃ¡pida y segura. <br>
+                <em><strong>Si querÃ©s sumar tu agencia a nuestro equipo contÃ¡ctanos.</strong></em>
+              </p>
+              <p><a class="btn btn-color btn-shadow" href="mailto:info@prestito.com.ar" target="_blank">CONTACTO</a></p>
+            </div>
+            <div class="section-content">
+              <p class="text-center m-0">
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+   
+    <footer id="contacto">
+      <div class="footer-widgets">
+        <div class="container">
+          <div class="row">
+            <div class="col-md-3 col-sm-6">
+              <div class="widget">
+                <figure class="footer-logo mb-25 mt-0  text-right">
+                  <img src="images/icon-prestito.png" alt="PrÃ©stito">
+                </figure>
+
+              </div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+              <div class="textwidget">
+                <p>
+                  LAVALLE 71 &nbsp;I&nbsp; CHIVILCOY<br>
+                  BUENOS AIRES &nbsp;I&nbsp; ARGENTINA<br>
+                  </p>
+                <p><span class="gold-text">info@prestito.com.ar <br>
+                 <i class="hc-whatsapp align-left"></i> (02346) 419218</span></p>
+              </div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+              <div>
+                <ul class="social-list">
+                  <p><span class="gold-text"><em>SEGUINOS EN:</em></span></p>
+                  <li class="social-item-facebook"><a target="_blank"
+                      href="https://www.facebook.com/prestito.prendarios/"><i class="hc-facebook"></i></a>
+                  </li>
+                  <li class="social-item-instagram"><a target="_blank"
+                      href="https://www.instagram.com/prestito.prendarios/"><i class="hc-instagram"></i></a>
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+              <div class="footer-data">
+                <a href="http://qr.afip.gob.ar/?qr=OvnAvRuxwdKpLYsufuzyNg,," target="_F960AFIPInfo"><img
+                    src="http://www.afip.gob.ar/images/f960/DATAWEB.jpg" widht="80px" border="0"></a>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="footer-copy">
+        <div class="container">
+          <div class="row">
+            <div class="col-sm-6">
+            </div>
+            <div class="col-sm-6">
+              <div class="copy-text">
+                <a href="http://estudionovo.com.ar" alt="Estudio Novo" target="_blank"> <img
+                    src="images/estudioNOVO.png" alt="Estudio Novo" width="50px"></a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </div>
+  <div id="openModal" class="modalDialog">
+    <div id="modal">
+      <div class="titulo">
+        <h2>Simulador de CrÃ©dito</h2>
+      </div>
+      <hr style="margin-top: 0;">
+      <div class="informacion-contenedor">
+        <div style="display: flex;justify-content: space-between;align-items: center;padding: 5px 15px;">
+          <h4>Importe PrÃ©stamo <span id="importe-valor">$0</span></h4>
+        </div>
+      </div>
+      <div class="advertencia-contenedor">
+        <div>
+          <h2></h2>
+        </div>
+      </div>
+      <div class="table-contenedor">
+        <div class="table-responsive" id="tabla-cuotas">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Cuotas</th>
+                <th>Importe</th>
+              </tr>
+            </thead>
+            <tbody id="contenido"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="boton-contenedor"><button class="btn btn-dark btn-sm btn-shadow" type="button"><a id="close"
+            href="#">Cerrar</a></button></div>
+    </div>
+  </div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="assets/js/code.js"></script>
+  </div>
+  <script type="text/javascript" src="js/jquery.js"></script>
+  <script type="text/javascript" src="js/bundle.js"></script>
+  <script type="text/javascript" src="js/SmoothScroll.js"></script>
+  <script type="text/javascript" src="js/jquery.mb.YTPlayer.js"></script>
+  <script type="text/javascript"
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCNGOsBBZo9vf0Tw4w6aJiilSTFVfQ5GPI"></script>
+  <script type="text/javascript" src="js/main.js"></script>
+</body>
+
+</html>

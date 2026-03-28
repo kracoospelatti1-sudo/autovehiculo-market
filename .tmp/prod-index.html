@@ -1,19 +1,19 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Autoventa | Autos y Motos Usados en Argentina</title>
+  <title>Autoventa — Comprá y Vendé tu Vehículo en Argentina</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <meta name="description"
-    content="Comprá y vendé autos y motos usados en Argentina. Miles de vehículos con fotos, precios en pesos y dólares. Publicá gratis y cerrá negocios de forma segura.">
+    content="Autoventa — La plataforma más moderna para comprar y vender vehículos en Argentina. Publica gratis, chatea con vendedores y cierra negocios de forma segura.">
   <!-- Open Graph -->
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Autoventa">
   <meta property="og:locale" content="es_AR">
-  <meta property="og:title" content="Autoventa | Autos y Motos Usados en Argentina">
-  <meta property="og:description" content="Comprá y vendé autos y motos usados en Argentina. Miles de vehículos con fotos, precios en pesos y dólares. Publicá gratis y cerrá negocios de forma segura.">
+  <meta property="og:title" content="Autoventa — Comprá y Vendé tu Vehículo en Argentina">
+  <meta property="og:description" content="La plataforma más moderna para comprar y vender vehículos en Argentina. Publica gratis, chatea con vendedores y cerrá negocios de forma segura.">
   <meta property="og:image" content="https://autoventa.online/og-default.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
@@ -21,8 +21,8 @@
   <meta property="og:url" content="https://autoventa.online/">
   <!-- Twitter Cards -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Autoventa | Autos y Motos Usados en Argentina">
-  <meta name="twitter:description" content="Comprá y vendé autos y motos usados en Argentina. Publicá gratis y cerrá negocios de forma segura.">
+  <meta name="twitter:title" content="Autoventa — Comprá y Vendé tu Vehículo en Argentina">
+  <meta name="twitter:description" content="La plataforma más moderna para comprar y vender vehículos en Argentina.">
   <meta name="twitter:image" content="https://autoventa.online/og-default.png">
   <meta name="twitter:site" content="@autoventaonline">
   <!-- Canonical & extras -->
@@ -53,8 +53,8 @@
   <!-- Fuentes: no-render-blocking -->
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=optional" onload="this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=optional"></noscript>
-  <link rel="preload" as="style" href="styles.css?v=64" onload="this.rel='stylesheet'" fetchpriority="high">
-  <noscript><link rel="stylesheet" href="styles.css?v=64"></noscript>
+  <link rel="preload" as="style" href="styles.css?v=52" onload="this.rel='stylesheet'" fetchpriority="high">
+  <noscript><link rel="stylesheet" href="styles.css?v=52"></noscript>
   <!-- JSON-LD: WebSite + Organization -->
   <script type="application/ld+json">
   {
@@ -101,7 +101,6 @@
     <div class="nav-links nav-links-center">
       <a href="/" onclick="showSection('home');return false;" id="navHome">Inicio</a>
       <a href="/?section=vehicles" onclick="showSection('vehicles');return false;" id="navVehicles">Vehículos</a>
-      <a href="/?section=support" onclick="showSection('support');return false;" id="navSupport">Contacto</a>
       <a href="/?section=favorites" onclick="showSection('favorites');return false;" id="navFavorites" style="display:none;">Favoritos</a>
       <a href="/?section=following-feed" onclick="showSection('following-feed');return false;" id="navFollowing" style="display:none;">Siguiendo</a>
       <a href="/?section=my-vehicles" onclick="showSection('my-vehicles');return false;" id="navMyVehicles" style="display:none;">Mis Anuncios</a>
@@ -319,7 +318,7 @@
           </div>
           <span id="registerPasswordStrengthLabel" class="password-strength-label"></span>
           <!-- Captcha -->
-          <div id="registerCaptcha" class="h-captcha" data-sitekey="d28a3f78-282e-428e-b27c-e2c66ef65ab8" data-size="normal" style="margin-top:1.25rem;"></div>
+          <div class="h-captcha" data-sitekey="d28a3f78-282e-428e-b27c-e2c66ef65ab8" data-size="normal" style="margin-top:1.25rem;"></div>
           <button type="submit" class="btn btn-primary" style="width:100%;margin-top:1rem;padding:0.9rem;font-size:1rem;" id="registerBtn">
             Crear cuenta
           </button>
@@ -468,40 +467,6 @@
       </div>
     </section>
 
-    <!-- CONTACTO ADMIN -->
-    <section id="support" class="section" style="display:none;">
-      <div class="form-container fade-in">
-        <div class="register-header">
-          <div class="register-icon"><i data-lucide="life-buoy"></i></div>
-          <h2>Contacto con administración</h2>
-          <p class="subtitle">Dejá un motivo y un dato de contacto. Esta información solo la ve el equipo admin.</p>
-        </div>
-        <form onsubmit="submitAdminContactRequest(event)">
-          <div class="form-group">
-            <label for="supportReason">Motivo *</label>
-            <select id="supportReason" required>
-              <option value="">Seleccionar motivo</option>
-              <option value="Problema técnico">Problema técnico</option>
-              <option value="Duda comercial">Duda comercial</option>
-              <option value="Reclamo">Reclamo</option>
-              <option value="Consulta general">Consulta general</option>
-              <option value="Otro">Otro</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="supportContact">Tu contacto *</label>
-            <input id="supportContact" type="text" maxlength="180" placeholder="Email, WhatsApp o teléfono" required>
-          </div>
-          <div class="form-group">
-            <label for="supportMessage">Detalle adicional (opcional)</label>
-            <textarea id="supportMessage" rows="5" maxlength="2000" placeholder="Contanos brevemente qué pasó o qué necesitás."></textarea>
-          </div>
-          <div id="supportCaptcha" class="h-captcha" data-sitekey="d28a3f78-282e-428e-b27c-e2c66ef65ab8" data-size="normal" style="margin-top:1rem;"></div>
-          <button id="supportSubmitBtn" class="btn btn-primary" type="submit" style="width:100%;">Enviar a administración</button>
-        </form>
-      </div>
-    </section>
-
     <!-- VEHICLES -->
     <section id="vehicles" class="section" style="display:none;">
       <div class="search-section">
@@ -516,65 +481,34 @@
         </button>
       </div>
       <div class="filters-panel" id="filtersPanel" aria-hidden="true">
-        <div class="filters-panel-header">
-          <div>
-            <h3 class="filters-panel-title">Refina tu búsqueda</h3>
-            <p class="filters-panel-subtitle">Selecciona los filtros que necesites</p>
-          </div>
-        </div>
-        <div class="filters-grid">
+        <div class="form-row" style="margin-bottom:0.75rem;">
           <div class="form-group">
-            <label for="filterVehicleType">Tipo de Vehículo</label>
-            <select id="filterVehicleType" onchange="initBrandFilters(); updateVehicleTypeOptions('filter'); applyFilters()">
-              <option value="">Todos los tipos</option>
+            <label for="filterVehicleType">Tipo</label>
+            <select id="filterVehicleType"
+              onchange="initBrandFilters(); updateVehicleTypeOptions('filter'); applyFilters()">
+              <option value="">Todos</option>
               <option value="auto">Autos</option>
-              <option value="utilitario">Utilitarios</option>
               <option value="moto">Motos</option>
-              <option value="cuatri">Cuatriciclos</option>
-              <option value="camion">Camiones</option>
             </select>
           </div>
+        </div>
+        <div class="form-row" style="margin-bottom:0.75rem;">
           <div class="form-group">
             <label for="filterBrand">Marca</label>
             <select id="filterBrand" onchange="updateFilterModels(); applyFilters()">
-              <option value="">Todas las marcas</option>
+              <option value="">Todas</option>
             </select>
           </div>
           <div class="form-group">
             <label for="filterModel">Modelo</label>
             <select id="filterModel" onchange="applyFilters()">
-              <option value="">Todos los modelos</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="filterMaxMileage">Kilómetros</label>
-            <select id="filterMaxMileage" onchange="applyFilters()">
-              <option value="">Todos los kilómetros</option>
-              <option value="10000">Hasta 10.000 km</option>
-              <option value="30000">Hasta 30.000 km</option>
-              <option value="50000">Hasta 50.000 km</option>
-              <option value="100000">Hasta 100.000 km</option>
-              <option value="150000">Hasta 150.000 km</option>
-              <option value="200000">Hasta 200.000 km</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="filterMinYear">Año</label>
-            <select id="filterMinYear" onchange="applyFilters()">
-              <option value="">Todos los años</option>
-              <option value="2023">Desde 2023</option>
-              <option value="2020">Desde 2020</option>
-              <option value="2018">Desde 2018</option>
-              <option value="2015">Desde 2015</option>
-              <option value="2010">Desde 2010</option>
-              <option value="2005">Desde 2005</option>
-              <option value="2000">Desde 2000</option>
+              <option value="">Todos</option>
             </select>
           </div>
           <div class="form-group">
             <label for="filterTransmission">Transmisión</label>
             <select id="filterTransmission" onchange="applyFilters()">
-              <option value="">Todas las transmisiones</option>
+              <option value="">Todas</option>
               <option value="Manual">Manual</option>
               <option value="Automático">Automático</option>
               <option value="Automático CVT">Automático CVT</option>
@@ -584,7 +518,7 @@
           <div class="form-group">
             <label for="filterFuel">Combustible</label>
             <select id="filterFuel" onchange="applyFilters()">
-              <option value="">Todos los combustibles</option>
+              <option value="">Todos</option>
               <option value="Nafta">Nafta</option>
               <option value="Diesel">Diesel</option>
               <option value="Eléctrico">Eléctrico</option>
@@ -592,32 +526,38 @@
               <option value="GNC">GNC</option>
             </select>
           </div>
+        </div>
+        <div class="form-row" style="margin-bottom:0.75rem;">
           <div class="form-group">
-            <label for="filterMaxPrice">Rango de Precio</label>
-            <select id="filterMaxPrice" onchange="applyFilters()">
-              <option value="">Todos los precios</option>
-              <option value="5000">Hasta USD 5.000</option>
-              <option value="10000">Hasta USD 10.000</option>
-              <option value="15000">Hasta USD 15.000</option>
-              <option value="20000">Hasta USD 20.000</option>
-              <option value="30000">Hasta USD 30.000</option>
-              <option value="50000">Hasta USD 50.000</option>
-            </select>
+            <label for="filterMaxPrice">Precio máximo (USD)</label>
+            <input type="number" id="filterMaxPrice" placeholder="Sin límite" oninput="applyFilters()">
           </div>
           <div class="form-group">
+            <label for="filterMaxMileage">KM máximo</label>
+            <input type="number" id="filterMaxMileage" placeholder="Sin límite" oninput="applyFilters()">
+          </div>
+          <div class="form-group">
+            <label for="filterMinYear">Año mínimo</label>
+            <input type="number" id="filterMinYear" placeholder="2000" onchange="applyFilters()" min="1900" max="2030">
+          </div>
+          <div class="form-group">
+            <label for="filterMaxYear">Año máximo</label>
+            <input type="number" id="filterMaxYear" placeholder="2026" onchange="applyFilters()" min="1900" max="2030">
+          </div>
+        </div>
+        <div class="form-row" style="margin-bottom:0.75rem;">
+          <div class="form-group">
             <label for="filterProvince">Provincia</label>
-            <select id="filterProvince" onchange="updateFilterCities(); applyFilters()">
-              <option value="">Todas las provincias</option>
+            <select id="filterProvince" onchange="applyFilters()">
+              <option value="">Todas</option>
             </select>
           </div>
           <div class="form-group">
             <label for="filterCity">Ciudad</label>
-            <select id="filterCity" onchange="applyFilters()" disabled>
-              <option value="">Todas las ciudades</option>
-            </select>
+            <input type="text" id="filterCity" placeholder="Ej: Córdoba" oninput="applyFilters()">
           </div>
         </div>
-        <div class="filters-panel-footer">
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
           <button class="btn btn-primary btn-sm" id="filterApplyBtn" onclick="applyFiltersNow()" style="display:none;">Aplicar filtros</button>
           <button class="btn btn-ghost btn-sm" onclick="clearFilters()">Limpiar filtros</button>
         </div>
@@ -626,6 +566,20 @@
         <div class="results-title-group">
           <i data-lucide="car"></i>
           <h2>Todos los Vehículos</h2>
+        </div>
+        <div class="sort-controls">
+          <span id="vehiclesCount" class="count-badge"></span>
+          <div class="sort-wrapper">
+            <i data-lucide="arrow-down-narrow-wide"></i>
+            <select id="filterSort" onchange="applyFiltersNow()" class="sort-select">
+              <option value="">Más recientes</option>
+              <option value="oldest">Más antiguos</option>
+              <option value="price_asc">Precio: menor a mayor</option>
+              <option value="price_desc">Precio: mayor a menor</option>
+              <option value="year_desc">Año: más nuevos</option>
+              <option value="views">Más vistos</option>
+            </select>
+          </div>
         </div>
       </div>
       <div id="vehiclesList" class="vehicles-grid"></div>
@@ -644,32 +598,7 @@
       <div class="form-container fade-in" style="max-width:680px;">
         <h2>Publicar Vehículo</h2>
         <p class="subtitle">Completá los datos de tu vehículo</p>
-
-        <!-- STEPPER -->
-        <div class="publish-stepper" id="publishStepper" aria-label="Progreso del formulario">
-          <div class="publish-step active" data-step="1" onclick="scrollToPublishSection('publishStepVehicle')">
-            <div class="step-dot">1</div>
-            <span class="step-label">Vehículo</span>
-          </div>
-          <div class="step-connector"></div>
-          <div class="publish-step" data-step="2" onclick="scrollToPublishSection('publishStepPrice')">
-            <div class="step-dot">2</div>
-            <span class="step-label">Precio y Ubicación</span>
-          </div>
-          <div class="step-connector"></div>
-          <div class="publish-step" data-step="3" onclick="scrollToPublishSection('publishStepPhotos')">
-            <div class="step-dot">3</div>
-            <span class="step-label">Fotos</span>
-          </div>
-          <div class="step-connector"></div>
-          <div class="publish-step" data-step="4" onclick="scrollToPublishSection('publishStepDescription')">
-            <div class="step-dot">4</div>
-            <span class="step-label">Descripción</span>
-          </div>
-        </div>
-
         <form onsubmit="handlePublish(event)" novalidate>
-          <div id="publishStepVehicle" class="publish-step-anchor"></div>
           <div class="form-group">
             <label>Título del anuncio</label>
             <div id="publishTitlePreview" class="title-preview">Completá marca, modelo y año para ver el título</div>
@@ -680,10 +609,7 @@
             <select id="publishVehicleType" required
               onchange="toggleEngineCCField('publish'); toggleBodyTypeField('publish'); toggleDrivetrainField('publish'); updateVehicleTypeOptions('publish'); initBrandFilters()">
               <option value="auto">Auto / Camioneta / SUV</option>
-              <option value="utilitario">Utilitario</option>
               <option value="moto">Moto / Scooter</option>
-              <option value="cuatri">Cuatriciclo / ATV</option>
-              <option value="camion">Camión / Transporte</option>
             </select>
           </div>
           <div class="form-row">
@@ -695,8 +621,9 @@
             </div>
             <div class="form-group">
               <label>Modelo *</label>
-              <input type="text" id="publishModel" list="publishModelList" placeholder="Seleccionar o escribir modelo" onchange="toggleDrivetrainField('publish')" autocomplete="off">
-              <datalist id="publishModelList"></datalist>
+              <select id="publishModel" onchange="toggleDrivetrainField('publish')">
+                <option value="">Seleccionar modelo</option>
+              </select>
             </div>
           </div>
           <div class="form-row" id="publishBodyTypeGroup">
@@ -728,13 +655,10 @@
             <label>Versión</label>
             <input type="text" id="publishVersion" placeholder="Ej: SE, LX, Titanium, GT...">
           </div>
-          <div id="publishStepPrice" class="publish-step-anchor"></div>
           <div class="form-row">
             <div class="form-group">
               <label>Año *</label>
-              <select id="publishYear" required>
-                <option value="">Seleccionar año</option>
-              </select>
+              <input type="number" id="publishYear" placeholder="2023" required min="1900" max="2026">
             </div>
             <div class="form-group">
               <label>Precio *</label>
@@ -796,9 +720,8 @@
               </select>
             </div>
           </div>
-          <div id="publishStepPhotos" class="publish-step-anchor"></div>
           <div class="form-group">
-            <label>Imágenes (mínimo 1, hasta 15)</label>
+            <label>Imágenes (hasta 15)</label>
             <div class="image-upload-area" id="imageUploadArea">
               <div class="upload-placeholder" onclick="document.getElementById('imageInput').click()">
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="var(--text-3)">
@@ -812,12 +735,8 @@
             </div>
             <div id="imagePreview" class="image-preview-grid"></div>
           </div>
-          <div id="publishStepDescription" class="publish-step-anchor"></div>
           <div class="form-group">
-            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.35rem;">
-              <label style="margin:0;">Descripción</label>
-              <button type="button" id="autoGenDescBtn" class="btn-auto-gen" onclick="forceAutoGenPublishDescription()">✨ Generar descripción</button>
-            </div>
+            <label>Descripción</label>
             <textarea id="publishDescription" rows="4"
               placeholder="Describí el estado del vehículo, extras, historial de servicio..."></textarea>
           </div>
@@ -852,35 +771,11 @@
                 <p style="font-size:0.8rem;color:var(--text-2);margin:0;">Los interesados verán que este vehículo puede evaluarse con financiación</p>
               </div>
             </div>
-            <div id="publishFinancingProviderGroup" style="display:none;padding-left:2rem;">
-              <label for="publishFinancingProvider" style="font-size:0.82rem;color:var(--text-2);margin-bottom:0.35rem;display:block;">Agencia de financiación</label>
-              <select id="publishFinancingProvider" style="max-width:260px;">
-                <option value="prestito">Préstito</option>
-                <option value="propia">Propia</option>
-              </select>
-            </div>
           </div>
-          <button type="submit" class="btn btn-primary" style="width:100%;" id="publishBtn">Vista previa y Publicar</button>
+          <button type="submit" class="btn btn-primary" style="width:100%;" id="publishBtn">Publicar Vehículo</button>
         </form>
       </div>
     </section>
-
-    <!-- PUBLISH PREVIEW MODAL -->
-    <div id="publishPreviewModal" class="modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="publishPreviewTitle">
-      <div class="modal-content" style="max-width:560px;width:94vw;">
-        <div class="modal-header">
-          <h3 id="publishPreviewTitle">Vista previa del anuncio</h3>
-          <button class="modal-close" onclick="closePublishPreviewModal()" aria-label="Cerrar">&times;</button>
-        </div>
-        <div class="modal-body" style="padding:1.25rem 1.5rem;max-height:70vh;overflow-y:auto;">
-          <div id="publishPreviewContent"></div>
-        </div>
-        <div style="padding:1rem 1.5rem;border-top:1px solid var(--border);display:flex;gap:0.75rem;">
-          <button class="btn btn-ghost" style="flex:1;" onclick="closePublishPreviewModal()">Editar</button>
-          <button class="btn btn-primary" style="flex:1;" id="publishPreviewConfirmBtn" onclick="confirmPublishFromPreview()">✓ Confirmar y Publicar</button>
-        </div>
-      </div>
-    </div>
 
     <!-- MY VEHICLES -->
     <section id="my-vehicles" class="section" style="display:none;">
@@ -988,7 +883,6 @@
       <div id="adminStats" class="admin-stats"></div>
       <div class="admin-tabs">
         <button class="admin-tab active" onclick="showAdminTab('reports', this)">Reportes</button>
-        <button class="admin-tab" onclick="showAdminTab('contact-requests', this)">Consultas</button>
         <button class="admin-tab" onclick="showAdminTab('vehicles', this)">Vehículos</button>
         <button class="admin-tab" onclick="showAdminTab('users', this)">Usuarios</button>
       </div>
@@ -1016,10 +910,7 @@
             <label>Tipo de vehículo</label>
             <select id="editVehicleTypeTop" onchange="toggleEngineCCField('edit'); toggleBodyTypeField('edit'); toggleDrivetrainField('edit'); updateEditBrands()">
               <option value="auto">Auto / Camioneta / SUV</option>
-              <option value="utilitario">Utilitario</option>
               <option value="moto">Moto / Scooter</option>
-              <option value="cuatri">Cuatriciclo / ATV</option>
-              <option value="camion">Camión / Transporte</option>
             </select>
           </div>
           <div class="form-row">
@@ -1031,8 +922,9 @@
             </div>
             <div class="form-group">
               <label>Modelo *</label>
-              <input type="text" id="editModel" list="editModelList" placeholder="Seleccionar o escribir modelo" required onchange="updateEditTitle(); autoGenEditDescription(); toggleDrivetrainField('edit')" autocomplete="off">
-              <datalist id="editModelList"></datalist>
+              <select id="editModel" required onchange="updateEditTitle(); autoGenEditDescription(); toggleDrivetrainField('edit')">
+                <option value="">Seleccionar modelo</option>
+              </select>
             </div>
           </div>
           <div class="form-row" id="editBodyTypeGroup">
@@ -1163,13 +1055,6 @@
                 style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer;">
               <label for="editAcceptsFinancing" style="cursor:pointer;font-size:0.9rem;margin:0;">💳 Ofrezco financiación</label>
             </div>
-            <div id="editFinancingProviderGroup" style="display:none;padding-left:1.9rem;">
-              <label for="editFinancingProvider" style="font-size:0.82rem;color:var(--text-2);margin-bottom:0.35rem;display:block;">Agencia de financiación</label>
-              <select id="editFinancingProvider" style="max-width:250px;">
-                <option value="prestito">Préstito</option>
-                <option value="propia">Propia</option>
-              </select>
-            </div>
           </div>
           <div class="form-group" id="editEngineCCGroup" style="display:none;">
             <label for="editEngineCC">Cilindrada (cc)</label>
@@ -1283,7 +1168,7 @@
         <h3>🏦 Cotizador Préstito</h3>
         <button class="modal-close" onclick="closePrestitoQuoteModal()">&times;</button>
       </div>
-      <div class="modal-body prestito-modal-body">
+      <div class="modal-body">
         <p class="prestito-modal-subtitle" id="prestitoVehicleTitle">Simulá tus cuotas en pesos para este vehículo.</p>
         <div class="prestito-form-grid">
           <div class="form-group">
@@ -1301,8 +1186,8 @@
         </div>
 
         <div class="prestito-modal-actions">
-          <button class="btn btn-primary" onclick="calculatePrestitoQuote()">Calcular</button>
-          <button class="btn btn-secondary" onclick="submitPrestitoLead()" id="prestitoLeadBtn">Enviar</button>
+          <button class="btn btn-primary" onclick="calculatePrestitoQuote()">Calcular cuotas</button>
+          <button class="btn btn-secondary" onclick="submitPrestitoLead()" id="prestitoLeadBtn">Enviar a Préstito</button>
           <a class="btn btn-ghost" href="https://www.prestito.com.ar/" target="_blank" rel="noopener">Sitio oficial</a>
         </div>
 
@@ -1417,8 +1302,6 @@
         Anuncios</a>
       <a href="/?section=notifications" onclick="closeMobileMenu(); showSection('notifications'); return false;" class="mobile-menu-item"><i data-lucide="bell"></i>
         Notificaciones</a>
-      <a href="/?section=support" onclick="closeMobileMenu(); showSection('support'); return false;" class="mobile-menu-item"><i data-lucide="life-buoy"></i>
-        Contacto admin</a>
       <a id="mobileMenuAdmin" href="/?section=admin" onclick="closeMobileMenu(); showSection('admin'); return false;" class="mobile-menu-item"
         style="display:none;"><i data-lucide="shield-check"></i> Admin</a>
       <div style="height:1px;background:var(--border);margin:0.5rem 0.75rem;"></div>
@@ -1429,9 +1312,8 @@
 
   <footer class="site-footer">
     <span>© 2026 Autoventa</span>
-    <a href="/?section=support" onclick="showSection('support');return false;" style="cursor:pointer;">Contacto admin</a>
     <a href="/?section=terms" onclick="showSection('terms');return false;" style="cursor:pointer;">Términos y Condiciones</a>
-    <span style="color:var(--text-3);font-size:0.75rem;">v1.0.16</span>
+    <span style="color:var(--text-3);font-size:0.75rem;">v1.0.14</span>
   </footer>
 
   <!-- Edit Profile Modal -->
@@ -1459,7 +1341,7 @@
       if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
     };
   </script>
-  <script src="app.js?v=83" defer></script>
+  <script src="app.js?v=61" defer></script>
   <script>
     // AdSense: cargar únicamente tras interacción real para mejorar score mobile inicial
     (function () {
@@ -1484,9 +1366,11 @@
       window.addEventListener('keydown', onFirstInteraction, { once: true });
     })();
   </script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"f1b7e234a17a45219187742fcba88bc8","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 
 </html>
+
 
 
 

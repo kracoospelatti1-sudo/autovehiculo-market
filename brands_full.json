@@ -1,0 +1,2599 @@
+{
+  "autos": {
+    "Alfa Romeo": [
+      "145",
+      "146",
+      "147",
+      "155",
+      "156",
+      "159",
+      "164",
+      "166",
+      "2300",
+      "33",
+      "75",
+      "Alfasud",
+      "Alfetta",
+      "Brera",
+      "Giulia",
+      "Giulietta",
+      "GT",
+      "GTV",
+      "Mito",
+      "Spyder",
+      "Stelvio",
+      "Tonale",
+      "Zagato"
+    ],
+    "Asia": [
+      "Rocsta",
+      "Topic",
+      "Towner"
+    ],
+    "Audi": [
+      "100",
+      "200",
+      "5000",
+      "80",
+      "90",
+      "A1",
+      "A3",
+      "A4",
+      "A5",
+      "A6",
+      "A7",
+      "A8",
+      "Allroad",
+      "e-tron",
+      "Q2",
+      "Q3",
+      "Q5",
+      "Q6",
+      "Q7",
+      "Q8",
+      "R8",
+      "RS3",
+      "RS4",
+      "RS5",
+      "RS6",
+      "RS7",
+      "RSQ3",
+      "RSQ8",
+      "S3",
+      "S4",
+      "S5",
+      "S6",
+      "S7",
+      "SQ5",
+      "TT"
+    ],
+    "Baic": [
+      "BJ30",
+      "BJ40",
+      "BJ60",
+      "D20",
+      "EU5",
+      "U5",
+      "X25",
+      "X35",
+      "X55",
+      "X65"
+    ],
+    "BMW": [
+      "De Carlo",
+      "M1",
+      "M2",
+      "M3",
+      "M4",
+      "M5",
+      "M6",
+      "Serie 1",
+      "Serie 2",
+      "Serie 3",
+      "Serie 4",
+      "Serie 5",
+      "Serie 6",
+      "Serie 7",
+      "Serie 8",
+      "X1",
+      "X2",
+      "X3",
+      "X4",
+      "X5",
+      "X6",
+      "X7",
+      "Z3",
+      "Z4",
+      "Z8"
+    ],
+    "Buik": [
+      "Century",
+      "Lesabre",
+      "Skylark"
+    ],
+    "BYD": [
+      "Dolphin Mini",
+      "Song Pro",
+      "Yuan Pro"
+    ],
+    "Cadillac": [
+      "Deville",
+      "Eldorado",
+      "Seville"
+    ],
+    "Changan": [
+      "CS 15",
+      "CS 55",
+      "CS 75"
+    ],
+    "Chery": [
+      "Arrizo 5",
+      "Face",
+      "Fulwin",
+      "QQ",
+      "Skin",
+      "Tiggo",
+      "Tiggo 2",
+      "Tiggo 3",
+      "Tiggo 4",
+      "Tiggo 5",
+      "Tiggo 7",
+      "Tiggo 8"
+    ],
+    "Chevrolet": [
+      "230",
+      "400",
+      "Agile",
+      "Astra",
+      "Aveo",
+      "Baleno",
+      "Beretta",
+      "Blazer",
+      "Camaro",
+      "Caprice",
+      "Captiva",
+      "Cavalier",
+      "Celebrity",
+      "Celta",
+      "Chevette",
+      "Chevy",
+      "Citation",
+      "Classic",
+      "Cobalt",
+      "Corsa",
+      "Corsa II",
+      "Corvette",
+      "Coupe",
+      "Cruze",
+      "Equinox",
+      "Especiales",
+      "GMC",
+      "Grand Blazer",
+      "Grand Vitara",
+      "Impala",
+      "Ipanema",
+      "Jeep",
+      "Jimny",
+      "Kadett",
+      "Lumina",
+      "Meriva",
+      "Metro",
+      "Montecarlo",
+      "Monza",
+      "Omega",
+      "Onix",
+      "Prisma",
+      "Sonic",
+      "Spark",
+      "Spin",
+      "Suburban",
+      "Suprema",
+      "Tahoe",
+      "Tigra",
+      "Tracker",
+      "Trailblazer",
+      "Vectra",
+      "Veraneio",
+      "Zafira"
+    ],
+    "Chrysler": [
+      "300",
+      "Caravan",
+      "Crossfire",
+      "Grand Caravan",
+      "Neon",
+      "PT Cruiser",
+      "Sebring",
+      "Shadow",
+      "Spirit",
+      "Stratus",
+      "Talon",
+      "Valiant",
+      "Viper",
+      "Voyager"
+    ],
+    "Citroen": [
+      "2CV",
+      "3CV",
+      "AMI 8",
+      "AX",
+      "Basalt",
+      "BX",
+      "C3",
+      "C3 Aircross",
+      "C3 Picasso",
+      "C4",
+      "C4 Aircross",
+      "C4 Cactus",
+      "C4 Grand Picaso",
+      "C4 Grand Spacetourer",
+      "C4 Lounge",
+      "C4 Picasso",
+      "C4 Spacetourer",
+      "C5",
+      "C5 Aircross",
+      "C6",
+      "C-Elysee",
+      "CX",
+      "DS3",
+      "DS4",
+      "Dyane",
+      "GS",
+      "GSA",
+      "Mehari",
+      "Oltcit",
+      "Saxo",
+      "Visa",
+      "Xantia",
+      "XM",
+      "Xsara",
+      "Xsara Picasso",
+      "ZX"
+    ],
+    "Coradir": [
+      "Tito"
+    ],
+    "Dacia": [
+      "1310",
+      "1410",
+      "325",
+      "524",
+      "Berlina",
+      "Break"
+    ],
+    "Daewoo": [
+      "Chairman",
+      "Cielo",
+      "Damas",
+      "Espero",
+      "Korando",
+      "Lanos",
+      "Leganza",
+      "Matiz",
+      "Nubira",
+      "Prince",
+      "Racer",
+      "Rexton",
+      "Tacuma",
+      "Tico"
+    ],
+    "Daihatsu": [
+      "Applause",
+      "Charade",
+      "Charmant",
+      "Cuore",
+      "Feroza",
+      "Mira",
+      "Move",
+      "Rocky",
+      "Sirion",
+      "Terios"
+    ],
+    "DFSK": [
+      "E5",
+      "Glory"
+    ],
+    "DKW": [
+      "Auto Union"
+    ],
+    "Dodge": [
+      "1500",
+      "Caravan",
+      "Grand Caravan",
+      "Journey",
+      "Lebaron",
+      "Polara"
+    ],
+    "DS": [
+      "DS3",
+      "DS4",
+      "DS7",
+      "DS9"
+    ],
+    "Ferrari": [
+      "296",
+      "Portofino"
+    ],
+    "Fiat": [
+      "1100",
+      "125",
+      "128",
+      "133",
+      "147",
+      "1500",
+      "1600",
+      "500",
+      "600",
+      "800",
+      "Argo",
+      "Barchetta",
+      "Bertone",
+      "Brava",
+      "Bravo",
+      "Cinquecento",
+      "Coupe",
+      "Cronos",
+      "Duna",
+      "Fastback",
+      "Grand Siena",
+      "Idea",
+      "Linea",
+      "Marea",
+      "Mobi",
+      "Multipla",
+      "Nuevo Palio",
+      "Palio",
+      "Pulse",
+      "Punto",
+      "Regatta",
+      "Siena",
+      "Stilo",
+      "Tempra",
+      "Tipo",
+      "Uno",
+      "Uno Evo"
+    ],
+    "Ford": [
+      "Aerostar",
+      "Bronco",
+      "Capri",
+      "EcoSport",
+      "Escape",
+      "Escort",
+      "Everest",
+      "Expedition",
+      "Explorer",
+      "Fairlane",
+      "Fairmont",
+      "Falcon",
+      "Fiesta",
+      "Fiesta KD",
+      "Focus",
+      "Galaxy",
+      "Granada",
+      "Ka",
+      "Kuga",
+      "Laser",
+      "Mondeo",
+      "Mustang",
+      "Orion",
+      "Puma",
+      "Sierra",
+      "S-Max",
+      "T",
+      "Taunus",
+      "Territory",
+      "VAN"
+    ],
+    "Geely": [
+      "515",
+      "Emgrand",
+      "Emgrand 7",
+      "Emgrand X7",
+      "EX5",
+      "LC"
+    ],
+    "Great Wall": [
+      "ORA"
+    ],
+    "Haval": [
+      "H1",
+      "H2",
+      "H6",
+      "Jolion"
+    ],
+    "Honda": [
+      "Accord",
+      "City",
+      "Civic",
+      "CRV",
+      "CRX",
+      "Fit",
+      "Furgon",
+      "HR-V",
+      "Legend",
+      "NSX",
+      "Odissey",
+      "Passport",
+      "Pilot",
+      "Prelude",
+      "S",
+      "Stream",
+      "WR-V",
+      "ZR-V"
+    ],
+    "Hummer": [
+      "H1",
+      "H2",
+      "H3"
+    ],
+    "Hyundai": [
+      "Accent",
+      "Atos",
+      "Coupe",
+      "Creta",
+      "Elantra",
+      "Excel",
+      "Galloper",
+      "Getz",
+      "Grand I 10",
+      "Grand Santa Fe",
+      "H1",
+      "HB20",
+      "I 10",
+      "I 30",
+      "Kona",
+      "Loniq",
+      "Matrix",
+      "Pony",
+      "Santa Fe",
+      "Santamo",
+      "Sonata",
+      "Staria",
+      "Terracan",
+      "Trajet",
+      "Tucson",
+      "Veloster",
+      "Veracruz"
+    ],
+    "Ika": [
+      "Rambler"
+    ],
+    "Isuzu": [
+      "Amigo",
+      "Rodeo",
+      "Stylus",
+      "Trooper"
+    ],
+    "JAC": [
+      "S2",
+      "S3",
+      "S4",
+      "S5",
+      "S7",
+      "S8"
+    ],
+    "Jaguar": [
+      "Daimler",
+      "F-Pace",
+      "Sovereing",
+      "S-Type",
+      "XE",
+      "XF",
+      "XFR",
+      "XJ6",
+      "XJ8",
+      "XJR",
+      "XJS",
+      "XK",
+      "XK8",
+      "XKR",
+      "X-Type"
+    ],
+    "Jeep": [
+      "Cherokee",
+      "Commander",
+      "Compass",
+      "Grand Cherokee",
+      "Patriot",
+      "Renegade",
+      "Wrangler"
+    ],
+    "Jmev": [
+      "Easy"
+    ],
+    "Kia": [
+      "Besta",
+      "Capital",
+      "Carens",
+      "Carnival",
+      "Cerato",
+      "Grand Sportage",
+      "K3",
+      "Magentis",
+      "Mohave",
+      "Opirus",
+      "Picanto",
+      "Pregio",
+      "Pride",
+      "Rio",
+      "Rondo",
+      "Seltos",
+      "Sephia",
+      "Shuma",
+      "Sorento",
+      "Soul",
+      "Sportage"
+    ],
+    "Lada": [
+      "Afalina",
+      "Laika",
+      "Niva",
+      "Samara"
+    ],
+    "Land Rover": [
+      "Defender",
+      "Discovery",
+      "Freelander",
+      "Land Rover",
+      "Range Rover"
+    ],
+    "Lexus": [
+      "ES",
+      "GS",
+      "GX",
+      "IS",
+      "LBX",
+      "LC",
+      "LS",
+      "LX",
+      "NX ",
+      "RC ",
+      "RX",
+      "SC",
+      "UX"
+    ],
+    "Lifan": [
+      "Jetour",
+      "M7",
+      "MyWay",
+      "T1",
+      "T2",
+      "X50",
+      "X60",
+      "X70"
+    ],
+    "Mahindra": [
+      "CJ"
+    ],
+    "Maserati": [
+      "Levante"
+    ],
+    "Mazda": [
+      "121",
+      "323",
+      "626",
+      "929",
+      "MPV",
+      "MX",
+      "RX7"
+    ],
+    "Mercedes Benz": [
+      "170",
+      "190",
+      "200",
+      "220",
+      "230",
+      "240",
+      "250",
+      "260",
+      "280",
+      "300",
+      "350",
+      "380",
+      "420",
+      "450",
+      "500",
+      "560",
+      "600",
+      "Clase A",
+      "Clase B",
+      "Clase C",
+      "Clase CL",
+      "Clase CLA",
+      "Clase CLC",
+      "Clase CLE",
+      "Clase CLK",
+      "Clase CLS",
+      "Clase E",
+      "Clase G",
+      "Clase GL",
+      "Clase GLA",
+      "Clase GLB",
+      "Clase GLC",
+      "Clase GLE",
+      "Clase GLK",
+      "Clase GLS",
+      "Clase GT",
+      "Clase ML",
+      "Clase S",
+      "Clase SL",
+      "Clase SLC",
+      "Clase SLK",
+      "Clase SLS",
+      "EQA",
+      "EQE"
+    ],
+    "MG": [
+      "3",
+      "Cyberster",
+      "ZS"
+    ],
+    "Mini": [
+      "Cooper"
+    ],
+    "Mitsubishi": [
+      "3000",
+      "Colt",
+      "Diamante",
+      "Eclipse",
+      "Expo",
+      "Galant",
+      "Lancer",
+      "Montero",
+      "Nativa",
+      "Outlander",
+      "Sigma"
+    ],
+    "Nissan": [
+      "AD",
+      "Altima",
+      "Bluebird",
+      "Kicks",
+      "Leaf",
+      "March",
+      "Maxima",
+      "Murano",
+      "Note",
+      "NX",
+      "Pathfinder",
+      "Patrol",
+      "Primera",
+      "Sentra",
+      "Serena",
+      "Sunny",
+      "SX",
+      "Teana",
+      "Terrano",
+      "Tiida",
+      "Versa",
+      "X-Terra",
+      "X-Trail",
+      "Z350",
+      "Z370",
+      "Z371",
+      "Z372",
+      "ZX"
+    ],
+    "Peugeot": [
+      "106",
+      "2008",
+      "205",
+      "206",
+      "206 CC",
+      "207",
+      "207 CC",
+      "208",
+      "3008",
+      "301",
+      "306",
+      "307",
+      "307 CC",
+      "308",
+      "308 CC",
+      "4008",
+      "403",
+      "404",
+      "405",
+      "406",
+      "407",
+      "408",
+      "5008",
+      "504",
+      "505",
+      "508",
+      "605",
+      "607",
+      "806",
+      "807",
+      "RCZ",
+      "Traveller"
+    ],
+    "Porsche": [
+      "718",
+      "911",
+      "928",
+      "968",
+      "Boxster",
+      "Cayenne",
+      "Cayman",
+      "Macan",
+      "Panamera",
+      "Taycan"
+    ],
+    "Proton": [
+      "416",
+      "420",
+      "Wira"
+    ],
+    "Renault": [
+      "11",
+      "12",
+      "18",
+      "19",
+      "21",
+      "25",
+      "4",
+      "5",
+      "6",
+      "9",
+      "Arkana",
+      "Captur",
+      "Clio",
+      "Duster",
+      "Espace",
+      "Fluence",
+      "Fuego",
+      "Gordini",
+      "Grand Scenic",
+      "Kardian",
+      "Koleos",
+      "Kwid",
+      "Laguna",
+      "Latitude",
+      "Logan",
+      "Megane",
+      "Sandero",
+      "Scenic",
+      "Symbol",
+      "Torino",
+      "Twingo"
+    ],
+    "Rover": [
+      "114",
+      "214",
+      "216",
+      "218",
+      "220",
+      "25",
+      "414",
+      "416",
+      "420",
+      "45",
+      "618",
+      "620",
+      "623",
+      "75",
+      "820",
+      "MGF"
+    ],
+    "Saab": [
+      "900",
+      "9000",
+      "9-3",
+      "9-5"
+    ],
+    "Seat": [
+      "Alhambra",
+      "Altea",
+      "Cordoba",
+      "Ibiza",
+      "Leon",
+      "Marbella",
+      "Terra",
+      "Toledo"
+    ],
+    "Shineray": [
+      "SWM",
+      "X7"
+    ],
+    "Skoda": [
+      "Felicia"
+    ],
+    "Smart": [
+      "Forfour",
+      "Fortwo"
+    ],
+    "Soueast": [
+      "DX3"
+    ],
+    "Ssangyong": [
+      "Actyon",
+      "Korando",
+      "Kyron",
+      "Musso"
+    ],
+    "Subaru": [
+      "Crosstrek",
+      "Forester",
+      "Impreza",
+      "Justy",
+      "Legacy",
+      "Outback",
+      "SVX",
+      "Tribeca",
+      "WRX",
+      "XV"
+    ],
+    "Suzuki": [
+      "Baleno",
+      "Fun",
+      "Grand Vitara",
+      "Jimny",
+      "Marutti",
+      "Samurai",
+      "Swift",
+      "Vitara",
+      "Wagon"
+    ],
+    "Toyota": [
+      "4Runner",
+      "86",
+      "Avalon",
+      "Avensis",
+      "Camry",
+      "Celica",
+      "C-HR",
+      "Corolla",
+      "Corolla Cross",
+      "Corona",
+      "Cressida",
+      "Crown",
+      "Etios",
+      "FJ Cruiser",
+      "Hilux SW4",
+      "Innova",
+      "Land Cruiser",
+      "Paseo",
+      "Previa",
+      "Prius",
+      "RAV4",
+      "Supra",
+      "Tercel",
+      "Yaris",
+      "Yaris Cross"
+    ],
+    "Volkswagen": [
+      "1500",
+      "Bora",
+      "Carat",
+      "CrossFox",
+      "Escarabajo",
+      "Fox",
+      "Gacel",
+      "Gol",
+      "Gol Country",
+      "Gol Trend",
+      "Golf",
+      "New Beetle",
+      "Nivus",
+      "Parati",
+      "Passat",
+      "Pointer",
+      "Polo",
+      "Quantum",
+      "Santana",
+      "Scirocco",
+      "Senda",
+      "Sharan",
+      "Suran",
+      "Taos",
+      "T-Cross",
+      "Tera",
+      "The Beetle",
+      "Tiguan",
+      "Touareg",
+      "UP",
+      "Vento",
+      "Virtus",
+      "Voyage"
+    ],
+    "Volvo": [
+      "240",
+      "245",
+      "460",
+      "740",
+      "850",
+      "940",
+      "945",
+      "960",
+      "C30",
+      "C40",
+      "C70",
+      "EX 30",
+      "S40",
+      "S60",
+      "S70",
+      "S80",
+      "S90",
+      "V40",
+      "V50",
+      "V60",
+      "V70",
+      "V90",
+      "XC 40",
+      "XC 60",
+      "XC 70",
+      "XC 90"
+    ]
+  },
+  "utilitarios": {
+    "Agrale": [
+      "Marrua"
+    ],
+    "Aleko": [
+      "Pick-Up"
+    ],
+    "Asia": [
+      "Topic",
+      "Towner"
+    ],
+    "Changan": [
+      "MD 201"
+    ],
+    "Chevrolet": [
+      "Apache",
+      "Astro",
+      "Avalanche",
+      "Brava",
+      "C10",
+      "C20",
+      "Chevette",
+      "Chevy",
+      "Cheyenne",
+      "Classic",
+      "Corsa",
+      "D20",
+      "D40",
+      "El Camino",
+      "Grumman Olson",
+      "LUV",
+      "Montana",
+      "S10",
+      "Silverado",
+      "SpaceCab"
+    ],
+    "Chrysler": [
+      "Dakota"
+    ],
+    "Citroen": [
+      "2CV",
+      "3CV",
+      "Berlingo",
+      "C15",
+      "Jumper",
+      "Jumpy",
+      "Spacetourer"
+    ],
+    "Coradir": [
+      "Tita"
+    ],
+    "Dacia": [
+      "1410",
+      "Pick-Up"
+    ],
+    "Daewoo": [
+      "Damas",
+      "Istana",
+      "Labo"
+    ],
+    "Daihatsu": [
+      "Hijet",
+      "L100",
+      "Minibus",
+      "Piaggio",
+      "Route",
+      "Wide"
+    ],
+    "DFSK": [
+      "C31",
+      "C32",
+      "C35",
+      "EC31",
+      "EC35",
+      "K01H"
+    ],
+    "Dodge": [
+      "D",
+      "Dakota",
+      "DP"
+    ],
+    "Fiat": [
+      "125",
+      "1500",
+      "1600",
+      "Doblo",
+      "Ducato",
+      "Fiorino",
+      "Qubo",
+      "Strada",
+      "Titano",
+      "Toro",
+      "Uno Cargo"
+    ],
+    "Ford": [
+      "Courier",
+      "EconoLine",
+      "F-100",
+      "F-150",
+      "F-400",
+      "Galaxy",
+      "Maverick",
+      "Ranchero",
+      "Ranger",
+      "Transit"
+    ],
+    "Foton": [
+      "Aumark",
+      "Gratour",
+      "Tunland",
+      "View",
+      "Wonder"
+    ],
+    "Great Wall": [
+      "Poer",
+      "Wingle 5",
+      "Wingle 6",
+      "Wingle 7"
+    ],
+    "Heibao": [
+      "Pick-Up"
+    ],
+    "Hyundai": [
+      "H100",
+      "H350",
+      "HD",
+      "Migthy"
+    ],
+    "Ika": [
+      "Estanciera",
+      "Gladiator",
+      "Jeep",
+      "Kaiser"
+    ],
+    "Isuzu": [
+      "Minibus",
+      "NKR",
+      "NPR",
+      "NQR",
+      "Pick-Up"
+    ],
+    "Iveco": [
+      "Daily"
+    ],
+    "JAC": [
+      "HFC",
+      "Minibus",
+      "T6",
+      "T8",
+      "T9",
+      "X200"
+    ],
+    "Jeep": [
+      "Gladiator"
+    ],
+    "JMC": [
+      "Grand Avenue"
+    ],
+    "KIA": [
+      "Besta",
+      "Ceres",
+      "Frontier",
+      "K",
+      "K-2500",
+      "K-2700",
+      "K-2900"
+    ],
+    "Land Rover": [
+      "Defender"
+    ],
+    "Lifan": [
+      "Faw",
+      "Foison",
+      "KYC"
+    ],
+    "Mahindra": [
+      "Pick-Up"
+    ],
+    "Mazda": [
+      "Furgon",
+      "Pick-Up"
+    ],
+    "Mercedes Benz": [
+      "MB",
+      "Sprinter",
+      "Viano",
+      "Vito"
+    ],
+    "Mitsubishi": [
+      "L100",
+      "L200",
+      "L300",
+      "Space",
+      "Varica"
+    ],
+    "Nissan": [
+      "Frontier",
+      "Furgon",
+      "NP 300",
+      "Pick-Up",
+      "Vanette"
+    ],
+    "Peugeot": [
+      "404 Pick-Up",
+      "504 Pick-Up",
+      "Boxer",
+      "Expert",
+      "Hoggar",
+      "Partner"
+    ],
+    "Piaggio": [
+      "Porter"
+    ],
+    "RAM": [
+      "1500",
+      "2500",
+      "Dakota",
+      "Rampage"
+    ],
+    "Rastrojero": [
+      "Generacion 52-69",
+      "Generacion 69-79"
+    ],
+    "Renault": [
+      "4",
+      "Alaskan",
+      "Clio",
+      "Duster Oroch",
+      "Express",
+      "Kangoo",
+      "Master",
+      "Trafic"
+    ],
+    "Seat": [
+      "Inca"
+    ],
+    "Shineray": [
+      "SRM",
+      "T 30",
+      "T 32",
+      "Victory",
+      "X 30"
+    ],
+    "Ssangyong": [
+      "Actyon"
+    ],
+    "Suzuki": [
+      "Marutti",
+      "Super Carry"
+    ],
+    "Toyota": [
+      "Coaster",
+      "Dyna",
+      "Etios",
+      "Hiace",
+      "Hilux",
+      "Tacoma"
+    ],
+    "Volkswagen": [
+      "Amarok",
+      "Caddy",
+      "Furgon",
+      "Kombi",
+      "Multivan",
+      "Saveiro",
+      "Transporter"
+    ],
+    "Wuling Motors": [
+      "LZW"
+    ],
+    "Yuejin": [
+      "Minibus"
+    ],
+    "Zanella": [
+      "Force Truck",
+      "Z-truck"
+    ]
+  },
+  "motos": {
+    "Appia": [
+      "Beraka",
+      "Brezza",
+      "Citiplus",
+      "Geremy",
+      "Hardwind",
+      "Leyenda",
+      "Montero",
+      "Regia",
+      "Stronger",
+      "Vectra"
+    ],
+    "Aprilia": [
+      "Atlantic",
+      "Caponord",
+      "Dorsoduro",
+      "Enduro",
+      "Motard",
+      "Pegaso",
+      "RS",
+      "Rsv4",
+      "Scarabeo",
+      "Shiver",
+      "Sportcity",
+      "SR",
+      "STX",
+      "Tuareg",
+      "Tuono"
+    ],
+    "Bajaj": [
+      "Avenger",
+      "Boxer",
+      "Discover",
+      "Dominar",
+      "Pulsar",
+      "Rouser",
+      "V15",
+      "XCD"
+    ],
+    "Benelli": [
+      "Caffenero",
+      "Cruiser",
+      "Imperiale",
+      "Leoncino",
+      "RK",
+      "Seta",
+      "Target",
+      "TNT",
+      "TRK",
+      "TX",
+      "Zafferano"
+    ],
+    "Beta": [
+      "Akvo",
+      "Arrow",
+      "BK",
+      "Boy",
+      "BS",
+      "Carga",
+      "Chrono",
+      "Euro",
+      "Four",
+      "Mini",
+      "Motard",
+      "Neos",
+      "QM",
+      "RR",
+      "Scooby",
+      "TR",
+      "Zontes"
+    ],
+    "BMW": [
+      "C",
+      "F",
+      "G",
+      "HP4",
+      "K",
+      "R",
+      "S"
+    ],
+    "Brava": [
+      "Alpina",
+      "Altino",
+      "Apolo",
+      "Aquila",
+      "Athene",
+      "Daystar",
+      "Elektra",
+      "Lazer",
+      "Nevada",
+      "Texana",
+      "Winstar"
+    ],
+    "Cagiva": [
+      "Velimotor",
+      "Vento",
+      "VL"
+    ],
+    "Can-Am": [
+      "Spyder"
+    ],
+    "Cerro": [
+      "CE",
+      "Colt"
+    ],
+    "CF Moto": [
+      "Cforce",
+      "CL-X",
+      "GT",
+      "K",
+      "MT",
+      "NK",
+      "RZ",
+      "SR",
+      "TR"
+    ],
+    "Chirette": [
+      "CUB",
+      "Moto"
+    ],
+    "Corven": [
+      "DX",
+      "Energy",
+      "Expert",
+      "Hunter",
+      "Indiana",
+      "Medal",
+      "Mirage",
+      "Triax"
+    ],
+    "Da Dalt": [
+      "DK",
+      "DS",
+      "RAF"
+    ],
+    "Daelim": [
+      "Advance",
+      "Aroma",
+      "Besbi",
+      "City",
+      "Daystar",
+      "Mega",
+      "Roadwin",
+      "Roadwind",
+      "SA7",
+      "Steezer"
+    ],
+    "Dayama": [
+      "Daytona",
+      "Dust"
+    ],
+    "Dayang": [
+      "Calle",
+      "Tuning"
+    ],
+    "Ducati": [
+      "Desert X",
+      "Diavel",
+      "Diavel V4",
+      "FE",
+      "Hypermotard",
+      "Hyperstrada",
+      "Monster",
+      "Multistrada",
+      "Panigale",
+      "Scrambler",
+      "Sport",
+      "ST3",
+      "ST4",
+      "Streetfighter",
+      "Streetfigther",
+      "Super",
+      "Xdiavel"
+    ],
+    "Ecooter": [
+      "E5"
+    ],
+    "Euromot": [
+      "GTX",
+      "HJ",
+      "LK-A"
+    ],
+    "Famsa": [
+      "EGO",
+      "Super Nova"
+    ],
+    "Gas Gas": [
+      "EC",
+      "ES",
+      "MC",
+      "TXT"
+    ],
+    "Ghiggeri": [
+      "Vita"
+    ],
+    "Gilera": [
+      "AC1",
+      "AC4",
+      "C",
+      "Duomo",
+      "EG",
+      "Estilo",
+      "FX",
+      "G1",
+      "GA",
+      "Garelli",
+      "GLA",
+      "GX1",
+      "Piccola",
+      "QM",
+      "Sahel",
+      "SG",
+      "Smash",
+      "SMX",
+      "Super",
+      "Urbana",
+      "VC",
+      "YL"
+    ],
+    "Guerrero": [
+      "Argencargo",
+      "G",
+      "GC",
+      "GE",
+      "GK",
+      "GMX",
+      "GN",
+      "GPR",
+      "GPW",
+      "GR1",
+      "GR5",
+      "GR6",
+      "GR9",
+      "GRF",
+      "GRM",
+      "GSL",
+      "GT",
+      "GVL",
+      "GXL",
+      "GXR",
+      "Moto",
+      "Pulsar",
+      "Trip",
+      "Warrior"
+    ],
+    "Guzzi": [
+      "Audace",
+      "V",
+      "V7",
+      "V8",
+      "V9"
+    ],
+    "Harley Davidson": [
+      "1200",
+      "883",
+      "Buell",
+      "Custom",
+      "CVO Limited",
+      "Dyna",
+      "Electra Glide",
+      "Fat Bob",
+      "Fat Boy",
+      "Forty Eight",
+      "Heritage",
+      "Low",
+      "Low Rider",
+      "Night Rod",
+      "PAN America",
+      "Road King",
+      "Roadster",
+      "Rocker",
+      "Screaming",
+      "Softail",
+      "Springer",
+      "Street",
+      "Superlow",
+      "Touring",
+      "TRI Glide",
+      "Ultra",
+      "Ultra Limited",
+      "V-road"
+    ],
+    "Hero": [
+      "Dash",
+      "Hunk",
+      "Ignitor",
+      "Xpulse"
+    ],
+    "Honda": [
+      "Africa Twin",
+      "Biz",
+      "C",
+      "CB",
+      "CB1",
+      "CBN",
+      "CBR",
+      "CBX",
+      "CD",
+      "CG",
+      "CGR",
+      "CMX",
+      "CR",
+      "CRF",
+      "DAX",
+      "Elite",
+      "GL",
+      "GLH",
+      "Gold Wing",
+      "Hero",
+      "Lead",
+      "Marina",
+      "Navi",
+      "NC",
+      "NT",
+      "NX",
+      "NXR",
+      "PC",
+      "PCX",
+      "POP",
+      "ST",
+      "VF",
+      "VFR",
+      "VLX",
+      "V-men",
+      "VRF",
+      "VT",
+      "VTX",
+      "Wave",
+      "XL",
+      "XR",
+      "XRE"
+    ],
+    "Husqvarna": [
+      "EE5",
+      "Enduro",
+      "FC",
+      "FE",
+      "FX",
+      "Norden",
+      "Supermoto",
+      "Svartpilen",
+      "TC",
+      "TE",
+      "Vitpilen"
+    ],
+    "Hyosung": [
+      "GA",
+      "GD",
+      "GT",
+      "GV"
+    ],
+    "IKA": [
+      "Slalom"
+    ],
+    "Imsa": [
+      "Road",
+      "Track",
+      "Trophy"
+    ],
+    "Jawa": [
+      "300-6",
+      "300-9",
+      "350-6",
+      "350-9",
+      "400-9",
+      "Bobber",
+      "Cafe Racer",
+      "Custom",
+      "CZ",
+      "Daytona",
+      "Motrac",
+      "Ruta",
+      "RVM",
+      "Sportard",
+      "Supernova",
+      "Tekken",
+      "V"
+    ],
+    "Jialing": [
+      "JH"
+    ],
+    "Jianshe": [
+      "Brava YBS",
+      "Calle",
+      "JS"
+    ],
+    "Jincheng": [
+      "JC"
+    ],
+    "Juki": [
+      "LD",
+      "RD"
+    ],
+    "Kawasaki": [
+      "EJ",
+      "EL",
+      "EN",
+      "ER6N",
+      "GPX",
+      "KDX",
+      "KLE",
+      "KLR",
+      "KLX",
+      "KMX",
+      "KX",
+      "KZ",
+      "LTD",
+      "Ninja",
+      "VN",
+      "W",
+      "Z"
+    ],
+    "Kayo": [
+      "KT"
+    ],
+    "Keeway": [
+      "Klight",
+      "RK",
+      "V"
+    ],
+    "Keller": [
+      "Ciclomotor",
+      "Conquista",
+      "Crono",
+      "Excellence",
+      "Exotic",
+      "Extreme",
+      "JET MAX",
+      "K2",
+      "KN",
+      "Miracle",
+      "MX",
+      "Quasar",
+      "Stratus",
+      "Titan"
+    ],
+    "Kiden": [
+      "KD"
+    ],
+    "Kikai": [
+      "Custom",
+      "DK"
+    ],
+    "Konisa": [
+      "CL",
+      "KE",
+      "LF",
+      "LX"
+    ],
+    "Kove": [
+      "Adventure",
+      "MX",
+      "R",
+      "Rally",
+      "X"
+    ],
+    "KTM": [
+      "Adventure",
+      "Duke",
+      "EXC",
+      "EXC-F",
+      "EXC-R",
+      "R",
+      "RC",
+      "SMC",
+      "Super Adventure",
+      "Super Duke",
+      "SX",
+      "SX-E Electrica",
+      "SX-F",
+      "XC"
+    ],
+    "Kymco": [
+      "Activ",
+      "Agility",
+      "AK",
+      "AXR",
+      "Bet Win",
+      "Dink",
+      "DJ",
+      "Downtown",
+      "Grand Dink",
+      "Grand King",
+      "Heroism",
+      "Hipster",
+      "Imsa",
+      "KB",
+      "Like",
+      "New Like",
+      "People",
+      "Pleasure",
+      "Pronto",
+      "Pulsar",
+      "Quannon",
+      "Spike",
+      "Stryker",
+      "Super",
+      "Top Boy",
+      "Venox",
+      "Visa R",
+      "X Town",
+      "Xciting",
+      "YUP",
+      "Zing",
+      "ZX"
+    ],
+    "Legnano": [
+      "Capri",
+      "Imola",
+      "Milano",
+      "Milano Sprint",
+      "Modena",
+      "Monza",
+      "Verona"
+    ],
+    "Lifan": [
+      "KP",
+      "LF",
+      "V16",
+      "XP"
+    ],
+    "Maverick": [
+      "Adventure",
+      "Black Star",
+      "City",
+      "Cross",
+      "Dual",
+      "F1",
+      "Fox",
+      "GO",
+      "Halley",
+      "Maxim",
+      "Nexus",
+      "Panther",
+      "Street",
+      "Supra",
+      "TOP",
+      "Wind",
+      "XRT"
+    ],
+    "Minarelli": [
+      "Ceccato",
+      "Patagonian Eagle",
+      "RX",
+      "RZ",
+      "ZB",
+      "ZR"
+    ],
+    "Mondial": [
+      "AX",
+      "BD",
+      "DAX",
+      "EX",
+      "Free",
+      "HD",
+      "KX",
+      "LD",
+      "MD",
+      "Monkey",
+      "MS",
+      "QJ",
+      "R",
+      "RD",
+      "RV",
+      "Scarabeo",
+      "Silver Fox",
+      "TB",
+      "TD",
+      "VD",
+      "W"
+    ],
+    "Morbidelli": [
+      "M"
+    ],
+    "Morini": [
+      "Alltrhike",
+      "Calibro",
+      "Seiemezzo",
+      "X-CAPE"
+    ],
+    "Motomel": [
+      "Bit",
+      "Blitz",
+      "C",
+      "CG",
+      "City",
+      "Clipper",
+      "Custom",
+      "CX",
+      "Dakar",
+      "DLX",
+      "Dream",
+      "Dresser",
+      "Eco",
+      "Forza",
+      "Function",
+      "GO",
+      "Hawker",
+      "Hiosung",
+      "Hyosung",
+      "Max",
+      "Medal",
+      "Megelli",
+      "Milestone",
+      "Motard",
+      "PX",
+      "Reader",
+      "Ryder",
+      "S",
+      "S2",
+      "S3",
+      "S6",
+      "Sirius",
+      "Skorpion",
+      "Skua",
+      "SL",
+      "Speedy",
+      "SQ",
+      "SR",
+      "Strato",
+      "SUN",
+      "SYM",
+      "TCP",
+      "TOP",
+      "Tricargo",
+      "Victory",
+      "VX",
+      "VX Racing",
+      "Wasp",
+      "X3M",
+      "XMM",
+      "Xplora"
+    ],
+    "MV Agusta": [
+      "Brutale",
+      "Dragster",
+      "F3",
+      "F4",
+      "Rivale",
+      "Rush",
+      "Stradale",
+      "Superveloce",
+      "Veloce"
+    ],
+    "Nuuv": [
+      "M+",
+      "N",
+      "NGT",
+      "NQI",
+      "Upro",
+      "UQI",
+      "Xioma"
+    ],
+    "Okinoi": [
+      "110",
+      "125",
+      "OKN",
+      "R",
+      "Roma",
+      "ST",
+      "Street",
+      "Supermotard",
+      "Triciclo",
+      "Tuning",
+      "Tunning"
+    ],
+    "Olmo": [
+      "Flash",
+      "XT"
+    ],
+    "Peugeot": [
+      "Speed Fight"
+    ],
+    "Piaggio": [
+      "Beverly",
+      "Beverly Cruiser",
+      "Hexagon",
+      "M44",
+      "MP3",
+      "Vespa",
+      "X-Evo"
+    ],
+    "PIT Bike": [
+      "MXR"
+    ],
+    "Qjmotor": [
+      "ATR",
+      "Fort",
+      "Q2",
+      "SRK",
+      "SRT",
+      "SRV"
+    ],
+    "Royal Enfield": [
+      "Classic",
+      "Continental",
+      "GRR",
+      "Himalayan",
+      "Hunter",
+      "Interceptor",
+      "Meteor",
+      "Scram",
+      "Shotgun",
+      "Super Meteor"
+    ],
+    "RVM": [
+      "CZ",
+      "Rally",
+      "Tekken",
+      "V"
+    ],
+    "Sherco": [
+      "SE",
+      "SEF"
+    ],
+    "Siam": [
+      "N4",
+      "Nomad",
+      "QU",
+      "Steppa",
+      "Trender"
+    ],
+    "Skygo": [
+      "SG"
+    ],
+    "Sunra": [
+      "Caguu",
+      "Citycoco",
+      "Grace",
+      "Hawk",
+      "King",
+      "Leo",
+      "Shino",
+      "Vintage",
+      "Z-Bot"
+    ],
+    "Super Soco": [
+      "CPX",
+      "F",
+      "TC",
+      "TSX"
+    ],
+    "Suzuki": [
+      "AH",
+      "AN",
+      "AX",
+      "Burgman",
+      "DL",
+      "DR",
+      "DR-Z",
+      "EN",
+      "FXR",
+      "Gixxer",
+      "GN",
+      "GS",
+      "GSF",
+      "GSR",
+      "GSX",
+      "GSX-R",
+      "GSX-S",
+      "GW",
+      "Haojue",
+      "Katana",
+      "RM",
+      "RMX",
+      "RM-Z",
+      "SJ",
+      "SV",
+      "VL",
+      "VS",
+      "VZ"
+    ],
+    "SYM": [
+      "Citycom S",
+      "Crox",
+      "Fiddle",
+      "Joy Ride",
+      "MaxSym",
+      "Symphony",
+      "Wolf"
+    ],
+    "Tibo": [
+      "Coaster",
+      "JET",
+      "RS"
+    ],
+    "Triumph": [
+      "Bobber",
+      "Bonneville",
+      "CUP",
+      "Explorer",
+      "GT",
+      "III",
+      "Newchurch",
+      "R",
+      "Rally",
+      "Scrambler",
+      "SE",
+      "Speed",
+      "Speed Twin",
+      "Speedmaster",
+      "Spirit",
+      "Sport",
+      "Thruxton",
+      "Tiger",
+      "Trident",
+      "Triple R",
+      "Triple S",
+      "Twin",
+      "XC",
+      "XCA",
+      "XCX",
+      "XE",
+      "XR",
+      "XRT",
+      "XRX"
+    ],
+    "TVS": [
+      "Neo",
+      "Rider",
+      "RR",
+      "RTR",
+      "Scooter"
+    ],
+    "Velimotor": [
+      "Supercity"
+    ],
+    "Vento": [
+      "C"
+    ],
+    "Vespa": [
+      "GTS",
+      "Primavera",
+      "Sprint S",
+      "SXL",
+      "Touring",
+      "VXL"
+    ],
+    "Voge": [
+      "AC",
+      "DS",
+      "DSX",
+      "R",
+      "Rally",
+      "RR",
+      "SR3",
+      "SR4"
+    ],
+    "Xscreems": [
+      "ATV"
+    ],
+    "Yamaha": [
+      "A XVS",
+      "Axis",
+      "Crypton",
+      "DT",
+      "Fascino",
+      "Fazer",
+      "FJR",
+      "FZ",
+      "FZ -S",
+      "FZR",
+      "FZ-S",
+      "FZ-X",
+      "MT",
+      "New Crypton",
+      "NM-X",
+      "PW",
+      "R XV",
+      "R7",
+      "RAY ZR",
+      "RD-R",
+      "SZ RR",
+      "T",
+      "TDM",
+      "Tenere",
+      "T-MAX",
+      "TTR",
+      "TT-R",
+      "V-MAX",
+      "WR",
+      "WRF",
+      "XC B",
+      "XJ",
+      "X-MAX",
+      "XP",
+      "XS",
+      "XSR",
+      "XT",
+      "XTE",
+      "XTZ",
+      "XV",
+      "YBR",
+      "YP",
+      "YS",
+      "YZ",
+      "YZF"
+    ],
+    "Zanella": [
+      "Black Bull",
+      "Ceccato",
+      "Crazy",
+      "Cruiser",
+      "Delivery",
+      "Due",
+      "E-styler",
+      "Exclusive",
+      "FX",
+      "GT2",
+      "HJ",
+      "HOT",
+      "Keeway",
+      "Madass",
+      "MOD",
+      "Motoneta",
+      "MXR",
+      "New Fire",
+      "Patagonia",
+      "Patagonian Eagle",
+      "Pocket",
+      "RKS",
+      "RTZ",
+      "RX",
+      "RX1",
+      "RZ",
+      "RZ3",
+      "RZ35",
+      "RZ7",
+      "Sapucai",
+      "Sexy",
+      "Sol",
+      "Speed",
+      "Styler",
+      "Swing",
+      "TX",
+      "TXM",
+      "Vento",
+      "ZB",
+      "Z-Cap",
+      "Zmax",
+      "ZR",
+      "ZSC",
+      "ZT",
+      "ZTT"
+    ]
+  },
+  "cuatris": {
+    "Baboon": [
+      "Sport"
+    ],
+    "Beta": [
+      "BKS",
+      "Bugui",
+      "Finder",
+      "Grinder",
+      "Panda",
+      "Worker"
+    ],
+    "Blackstone": [
+      "BKS"
+    ],
+    "Bloower": [
+      "Basooka",
+      "Discovery",
+      "Extreme",
+      "Free",
+      "Genesis",
+      "Highlander",
+      "Lighting",
+      "Mini",
+      "Mint",
+      "Montana",
+      "Nitro",
+      "Runner",
+      "Samurai",
+      "Smart",
+      "Speed Cobra",
+      "Sport",
+      "Voyager"
+    ],
+    "Brava": [
+      "Jumper",
+      "Lazer",
+      "Nepal"
+    ],
+    "Can-Am": [
+      "Commander",
+      "Daytona",
+      "Defender",
+      "DS",
+      "Maverick",
+      "Outlander",
+      "Renegade"
+    ],
+    "Cerro": [
+      "CE"
+    ],
+    "CF Moto": [
+      "Cforce",
+      "Uforce",
+      "Zforce"
+    ],
+    "Corven": [
+      "Terrain"
+    ],
+    "Dayama": [
+      "ATV",
+      "DA",
+      "KD",
+      "Tibo",
+      "TR"
+    ],
+    "Dynamic": [
+      "Sporttruk",
+      "Terregator"
+    ],
+    "Euromot": [
+      "LX"
+    ],
+    "Famsa": [
+      "Magnum"
+    ],
+    "Gamma": [
+      "Across",
+      "Cforce",
+      "Crossing",
+      "Cuatri",
+      "Eagle",
+      "Gforce",
+      "Mountainer",
+      "Trurus",
+      "UForce",
+      "UTV",
+      "ZForce"
+    ],
+    "Gilera": [
+      "FR",
+      "LM",
+      "X"
+    ],
+    "Goes": [
+      "ATV",
+      "MAX",
+      "S",
+      "X",
+      "XS"
+    ],
+    "Guerrero": [
+      "GFT",
+      "Mapuche",
+      "Sport",
+      "Trabajo",
+      "X"
+    ],
+    "Hamatsu": [
+      "110",
+      "150",
+      "200"
+    ],
+    "Honda": [
+      "FL",
+      "TRX"
+    ],
+    "Jaguar": [
+      "Agro",
+      "ATV",
+      "Sport"
+    ],
+    "Jianshe": [
+      "4x4",
+      "ATV"
+    ],
+    "Jinling": [
+      "JLA"
+    ],
+    "Kawasaki": [
+      "Brute Force",
+      "Brute Teryx",
+      "KFX",
+      "KLF",
+      "KRX",
+      "KSF",
+      "KSV",
+      "KVF"
+    ],
+    "Keller": [
+      "KR",
+      "Satelix"
+    ],
+    "Kikai": [
+      "ATV"
+    ],
+    "Konisa": [
+      "ATV",
+      "Deportivo",
+      "QS",
+      "YJ"
+    ],
+    "Kymco": [
+      "Bull",
+      "Mxer",
+      "MXU",
+      "UXV"
+    ],
+    "Legnano": [
+      "Eleko"
+    ],
+    "Maverick": [
+      "BIG Force",
+      "Scape",
+      "Sport"
+    ],
+    "Minarelli": [
+      "FX",
+      "Gforce",
+      "HJ"
+    ],
+    "Mondial": [
+      "FD",
+      "MD"
+    ],
+    "Motomel": [
+      "Gorilla",
+      "Kraken",
+      "Linx",
+      "MX",
+      "Pitbull",
+      "Quest",
+      "Trucker",
+      "Volkano"
+    ],
+    "Panther": [
+      "ATV",
+      "F",
+      "R",
+      "WR"
+    ],
+    "Polaris": [
+      "General",
+      "Ranger",
+      "RZR",
+      "Scrambler",
+      "Sportsman",
+      "Trail Blazer"
+    ],
+    "Rafter": [
+      "R",
+      "SL"
+    ],
+    "Sumo": [
+      "CG",
+      "Hobiz",
+      "SB",
+      "SG",
+      "SL"
+    ],
+    "Suzuki": [
+      "LT-A",
+      "LT-F",
+      "LT-R",
+      "LT-Z"
+    ],
+    "Tibo": [
+      "CAT",
+      "Charger",
+      "Hunter",
+      "Nitro",
+      "R",
+      "Rider",
+      "Samurai",
+      "Shark",
+      "Tazz",
+      "Zonda"
+    ],
+    "Velimotor": [
+      "VL"
+    ],
+    "Vento": [
+      "ST",
+      "VL"
+    ],
+    "Xquad": [
+      "ATV"
+    ],
+    "Yamaha": [
+      "Viking",
+      "YFM",
+      "YFS",
+      "YFZ",
+      "YMF",
+      "YXC",
+      "YXE",
+      "YXM",
+      "YXR",
+      "YXZ"
+    ],
+    "Zanella": [
+      "Explorer",
+      "FX",
+      "G-Force",
+      "Quad",
+      "Raptor",
+      "S-truck",
+      "Tricargo",
+      "ZCT",
+      "Z-Max"
+    ]
+  },
+  "camiones": {
+    "Agrale": [
+      "A",
+      "Agrale"
+    ],
+    "Chevrolet": [
+      "14000",
+      "15-190",
+      "16-220",
+      "6000",
+      "6-150",
+      "714",
+      "C 50",
+      "Kodiak",
+      "NKR",
+      "NPR"
+    ],
+    "DFM": [
+      "DF",
+      "Duolica",
+      "T 01"
+    ],
+    "Dimex": [
+      "Cummins"
+    ],
+    "Ford": [
+      "Cargo",
+      "F-14000",
+      "F-250",
+      "F-350",
+      "F-4000",
+      "F-600",
+      "F-6000",
+      "F-700",
+      "F-7000"
+    ],
+    "Foton": [
+      "Auman",
+      "Aumark"
+    ],
+    "Hino": [
+      "FC",
+      "Serie 300",
+      "Serie 500"
+    ],
+    "Isuzu": [
+      "Serie F"
+    ],
+    "Iveco": [
+      "130",
+      "150",
+      "190",
+      "619",
+      "673",
+      "682",
+      "697",
+      "Astra",
+      "Cursor",
+      "Eurocargo",
+      "Eurotech",
+      "Eurotraker",
+      "Power Star",
+      "Stralis",
+      "Tector",
+      "Trakker",
+      "Vertis"
+    ],
+    "JMC": [
+      "N",
+      "N601",
+      "N900"
+    ],
+    "Mercedes Benz": [
+      "Accelo",
+      "Actros",
+      "Arocs",
+      "Atego",
+      "Atron",
+      "Axor",
+      "L",
+      "LAK",
+      "LB",
+      "LK",
+      "LP",
+      "LS",
+      "OM",
+      "Unimog"
+    ],
+    "Mitsubishi": [
+      "Canter",
+      "Sansung"
+    ],
+    "Nissan": [
+      "CMF",
+      "CPB",
+      "CPC",
+      "ECO",
+      "U"
+    ],
+    "Renault": [
+      "C",
+      "CBH",
+      "D",
+      "Kerax",
+      "Magnum",
+      "Manager",
+      "Maxter",
+      "Midliner",
+      "Midlum",
+      "Premium"
+    ],
+    "Scania": [
+      "G",
+      "P",
+      "R",
+      "RH",
+      "RN",
+      "S",
+      "T"
+    ],
+    "Volkswagen": [
+      "10.150",
+      "11.180",
+      "13.180",
+      "13.190 ",
+      "14.190",
+      "15.160",
+      "15.180",
+      "15.190",
+      "17.190",
+      "17.210",
+      "17.220",
+      "17.230",
+      "17.240",
+      "17.250",
+      "17.280",
+      "17.300",
+      "17.310",
+      "18.310",
+      "19.320",
+      "19.330",
+      "19.360",
+      "19.420",
+      "24.280",
+      "25.320",
+      "25.360",
+      "25.420",
+      "25.460",
+      "26.260",
+      "26.280",
+      "26.300",
+      "26.310",
+      "26.420",
+      "31.280",
+      "31.320",
+      "31.330",
+      "32.360",
+      "33.460",
+      "5.140",
+      "6.160",
+      "8.150",
+      "9.140",
+      "9.150",
+      "9.160",
+      "9.170",
+      "Delivery",
+      "Meteor"
+    ],
+    "Volvo": [
+      "EDC",
+      "FH",
+      "FM",
+      "FMX",
+      "NH",
+      "NL",
+      "VM",
+      "VMX"
+    ],
+    "Yuejin": [
+      "NJ"
+    ]
+  }
+}

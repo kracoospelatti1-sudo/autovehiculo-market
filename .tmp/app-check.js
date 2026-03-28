@@ -1,6 +1,5 @@
-const PLACEHOLDER_IMG = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"><rect width="400" height="300" fill="#1a1a2e"/><text x="200" y="140" text-anchor="middle" fill="#444" font-size="48">&#x1F697;</text><text x="200" y="185" text-anchor="middle" fill="#555" font-size="16">Sin imagen</text></svg>')}`;
+﻿const PLACEHOLDER_IMG = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"><rect width="400" height="300" fill="#1a1a2e"/><text x="200" y="140" text-anchor="middle" fill="#444" font-size="48">&#x1F697;</text><text x="200" y="185" text-anchor="middle" fill="#555" font-size="16">Sin imagen</text></svg>')}`;
 
-const MAX_VEHICLE_IMAGES = 15;
 let currentUser = null;
 let currentVehicleId = null;
 let vehicleMapInstance = null;
@@ -15,8 +14,6 @@ let reportVehicleId = null;
 let rateConversationId = null;
 let rateRecipientId = null;
 let rateVehicleId = null;
-let prestitoVehicleContext = null;
-let prestitoConfigCache = null;
 let lastMessageId = 0;
 let isLoadingMessages = false;
 let pollCount = 0;
@@ -29,42 +26,6 @@ let leafletCssLoaded = false;
 let homeRecentLoadedAt = 0;
 let publicStatsLoadedAt = 0;
 let lucideLoadPromise = null;
-let hCaptchaLoadPromise = null;
-let myVehiclesPage = 1;
-let myVehiclesHasMore = false;
-let profileVehiclesPage = 1;
-let profileVehiclesHasMore = false;
-let profileVehiclesUserId = null;
-let editProfileTarget = null;
-let modalStack = [];
-let mobileMenuTrigger = null;
-let keyboardClickableObserver = null;
-let currentSectionId = 'home';
-let vehiclesCurrentPage = 1;
-let vehiclesHistorySyncTimer = null;
-let isHandlingPopState = false;
-
-const VEHICLES_STATE_STORAGE_KEY = 'vehicles:list-state:v1';
-const VEHICLES_FILTER_IDS = [
-  'filterBrand',
-  'filterModel',
-  'filterMinPrice',
-  'filterMaxPrice',
-  'filterMinYear',
-  'filterMaxYear',
-  'filterMinMileage',
-  'filterMaxMileage',
-  'filterFuel',
-  'filterTransmission',
-  'filterCity',
-  'filterProvince',
-  'filterSort',
-  'filterVehicleType'
-];
-
-if (typeof window !== 'undefined' && 'scrollRestoration' in window.history) {
-  window.history.scrollRestoration = 'manual';
-}
 
 function ensureLeafletCss() {
   if (leafletCssLoaded || document.querySelector('link[data-leaflet-css="1"]')) {
@@ -111,146 +72,14 @@ function loadLucideIcons() {
 }
 
 function loadHCaptcha() {
-  if (window.hcaptcha) return Promise.resolve();
-  if (hCaptchaLoadPromise) return hCaptchaLoadPromise;
-  hCaptchaLoadPromise = new Promise((resolve) => {
+  return new Promise((resolve) => {
+    if (window.hcaptcha) return resolve();
     const script = document.createElement('script');
     script.src = 'https://js.hcaptcha.com/1/api.js';
     script.async = true;
     script.onload = resolve;
-    script.onerror = () => resolve();
     document.head.appendChild(script);
   });
-  return hCaptchaLoadPromise;
-}
-
-function renderHCaptchaContainer(container) {
-  if (!container || !window.hcaptcha) return;
-  if (container.dataset.hcaptchaWidgetId !== undefined && container.dataset.hcaptchaWidgetId !== '') return;
-  const sitekey = String(container.dataset.sitekey || '').trim();
-  if (!sitekey) return;
-  try {
-    const widgetId = window.hcaptcha.render(container, {
-      sitekey,
-      size: container.dataset.size || 'normal'
-    });
-    container.dataset.hcaptchaWidgetId = String(widgetId);
-  } catch (e) {
-    // Ignore re-render errors; widget can already be mounted by hCaptcha internals.
-  }
-}
-
-function ensureHCaptchaForSection(sectionId) {
-  if (!['register', 'support'].includes(sectionId)) return;
-  loadHCaptcha().then(() => {
-    const section = document.getElementById(sectionId);
-    if (!section) return;
-    setTimeout(() => {
-      section.querySelectorAll('.h-captcha').forEach((container) => renderHCaptchaContainer(container));
-    }, 50);
-  });
-}
-
-function getHCaptchaToken(containerId) {
-  const container = document.getElementById(containerId);
-  if (!container || !window.hcaptcha) return '';
-  const widgetIdRaw = container.dataset.hcaptchaWidgetId;
-  if (widgetIdRaw === undefined || widgetIdRaw === '') return '';
-  const widgetId = Number(widgetIdRaw);
-  if (!Number.isFinite(widgetId)) return '';
-  try {
-    return String(window.hcaptcha.getResponse(widgetId) || '').trim();
-  } catch {
-    return '';
-  }
-}
-
-function resetHCaptchaWidget(containerId) {
-  const container = document.getElementById(containerId);
-  if (!container || !window.hcaptcha) return;
-  const widgetIdRaw = container.dataset.hcaptchaWidgetId;
-  if (widgetIdRaw === undefined || widgetIdRaw === '') return;
-  const widgetId = Number(widgetIdRaw);
-  if (!Number.isFinite(widgetId)) return;
-  try {
-    window.hcaptcha.reset(widgetId);
-  } catch {
-    // no-op
-  }
-}
-
-function isVisibleElement(el) {
-  return !!el && getComputedStyle(el).display !== 'none' && getComputedStyle(el).visibility !== 'hidden';
-}
-
-function getFocusableElements(container) {
-  if (!container) return [];
-  const selector = [
-    'a[href]',
-    'button:not([disabled])',
-    'input:not([disabled]):not([type="hidden"])',
-    'select:not([disabled])',
-    'textarea:not([disabled])',
-    '[tabindex]:not([tabindex="-1"])'
-  ].join(',');
-  return Array.from(container.querySelectorAll(selector)).filter(el => isVisibleElement(el));
-}
-
-function setBodyScrollLocked(locked) {
-  document.body.style.overflow = locked ? 'hidden' : '';
-}
-
-function syncModalOverlay() {
-  const overlay = document.getElementById('modalOverlay');
-  if (!overlay) return;
-  const hasModal = modalStack.length > 0;
-  overlay.style.display = hasModal ? 'block' : 'none';
-  setBodyScrollLocked(hasModal || isVisibleElement(document.getElementById('mobileAccountMenu')));
-}
-
-function openAccessibleModal(modalId, options = {}) {
-  const modal = document.getElementById(modalId);
-  if (!modal) return;
-  const lastFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-  modal.style.display = options.display || 'block';
-  const existingIndex = modalStack.findIndex(m => m.id === modalId);
-  if (existingIndex !== -1) modalStack.splice(existingIndex, 1);
-  modalStack.push({ id: modalId, lastFocused });
-  syncModalOverlay();
-
-  const focusSelector = options.initialFocusSelector;
-  const focusTarget = focusSelector ? modal.querySelector(focusSelector) : null;
-  const focusable = getFocusableElements(modal);
-  const fallback = focusable[0] || modal;
-  requestAnimationFrame(() => (focusTarget || fallback)?.focus?.());
-}
-
-function closeAccessibleModal(modalId, { restoreFocus = true } = {}) {
-  const modal = document.getElementById(modalId);
-  if (modal) modal.style.display = 'none';
-  const idx = modalStack.findIndex(m => m.id === modalId);
-  const ctx = idx !== -1 ? modalStack[idx] : null;
-  if (idx !== -1) modalStack.splice(idx, 1);
-  syncModalOverlay();
-  if (restoreFocus && ctx?.lastFocused && document.contains(ctx.lastFocused)) {
-    requestAnimationFrame(() => ctx.lastFocused.focus());
-  }
-}
-
-function closeTopAccessibleModal() {
-  const top = modalStack[modalStack.length - 1];
-  if (!top) return false;
-  if (top.id === 'lightboxModal') closeLightbox();
-  else if (top.id === 'editVehicleModal') closeEditModal();
-  else if (top.id === 'tradeModal') closeTradeModal();
-  else if (top.id === 'reportModal') closeReportModal();
-  else if (top.id === 'rateModal') closeRateModal();
-  else if (top.id === 'prestitoModal') closePrestitoQuoteModal();
-  else if (top.id === 'confirmModal') closeConfirmModal();
-  else if (top.id === 'editProfileModal') closeEditProfileModal();
-  else if (top.id === 'publishPreviewModal') closePublishPreviewModal();
-  else closeAccessibleModal(top.id);
-  return true;
 }
 
 // SEO helpers
@@ -264,16 +93,6 @@ function setRobotsMetaForSection(sectionId) {
   const robotsValue = indexableSections.has(sectionId) ? 'index, follow' : 'noindex, nofollow';
   setMeta('name', 'robots', robotsValue);
 }
-function makeCacheToken(value = '') {
-  // Small deterministic hash for cache-busting URLs.
-  let h = 2166136261;
-  const s = String(value || '');
-  for (let i = 0; i < s.length; i += 1) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return (h >>> 0).toString(36);
-}
 
 function updateSEOMeta(vehicle, imageUrl) {
   const price = Number(vehicle.price).toLocaleString('es-AR');
@@ -282,14 +101,11 @@ function updateSEOMeta(vehicle, imageUrl) {
   const title = `${vehicle.title} — $${price} | Autoventa`;
   const desc = `${vehicle.brand} ${vehicle.model} ${vehicle.year}, ${mileage}km, ${vehicle.fuel}, ${vehicle.transmission}. En ${location}.`;
   const url = `https://autoventa.online/?vehicle=${vehicle.id}`;
-  const ogVersion = makeCacheToken(`${vehicle.updated_at || ''}|${imageUrl || ''}`);
-  const ogImage = `https://autoventa.online/og/vehicle/${vehicle.id}.svg?v=${ogVersion}`;
   document.title = title;
   setMeta('name', 'description', desc);
   setMeta('property', 'og:title', title);
   setMeta('property', 'og:description', desc);
-  setMeta('property', 'og:image', ogImage);
-  setMeta('property', 'og:image:type', 'image/svg+xml');
+  setMeta('property', 'og:image', imageUrl);
   setMeta('property', 'og:url', url);
   setMeta('name', 'twitter:title', title);
   setMeta('name', 'twitter:description', desc);
@@ -297,6 +113,7 @@ function updateSEOMeta(vehicle, imageUrl) {
   setMeta('name', 'robots', 'index, follow');
   const canonical = document.querySelector('link[rel="canonical"]');
   if (canonical) canonical.href = url;
+  window.history.pushState({ vehicleId: vehicle.id, section: 'vehicle-detail' }, '', `?vehicle=${vehicle.id}`);
   // JSON-LD por vehículo
   document.getElementById('vehicle-jsonld')?.remove();
   const script = document.createElement('script');
@@ -336,7 +153,6 @@ function resetSEOMeta() {
   setMeta('property', 'og:title', defaultTitle);
   setMeta('property', 'og:description', defaultDesc);
   setMeta('property', 'og:image', defaultImg);
-  setMeta('property', 'og:image:type', 'image/png');
   setMeta('property', 'og:url', defaultUrl);
   setMeta('name', 'twitter:title', defaultTitle);
   setMeta('name', 'twitter:description', defaultDesc);
@@ -344,6 +160,7 @@ function resetSEOMeta() {
   setMeta('name', 'robots', 'index, follow');
   const canonical = document.querySelector('link[rel="canonical"]');
   if (canonical) canonical.href = defaultUrl;
+  window.history.replaceState({}, '', '/');
   document.getElementById('vehicle-jsonld')?.remove();
 }
 
@@ -364,27 +181,16 @@ const API_URL = '/api';
 
 let carBrands = {};
 let motoBrands = {};
-let utilitarioBrands = {};
-let cuatriBrands = {};
-let camionBrands = {};
 
-fetch('/brands-data.json?v=3').then(r => r.json()).then(d => {
+fetch('/brands-data.json?v=2').then(r => r.json()).then(d => {
   carBrands = d.carBrands || {};
   motoBrands = d.motoBrands || {};
-  utilitarioBrands = d.utilitarioBrands || {};
-  cuatriBrands = d.cuatriBrands || {};
-  camionBrands = d.camionBrands || {};
   // Re-populate brand selects now that data is loaded
   if (typeof initBrandFilters === 'function') initBrandFilters();
 }).catch(() => {});
 
 function getBrandsForType(type) {
-  if (type === 'moto') return motoBrands;
-  if (type === 'auto') return carBrands;
-  if (type === 'utilitario') return utilitarioBrands;
-  if (type === 'cuatri') return cuatriBrands;
-  if (type === 'camion') return camionBrands;
-  return { ...carBrands, ...utilitarioBrands, ...motoBrands, ...cuatriBrands, ...camionBrands };
+  return type === 'moto' ? motoBrands : carBrands;
 }
 
 const TOP_CAR_BRANDS = ['Volkswagen','Toyota','Chevrolet','Ford','Renault','Fiat','Peugeot','Citroen','Honda','Hyundai','Jeep','Nissan','Kia','Mercedes-Benz','BMW','Audi','Mitsubishi','Mazda','Subaru','Suzuki'];
@@ -590,10 +396,7 @@ function getPriceBaseUSD(prefix) {
 
   const val = parseFloat(priceEl.value);
   if (!val || isNaN(val)) return null;
-  if (currencyEl.value === 'ARS') {
-    if (!dolarRate?.venta) return null;
-    return val / dolarRate.venta;
-  }
+  if (currencyEl.value === 'ARS' && dolarRate?.venta) return val / dolarRate.venta;
   return val;
 }
 
@@ -606,11 +409,7 @@ function syncPriceBaseUSD(prefix) {
     delete priceEl.dataset.usdBase;
     return;
   }
-  if (currencyEl.value === 'ARS' && !dolarRate?.venta) {
-    delete priceEl.dataset.usdBase;
-    return;
-  }
-  const usd = currencyEl.value === 'ARS' ? (val / dolarRate.venta) : val;
+  const usd = currencyEl.value === 'ARS' && dolarRate?.venta ? (val / dolarRate.venta) : val;
   if (usd && !isNaN(usd)) priceEl.dataset.usdBase = String(usd);
 }
 
@@ -684,150 +483,6 @@ function toggleTheme() {
   applyTheme(newDay);
 }
 
-function setStarRating(value) {
-  const rating = document.getElementById('starRating');
-  if (!rating) return;
-  const stars = Array.from(rating.querySelectorAll('.star'));
-  const safeValue = Number.isFinite(value) ? Math.max(0, Math.min(5, value)) : 0;
-  rating.dataset.value = String(safeValue);
-  stars.forEach((star, idx) => {
-    const active = idx < safeValue;
-    star.classList.toggle('active', active);
-    star.setAttribute('aria-checked', idx === Math.max(0, safeValue - 1) && safeValue > 0 ? 'true' : 'false');
-    star.setAttribute('tabindex', idx === Math.max(0, safeValue - 1) ? '0' : '-1');
-  });
-  if (safeValue === 0 && stars[0]) stars[0].setAttribute('tabindex', '0');
-}
-
-function initStarRatingA11y() {
-  const rating = document.getElementById('starRating');
-  if (!rating) return;
-  rating.setAttribute('role', 'radiogroup');
-  if (!rating.getAttribute('aria-label')) rating.setAttribute('aria-label', 'Calificación por estrellas');
-  const stars = Array.from(rating.querySelectorAll('.star'));
-  stars.forEach((star, idx) => {
-    star.setAttribute('role', 'radio');
-    star.setAttribute('aria-label', `${idx + 1} estrella${idx === 0 ? '' : 's'}`);
-    star.setAttribute('tabindex', idx === 0 ? '0' : '-1');
-  });
-  setStarRating(0);
-}
-
-function wireImplicitFormLabels() {
-  document.querySelectorAll('.form-group label:not([for])').forEach((label, idx) => {
-    const group = label.closest('.form-group');
-    if (!group) return;
-    const field = group.querySelector('input:not([type="hidden"]), select, textarea');
-    if (!field) return;
-    if (!field.id) field.id = `fieldAuto${idx + 1}`;
-    label.setAttribute('for', field.id);
-  });
-}
-
-function initAccessibilitySemantics() {
-  const modalDefs = [
-    { id: 'editVehicleModal', label: 'Editar publicación' },
-    { id: 'tradeModal', label: 'Proponer permuta' },
-    { id: 'reportModal', label: 'Reportar publicación' },
-    { id: 'rateModal', label: 'Calificar vendedor' },
-    { id: 'prestitoModal', label: 'Cotizador Préstito' },
-    { id: 'confirmModal', label: 'Confirmación' },
-    { id: 'editProfileModal', label: 'Editar perfil' }
-  ];
-  modalDefs.forEach(({ id, label }) => {
-    const modal = document.getElementById(id);
-    if (!modal) return;
-    modal.setAttribute('role', 'dialog');
-    modal.setAttribute('aria-modal', 'true');
-    modal.setAttribute('tabindex', '-1');
-    const title = modal.querySelector('.modal-header h3');
-    if (title) {
-      if (!title.id) title.id = `${id}Title`;
-      modal.setAttribute('aria-labelledby', title.id);
-    } else {
-      modal.setAttribute('aria-label', label);
-    }
-  });
-
-  const closeButtons = document.querySelectorAll('.modal-close:not([aria-label])');
-  closeButtons.forEach(btn => btn.setAttribute('aria-label', 'Cerrar modal'));
-
-  const lightbox = document.getElementById('lightboxModal');
-  if (lightbox) {
-    lightbox.setAttribute('role', 'dialog');
-    lightbox.setAttribute('aria-modal', 'true');
-    lightbox.setAttribute('tabindex', '-1');
-    if (!lightbox.getAttribute('aria-label')) lightbox.setAttribute('aria-label', 'Galería de imágenes');
-  }
-  document.querySelector('.lightbox-close')?.setAttribute('aria-label', 'Cerrar galería');
-  document.querySelector('.lightbox-prev')?.setAttribute('aria-label', 'Imagen anterior');
-  document.querySelector('.lightbox-next')?.setAttribute('aria-label', 'Siguiente imagen');
-
-  const toastContainer = document.getElementById('toastContainer');
-  if (toastContainer) {
-    toastContainer.setAttribute('aria-live', 'polite');
-    toastContainer.setAttribute('aria-atomic', 'true');
-  }
-
-  const mobileMenu = document.getElementById('mobileAccountMenu');
-  if (mobileMenu) {
-    mobileMenu.setAttribute('role', 'dialog');
-    mobileMenu.setAttribute('aria-modal', 'true');
-    mobileMenu.setAttribute('tabindex', '-1');
-    mobileMenu.querySelector('.mobile-menu-header button')?.setAttribute('aria-label', 'Cerrar menú');
-  }
-
-  const mobileThemeToggle = document.getElementById('mobileThemeToggle');
-  if (mobileThemeToggle) {
-    mobileThemeToggle.setAttribute('href', '#');
-    mobileThemeToggle.removeAttribute('onclick');
-    mobileThemeToggle.addEventListener('click', (event) => {
-      event.preventDefault();
-      toggleTheme();
-    });
-  }
-
-  wireImplicitFormLabels();
-  initStarRatingA11y();
-}
-
-function makeElementKeyboardClickable(el) {
-  if (!el || el.dataset.kbClick === '1') return;
-  const tag = el.tagName;
-  if (['A', 'BUTTON', 'INPUT', 'SELECT', 'TEXTAREA'].includes(tag)) return;
-  if (el.matches('.modal-overlay, .mobile-menu-backdrop, .lightbox-overlay, .lightbox-thumbs')) return;
-  el.setAttribute('role', 'button');
-  el.setAttribute('tabindex', '0');
-  el.dataset.kbClick = '1';
-}
-
-function enhanceKeyboardClickables(root = document) {
-  if (!root) return;
-  if (root instanceof Element) {
-    if (root.hasAttribute('onclick')) makeElementKeyboardClickable(root);
-    if (!root.querySelector) return;
-    if (root.querySelector('[onclick]')) {
-      root.querySelectorAll('[onclick]').forEach(makeElementKeyboardClickable);
-    }
-    return;
-  }
-  if (root.querySelectorAll) {
-    root.querySelectorAll('[onclick]').forEach(makeElementKeyboardClickable);
-  }
-}
-
-function initKeyboardClickableObserver() {
-  if (keyboardClickableObserver || !document.body) return;
-  keyboardClickableObserver = new MutationObserver((mutations) => {
-    mutations.forEach((m) => {
-      m.addedNodes.forEach((n) => {
-        if (n instanceof Element) enhanceKeyboardClickables(n);
-      });
-    });
-  });
-  keyboardClickableObserver.observe(document.body, { childList: true, subtree: true });
-}
-
 // Init province/city selects when DOM ready
 async function handleEmailLinks() {
   const params = new URLSearchParams(window.location.search);
@@ -857,202 +512,20 @@ async function handleEmailLinks() {
 }
 
 // Botón atrás del navegador
-function getActiveVehiclesPageFromDom() {
-  const active = document.querySelector('#vehiclesPagination button.active');
-  const parsed = parseInt(active?.textContent || '', 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-}
-
-function collectVehiclesFilterState() {
-  const filters = {};
-  VEHICLES_FILTER_IDS.forEach((id) => {
-    const el = document.getElementById(id);
-    filters[id] = el?.value || '';
-  });
-  filters.searchInput = document.getElementById('searchInput')?.value || '';
-  return filters;
-}
-
-function applyVehiclesFilterState(filters = {}) {
-  const vehicleTypeEl = document.getElementById('filterVehicleType');
-  if (vehicleTypeEl) {
-    const nextType = String(filters.filterVehicleType || vehicleTypeEl.value || 'auto');
-    if (vehicleTypeEl.value !== nextType) {
-      vehicleTypeEl.value = nextType;
-      initBrandFilters();
-    }
-  }
-
-  const searchInput = document.getElementById('searchInput');
-  if (searchInput && typeof filters.searchInput === 'string') {
-    searchInput.value = filters.searchInput;
-  }
-
-  [
-    'filterMinPrice',
-    'filterMaxPrice',
-    'filterMinYear',
-    'filterMaxYear',
-    'filterMinMileage',
-    'filterMaxMileage',
-    'filterFuel',
-    'filterTransmission',
-    'filterCity',
-    'filterProvince',
-    'filterSort'
-  ].forEach((id) => {
-    const el = document.getElementById(id);
-    if (el && filters[id] !== undefined) el.value = filters[id] || '';
-  });
-
-  const brandEl = document.getElementById('filterBrand');
-  if (brandEl) {
-    brandEl.value = filters.filterBrand || '';
-    updateFilterModels();
-    if (typeof syncBrandPickerTrigger === 'function') syncBrandPickerTrigger('filterBrand');
-  }
-
-  const modelEl = document.getElementById('filterModel');
-  if (modelEl) {
-    const desiredModel = filters.filterModel || '';
-    const hasOption = [...modelEl.options].some(o => o.value === desiredModel);
-    modelEl.value = hasOption ? desiredModel : '';
-  }
-
-  filtersDirty = false;
-  updateMobileFilterApplyButton();
-}
-
-function getStoredVehiclesListState() {
-  try {
-    const raw = sessionStorage.getItem(VEHICLES_STATE_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-function persistVehiclesListState({ scrollY } = {}) {
-  if (!window.history || typeof window.history.replaceState !== 'function') return;
-  const page = getActiveVehiclesPageFromDom() || vehiclesCurrentPage || 1;
-  const snapshot = {
-    page: Number(page) > 0 ? Number(page) : 1,
-    scrollY: Number.isFinite(scrollY) ? Math.max(0, Math.round(scrollY)) : Math.max(0, Math.round(window.scrollY || 0)),
-    filters: collectVehiclesFilterState(),
-    ts: Date.now()
-  };
-
-  const currentState = history.state && typeof history.state === 'object' ? history.state : {};
-  history.replaceState({ ...currentState, section: 'vehicles', vehiclesState: snapshot }, '', '/?section=vehicles');
-
-  try {
-    sessionStorage.setItem(VEHICLES_STATE_STORAGE_KEY, JSON.stringify(snapshot));
-  } catch {}
-}
-
-function scheduleVehiclesListStateSync() {
-  if (currentSectionId !== 'vehicles') return;
-  clearTimeout(vehiclesHistorySyncTimer);
-  vehiclesHistorySyncTimer = setTimeout(() => {
-    if (currentSectionId !== 'vehicles' || isHandlingPopState) return;
-    persistVehiclesListState();
-  }, 120);
-}
-
-async function restoreVehiclesListState(stateFromHistory = null) {
-  const snapshot = (stateFromHistory && typeof stateFromHistory === 'object')
-    ? stateFromHistory
-    : getStoredVehiclesListState();
-  const hasSnapshot = !!snapshot;
-  const targetPage = hasSnapshot
-    ? Math.max(1, Number(snapshot?.page || 1))
-    : (getActiveVehiclesPageFromDom() || vehiclesCurrentPage || 1);
-  const targetScrollY = Math.max(0, Number(snapshot?.scrollY || 0));
-
-  showSection('vehicles', { pushHistory: false, preserveScroll: true, skipSectionLoad: true });
-  if (snapshot?.filters) applyVehiclesFilterState(snapshot.filters);
-
-  const cardsCount = document.querySelectorAll('#vehiclesList .vehicle-card').length;
-  const currentPageDom = getActiveVehiclesPageFromDom() || vehiclesCurrentPage || 1;
-  const needsReload = cardsCount === 0 || (hasSnapshot && currentPageDom !== targetPage);
-
-  if (needsReload) {
-    await loadVehicles(targetPage, false, { skipStateSync: true });
+window.addEventListener('popstate', (e) => {
+  const section = e.state?.section;
+  const vehicleId = e.state?.vehicleId;
+  if (vehicleId) {
+    viewVehicle(vehicleId);
+  } else if (section) {
+    showSection(section);
   } else {
-    vehiclesCurrentPage = currentPageDom;
-  }
-
-  if (targetScrollY > 0) {
-    window.scrollTo({ top: targetScrollY, behavior: 'auto' });
-    requestAnimationFrame(() => window.scrollTo({ top: targetScrollY, behavior: 'auto' }));
-    setTimeout(() => window.scrollTo({ top: targetScrollY, behavior: 'auto' }), 80);
-  }
-
-  persistVehiclesListState({ scrollY: targetScrollY });
-}
-
-window.addEventListener('scroll', () => {
-  if (currentSectionId !== 'vehicles' || isHandlingPopState) return;
-  scheduleVehiclesListStateSync();
-}, { passive: true });
-
-window.addEventListener('popstate', async (e) => {
-  isHandlingPopState = true;
-  try {
-    const section = e.state?.section;
-    const vehicleId = e.state?.vehicleId;
-    const stateProfileId = e.state?.profileId;
-    const stateVehicles = e.state?.vehiclesState;
-    const query = new URLSearchParams(window.location.search);
-    const queryProfileId = query.get('profile');
-    const querySection = query.get('section');
-    const queryVehicleId = query.get('vehicle');
-
-    const resolvedVehicleId = vehicleId || (queryVehicleId ? parseInt(queryVehicleId, 10) : null);
-    if (resolvedVehicleId) {
-      await viewVehicle(resolvedVehicleId, { pushHistory: false });
-      return;
-    }
-
-    const resolvedSection = section || querySection;
-    if (resolvedSection === 'vehicles') {
-      await restoreVehiclesListState(stateVehicles);
-      return;
-    }
-
-    if (stateProfileId || queryProfileId) {
-      viewProfile(stateProfileId || queryProfileId);
-      return;
-    }
-
-    if (resolvedSection === 'profile') {
-      if (currentUser?.id) viewProfile(currentUser.id);
-      else showSection('home', { pushHistory: false });
-      return;
-    }
-
-    if (resolvedSection === 'vehicle-detail') {
-      await restoreVehiclesListState(stateVehicles);
-      return;
-    }
-
-    if (resolvedSection) {
-      showSection(resolvedSection, { pushHistory: false });
-    } else {
-      showSection('home', { pushHistory: false });
-    }
-  } finally {
-    isHandlingPopState = false;
+    showSection('home');
   }
 });
 
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
-  initAccessibilitySemantics();
-  enhanceKeyboardClickables();
-  initKeyboardClickableObserver();
   setupProvinceCity('publishProvince', 'publishCity');
   setupProvinceCity('editProvince', 'editCity');
   const publishForm = document.querySelector('#publish form');
@@ -1099,15 +572,6 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
   });
-
-  ['publish', 'edit'].forEach(prefix => {
-    const financingCheckbox = document.getElementById(`${prefix}AcceptsFinancing`);
-    if (financingCheckbox) {
-      financingCheckbox.addEventListener('change', () => toggleFinancingProviderField(prefix));
-      toggleFinancingProviderField(prefix);
-    }
-  });
-
   updateMobileFilterApplyButton();
   window.addEventListener('resize', updateMobileFilterApplyButton);
 });
@@ -1117,73 +581,6 @@ function toggleEngineCCField(prefix = 'publish') {
   const ccGroup = document.getElementById(`${prefix}EngineCCGroup`);
   if (!typeEl || !ccGroup) return;
   ccGroup.style.display = typeEl.value === 'moto' ? 'block' : 'none';
-}
-
-function shouldShowBodyTypeField(prefix = 'publish') {
-  const typeEl = document.getElementById(`${prefix}VehicleTypeTop`) || document.getElementById(`${prefix}VehicleType`);
-  return !!typeEl && typeEl.value === 'auto';
-}
-
-function toggleBodyTypeField(prefix = 'publish') {
-  const group = document.getElementById(`${prefix}BodyTypeGroup`);
-  const select = document.getElementById(`${prefix}BodyType`);
-  if (!group || !select) return;
-  const visible = shouldShowBodyTypeField(prefix);
-  group.style.display = visible ? '' : 'none';
-  if (!visible) select.value = '';
-}
-
-function toggleFinancingProviderField(prefix = 'publish') {
-  const checkbox = document.getElementById(`${prefix}AcceptsFinancing`);
-  const group = document.getElementById(`${prefix}FinancingProviderGroup`);
-  const select = document.getElementById(`${prefix}FinancingProvider`);
-  if (!checkbox || !group || !select) return;
-  const visible = checkbox.checked === true;
-  group.style.display = visible ? 'block' : 'none';
-  if (!visible) select.value = 'prestito';
-}
-
-function normalizeTextForCompare(value = '') {
-  return String(value || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim()
-    .replace(/\s+/g, ' ');
-}
-
-function isPickupBodyType(bodyType = '') {
-  const v = normalizeTextForCompare(bodyType);
-  if (!v) return false;
-  return v.includes('camioneta') || v.includes('pickup') || v.includes('pick up');
-}
-
-function normalizedDrivetrainValue(value = '') {
-  const v = String(value || '')
-    .toLowerCase()
-    .replace(/\s+/g, '')
-    .replace(/×/g, 'x')
-    .replace(/\*/g, 'x');
-  if (v === '4x2' || v === '4x4') return v;
-  return '';
-}
-
-function shouldShowDrivetrainField(prefix = 'publish') {
-  const typeEl = document.getElementById(`${prefix}VehicleTypeTop`) || document.getElementById(`${prefix}VehicleType`);
-  if (!typeEl || typeEl.value !== 'auto') return false;
-  const bodyTypeEl = document.getElementById(`${prefix}BodyType`);
-  const bodyType = bodyTypeEl?.value || '';
-  return isPickupBodyType(bodyType);
-}
-
-function toggleDrivetrainField(prefix = 'publish') {
-  const group = document.getElementById(`${prefix}DrivetrainGroup`);
-  const select = document.getElementById(`${prefix}Drivetrain`);
-  if (!group || !select) return;
-  const visible = shouldShowDrivetrainField(prefix);
-  group.style.display = visible ? '' : 'none';
-  if (!visible) select.value = '';
 }
 
 function updateVehicleTypeOptions(prefix = 'publish') {
@@ -1303,28 +700,15 @@ async function request(endpoint, options = {}) {
   if (response.status === 204) return {};
   const contentType = response.headers.get('content-type') || '';
   const data = contentType.includes('application/json') ? await response.json() : {};
-  const text = contentType.includes('application/json') ? '' : await response.text().catch(() => '');
   if (!response.ok) {
-    const fallbackHttpMsg = `HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''}`;
-    const rawText = String(text || '').trim();
-    const looksLikeHtml = /<!doctype|<html|<head|<body/i.test(rawText) || rawText.startsWith('<');
-    const normalizedText = looksLikeHtml
-      ? ''
-      : rawText.replace(/\s+/g, ' ').slice(0, 180);
-    const err = new Error(data.error || data.message || normalizedText || fallbackHttpMsg);
-    err.status = response.status;
+    const err = new Error(data.error || 'Error');
     if (data.needsVerification) err.needsVerification = true;
     throw err;
   }
   return data;
 }
 
-function showSection(sectionId, options = {}) {
-  const pushHistory = options.pushHistory !== false && !isHandlingPopState;
-  const preserveScroll = options.preserveScroll === true;
-  const skipSectionLoad = options.skipSectionLoad === true;
-  const vehiclesPage = Number(options.vehiclesPage) > 0 ? Number(options.vehiclesPage) : 1;
-
+function showSection(sectionId) {
   if (sectionId !== 'vehicle-detail') resetSEOMeta();
   setRobotsMetaForSection(sectionId);
   if (sectionId !== 'home') {
@@ -1332,21 +716,12 @@ function showSection(sectionId, options = {}) {
   }
   if (currentUser && (sectionId === 'login' || sectionId === 'register')) return;
   // Push state para que el botón atrás funcione dentro del SPA
-  if (pushHistory) {
-    const publicSections = ['home', 'vehicles', 'support', 'login', 'register', 'forgot-password', 'terms'];
-    const profileRoute = sectionId === 'profile' && currentProfileId
-      ? `/?section=profile&profile=${encodeURIComponent(String(currentProfileId))}`
-      : null;
-    if (sectionId === 'vehicle-detail') {
-      // El ruteo de detalle se controla en viewVehicle(...) con ?vehicle=<id>
-    } else if (publicSections.includes(sectionId)) {
-      const url = sectionId === 'home' ? '/' : `/?section=${sectionId}`;
-      history.pushState({ section: sectionId }, '', url);
-    } else if (sectionId === 'profile' && profileRoute) {
-      history.pushState({ section: sectionId, profileId: String(currentProfileId) }, '', profileRoute);
-    } else {
-      history.pushState({ section: sectionId }, '', `/?section=${sectionId}`);
-    }
+  const publicSections = ['home', 'vehicles', 'login', 'register', 'forgot-password', 'terms'];
+  if (publicSections.includes(sectionId)) {
+    const url = sectionId === 'home' ? '/' : `/?section=${sectionId}`;
+    history.pushState({ section: sectionId }, '', url);
+  } else {
+    history.pushState({ section: sectionId }, '', `/?section=${sectionId}`);
   }
   // Limpiar el div de reenvío de verificación al salir del login
   document.getElementById('resendVerificationDiv')?.remove();
@@ -1354,57 +729,35 @@ function showSection(sectionId, options = {}) {
   const section = document.getElementById(sectionId);
   if (section) {
     section.style.display = 'block';
-    // Avoid animating home to reduce CLS on first paint and route transitions.
-    if (sectionId === 'home') section.classList.remove('fade-in');
-    else section.classList.add('fade-in');
+    section.classList.add('fade-in');
   }
-  currentSectionId = sectionId;
-  wireImplicitFormLabels();
   setBottomNavActive(sectionId);
-  if (!skipSectionLoad) {
-    if (sectionId === 'home') { loadHomeRecent(); }
-    else if (sectionId === 'vehicles') loadVehicles(vehiclesPage, false, { skipStateSync: !pushHistory });
-    else if (sectionId === 'my-vehicles') loadMyVehicles();
-    else if (sectionId === 'messages') { document.querySelector('.messages-container')?.classList.remove('chat-open'); loadConversations(); }
-    else if (sectionId === 'favorites') loadFavorites();
-    else if (sectionId === 'notifications') loadNotifications();
-    else if (sectionId === 'following-feed') loadFollowingFeed(1, true);
-    else if (sectionId === 'admin') loadAdmin();
-    else if (sectionId === 'register') {
-      ensureHCaptchaForSection('register');
-    }
-    else if (sectionId === 'publish') {
-      resetPublishForm();
-    }
-    else if (sectionId === 'support') {
-      prefillSupportContact();
-      ensureHCaptchaForSection('support');
-    }
+  if (sectionId === 'home') { loadHomeRecent(); }
+  else if (sectionId === 'vehicles') loadVehicles(1);
+  else if (sectionId === 'my-vehicles') loadMyVehicles();
+  else if (sectionId === 'messages') { document.querySelector('.messages-container')?.classList.remove('chat-open'); loadConversations(); }
+  else if (sectionId === 'favorites') loadFavorites();
+  else if (sectionId === 'notifications') loadNotifications();
+  else if (sectionId === 'following-feed') loadFollowingFeed(1, true);
+  else if (sectionId === 'admin') loadAdmin();
+  else if (sectionId === 'register') {
+    // Render hCaptcha when section becomes visible (needed with render=explicit)
+    loadHCaptcha().then(() => {
+      setTimeout(() => {
+        const container = document.querySelector('.h-captcha');
+        if (container && window.hcaptcha && !container.querySelector('iframe')) {
+          try { hcaptcha.render(container, { sitekey: container.dataset.sitekey }); } catch(e) {}
+        }
+      }, 50);
+    });
+  }
+  else if (sectionId === 'publish') {
+    resetPublishForm();
   }
   if (sectionId !== 'messages') stopPolling();
   if (sectionId !== 'messages') currentConversationId = null;
   if (sectionId !== 'vehicle-detail') currentVehicleId = null;
-  if (!preserveScroll) {
-    window.scrollTo({ top: 0, behavior: 'auto' });
-  }
-  if (sectionId === 'vehicles') {
-    scheduleVehiclesListStateSync();
-  }
-}
-
-function initHomeWithoutShift() {
-  setRobotsMetaForSection('home');
-  setBottomNavActive('home');
-  const home = document.getElementById('home');
-  if (home) {
-    home.style.display = 'block';
-    home.classList.remove('fade-in');
-  }
-  document.querySelectorAll('.section').forEach(s => {
-    if (s.id !== 'home') s.style.display = 'none';
-  });
-  currentSectionId = 'home';
-  loadHomeRecent();
+  window.scrollTo({ top: 0, behavior: 'auto' });
 }
 
 function setBottomNavActive(sectionId) {
@@ -1417,13 +770,6 @@ function setBottomNavActive(sectionId) {
     'vehicle-detail': 1,
     'messages': 2,
     'publish': 3,
-    'favorites': 4,
-    'following-feed': 4,
-    'my-vehicles': 4,
-    'notifications': 4,
-    'support': 4,
-    'profile': 4,
-    'admin': 4,
   };
   const idx = map[sectionId];
   if (idx !== undefined && items[idx]) items[idx].classList.add('active');
@@ -1472,11 +818,7 @@ function resetPublishForm() {
 
   const typeEl = document.getElementById('publishVehicleType');
   if (typeEl) typeEl.value = 'auto';
-  const publishBodyTypeEl = document.getElementById('publishBodyType');
-  if (publishBodyTypeEl) publishBodyTypeEl.value = '';
   toggleEngineCCField('publish');
-  toggleBodyTypeField('publish');
-  toggleDrivetrainField('publish');
   updateVehicleTypeOptions('publish');
   initBrandFilters();
   const publishBrandEl = document.getElementById('publishBrand');
@@ -1485,14 +827,7 @@ function resetPublishForm() {
     syncBrandPickerTrigger('publishBrand');
   }
   const publishModelEl = document.getElementById('publishModel');
-  if (publishModelEl) publishModelEl.value = '';
-  const publishModelList = document.getElementById('publishModelList');
-  if (publishModelList) publishModelList.innerHTML = '';
-  const publishDrivetrainEl = document.getElementById('publishDrivetrain');
-  if (publishDrivetrainEl) publishDrivetrainEl.value = '';
-  const publishFinancingProviderEl = document.getElementById('publishFinancingProvider');
-  if (publishFinancingProviderEl) publishFinancingProviderEl.value = 'prestito';
-  toggleFinancingProviderField('publish');
+  if (publishModelEl) publishModelEl.innerHTML = '<option value="">Seleccionar modelo</option>';
 
   const pubCurrencyEl = document.getElementById('publishCurrency');
   if (pubCurrencyEl) {
@@ -1519,8 +854,6 @@ function resetPublishForm() {
   if (addressEl) addressEl.value = '';
 
   autofillPublishLocationFromProfile();
-  initPublishYearSelect();
-  initPublishStepperObserver();
 }
 
 
@@ -1584,7 +917,7 @@ async function handleRegister(e) {
   const username = document.getElementById('registerUsername').value;
   const email = document.getElementById('registerEmail').value;
   const password = document.getElementById('registerPassword').value;
-  let captchaToken = getHCaptchaToken('registerCaptcha');
+  let captchaToken = document.querySelector('[name="h-captcha-response"]')?.value || '';
   if (!captchaToken) {
     showToast('Por favor completá el captcha', 'error');
     btn.disabled = false;
@@ -1609,7 +942,7 @@ async function handleRegister(e) {
     }
   } catch (err) {
     showToast(err.message, 'error');
-    resetHCaptchaWidget('registerCaptcha');
+    if (window.hcaptcha) window.hcaptcha.reset();
   }
   finally {
     btn.disabled = false;
@@ -1737,15 +1070,13 @@ function logout() {
 }
 
 // VEHICLES
-async function loadVehicles(page = 1, scrollToResults = false, options = {}) {
-  const targetPage = Number(page) > 0 ? Number(page) : 1;
-  vehiclesCurrentPage = targetPage;
+async function loadVehicles(page = 1, scrollToResults = false) {
   if (vehicleSearchAbortController) {
     vehicleSearchAbortController.abort();
   }
   vehicleSearchAbortController = new AbortController();
   const container = document.getElementById('vehiclesList');
-  if (targetPage === 1 && container) {
+  if (page === 1 && container) {
     container.innerHTML = Array(6).fill().map(() => `
       <div class="vehicle-card" style="padding: 1rem;">
         <div class="skeleton skeleton-img"></div>
@@ -1767,8 +1098,9 @@ async function loadVehicles(page = 1, scrollToResults = false, options = {}) {
     });
     const vehicleTypeEl = document.getElementById('filterVehicleType');
     if (vehicleTypeEl?.value) params.append('vehicle_type', vehicleTypeEl.value);
-    params.append('page', targetPage);
+    params.append('page', page);
     const { vehicles = [], total = 0 } = await request(`/vehicles?${params}`, { signal: vehicleSearchAbortController.signal }) || {};
+    document.getElementById('vehiclesCount').textContent = `${total} vehículo${total !== 1 ? 's' : ''} encontrado${total !== 1 ? 's' : ''}`;
     if (!vehicles?.length) {
       container.innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99z"/></svg><h3>No hay vehículos</h3><p>Sé el primero en publicar</p></div>';
       return;
@@ -1780,14 +1112,26 @@ async function loadVehicles(page = 1, scrollToResults = false, options = {}) {
           <div class="vehicle-img-overlay"></div>
           <span class="vehicle-badge">${escapeHtml(String(v.year))}</span>
           ${v.status === 'sold' ? '<span class="vehicle-badge badge-sold">VENDIDO</span>' : ''}
-          ${buildVehicleStatusBadges(v)}
+          ${v.status !== 'sold' ? `<span class="vehicle-trade-badge ${v.accepts_trade ? 'trade-yes' : 'trade-no'}">${v.accepts_trade ? '🔄 Permuta' : 'Sin permuta'}</span>` : ''}
           ${v.status !== 'sold' ? `<button class="favorite-btn ${userFavoriteIds.has(v.id) ? 'active' : ''}" data-vehicle-id="${v.id}" onclick="toggleFavorite(${v.id}, event)" aria-label="Agregar a favoritos"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>` : ''}
         </div>
         <div class="vehicle-info">
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
           ${v.city ? `<p class="vehicle-location"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> ${escapeHtml(v.city)}${v.province ? ', ' + escapeHtml(v.province.replace(/\s*\(.*?\)/g,'').trim()) : ''}</p>` : ''}
           <div class="vehicle-price-block">
-            ${formatPesos(v.price, v) ? `<p class="vehicle-price">${formatPesos(v.price, v)}</p><p class="vehicle-price-ars">USD ${formatNumber(v.price)}</p>` : `<p class="vehicle-price">USD ${formatNumber(v.price)}</p>`}
+            <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
+            ${formatPesos(v.price, v) ? `<p class="vehicle-price-ars">${formatPesos(v.price, v)}</p>` : ''}
+            ${(() => {
+              const ph = v.price_history;
+              if (ph && ph.length >= 2) {
+                const oldest = ph[0].price;
+                const latest = ph[ph.length - 1].price;
+                const diff = latest - oldest;
+                const pct = Math.round(Math.abs(diff) / oldest * 100);
+                if (diff < 0 && pct > 0) return `<span class="price-drop-badge"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg> ${pct}%</span>`;
+              }
+              return '';
+            })()}
           </div>
           ${buildVehicleMetaHtml(v)}
           <div class="vehicle-card-footer">
@@ -1810,20 +1154,12 @@ async function loadVehicles(page = 1, scrollToResults = false, options = {}) {
       </div>
     `).join('');
     applyCardCascade(container);
-    renderPagination(total, targetPage);
+    renderPagination(total, page);
     if (scrollToResults) {
       const nav = document.querySelector('.navbar');
       const navHeight = nav ? nav.getBoundingClientRect().height : 0;
       const y = container.getBoundingClientRect().top + window.scrollY - navHeight - 10;
       window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
-    }
-    if (!options.skipStateSync && currentSectionId === 'vehicles') {
-      scheduleVehiclesListStateSync();
-      if (scrollToResults) {
-        setTimeout(() => {
-          if (currentSectionId === 'vehicles') persistVehiclesListState();
-        }, 450);
-      }
     }
   } catch (err) {
     if (err.name === 'AbortError') return;
@@ -1864,13 +1200,9 @@ function debounceAdmin(fn) {
 
 function toggleFilters() {
   const panel = document.getElementById('filtersPanel');
-  const btn = document.getElementById('filterToggleBtn');
-  if (!panel) return;
-  panel.style.display = '';
-  const isOpen = panel.classList.toggle('open');
-  panel.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
-  if (btn) btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-  if (isOpen) updateMobileFilterApplyButton();
+  const isHidden = getComputedStyle(panel).display === 'none';
+  panel.style.display = isHidden ? 'block' : 'none';
+  if (isHidden) updateMobileFilterApplyButton();
 }
 
 function isMobileViewport() {
@@ -1912,17 +1244,16 @@ function clearFilters() {
   });
   const filterModelEl = document.getElementById('filterModel');
   if (filterModelEl) filterModelEl.innerHTML = '<option value="">Todos</option>';
-  const filterCityEl = document.getElementById('filterCity');
-  if (filterCityEl) { filterCityEl.innerHTML = '<option value="">Todas las ciudades</option>'; filterCityEl.disabled = true; }
   filtersDirty = false;
   updateMobileFilterApplyButton();
   loadVehicles(1);
 }
 
 function formatPesos(usdPrice, vehicle) {
-  const fixedArs = Number(vehicle?.price_original || 0);
-  if (fixedArs > 0) return '$' + Math.round(fixedArs).toLocaleString('es-AR');
-  return null;
+  // Mostrar siempre ARS con cotización actual, manteniendo el precio base en USD.
+  if (!dolarRate?.venta || !usdPrice) return null;
+  const ars = Math.round(Number(usdPrice) * dolarRate.venta);
+  return '$' + ars.toLocaleString('es-AR');
 }
 
 function isCompactVehicleCardsMobile() {
@@ -1931,65 +1262,34 @@ function isCompactVehicleCardsMobile() {
     && window.matchMedia('(max-width: 768px)').matches;
 }
 
-function buildVehicleStatusBadges(v, { compact = false } = {}) {
-  if (!v || v.status === 'sold') return '';
-
-  const tradeLabel = v.accepts_trade
-    ? (compact ? 'Permuta' : '🔄 Permuta')
-    : 'Sin permuta';
-  const badges = [
-    `<span class="vehicle-trade-badge ${v.accepts_trade ? 'trade-yes' : 'trade-no'}">${tradeLabel}</span>`
-  ];
-
-  if (v.accepts_financing) {
-    const financingLabel = compact ? 'Financiación' : '💳 Financiación';
-    badges.push(`<span class="vehicle-trade-badge finance-yes">${financingLabel}</span>`);
-  }
-
-  return `<div class="vehicle-badges">${badges.join('')}</div>`;
-}
-
 function buildVehicleMetaHtml(v) {
   const chips = [];
-  const addChip = (html) => {
-    if (html && !chips.includes(html)) chips.push(html);
-  };
   const mileageChip = v.mileage === 0
     ? '<span class="badge-nuevo">NUEVO</span>'
     : `<span><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>${formatNumber(v.mileage)} km</span>`;
-  addChip(mileageChip);
+  chips.push(mileageChip);
 
+  let usedTransmission = false;
+  let usedCc = false;
   const rawFuel = String(v.fuel || '').trim();
   const hasFuel = rawFuel && rawFuel.toLowerCase() !== 'n/a' && rawFuel.toLowerCase() !== 'na';
-  const rawTransmission = String(v.transmission || '').trim();
-  const rawBodyType = String(v.body_type || '').trim();
-  const rawDrivetrain = String(v.drivetrain || '').trim();
-  const normalizedBodyType = rawBodyType.toLowerCase();
-  const isTruckBodyType = ['camioneta', 'pickup', 'pick-up'].includes(normalizedBodyType);
 
   if (hasFuel) {
-    addChip(`<span>${escapeHtml(rawFuel)}</span>`);
+    chips.push(`<span>${escapeHtml(rawFuel)}</span>`);
+  } else if (v.transmission) {
+    chips.push(`<span>${escapeHtml(v.transmission)}</span>`);
+    usedTransmission = true;
+  } else if (v.vehicle_type === 'moto' && v.engine_cc) {
+    chips.push(`<span>${v.engine_cc} cc</span>`);
+    usedCc = true;
   }
 
-  if (rawTransmission) {
-    addChip(`<span>${escapeHtml(rawTransmission)}</span>`);
-  }
-
-  if (v.vehicle_type === 'moto') {
-    if (v.engine_cc) {
-      addChip(`<span>${v.engine_cc} cc</span>`);
+  if (!isCompactVehicleCardsMobile()) {
+    if (v.vehicle_type === 'moto' && v.engine_cc && !usedCc) {
+      chips.push(`<span>${v.engine_cc} cc</span>`);
+    } else if (v.transmission && !usedTransmission) {
+      chips.push(`<span>${escapeHtml(v.transmission)}</span>`);
     }
-  } else {
-    if (rawBodyType) {
-      addChip(`<span>${escapeHtml(rawBodyType)}</span>`);
-    }
-    if (rawDrivetrain && (isTruckBodyType || !rawBodyType)) {
-      addChip(`<span>${escapeHtml(rawDrivetrain)}</span>`);
-    }
-  }
-
-  if (isCompactVehicleCardsMobile()) {
-    chips.splice(4);
   }
 
   return `<div class="vehicle-meta">${chips.join('')}</div>`;
@@ -2173,7 +1473,7 @@ function initBrandFilters() {
     });
   }
   if (select) {
-    const filterType = document.getElementById('filterVehicleType')?.value ?? '';
+    const filterType = document.getElementById('filterVehicleType')?.value || 'auto';
     const filterBrandsObj = getBrandsForType(filterType);
     select.innerHTML = '<option value="">Todas</option>';
     sortedBrandKeys(filterBrandsObj, filterType).forEach(brand => {
@@ -2198,32 +1498,11 @@ function initBrandFilters() {
       opt.textContent = brand;
       publishBrand.appendChild(opt);
     });
-    // Reset model input when brands change
+    // Reset model select when brands change
     const publishModel = document.getElementById('publishModel');
-    if (publishModel) publishModel.value = '';
-    const publishModelList = document.getElementById('publishModelList');
-    if (publishModelList) publishModelList.innerHTML = '';
+    if (publishModel) publishModel.innerHTML = '<option value="">Seleccionar modelo</option>';
     initBrandPicker('publishBrand');
   }
-}
-
-function updateFilterCities() {
-  const provSelect = document.getElementById('filterProvince');
-  const citySelect = document.getElementById('filterCity');
-  if (!provSelect || !citySelect) return;
-  const prov = provSelect.value;
-  citySelect.innerHTML = '<option value="">Todas las ciudades</option>';
-  if (!prov) {
-    citySelect.disabled = true;
-    return;
-  }
-  AR_CITIES.filter(c => c.prov === prov).forEach(c => {
-    const opt = document.createElement('option');
-    opt.value = c.city;
-    opt.textContent = c.city;
-    citySelect.appendChild(opt);
-  });
-  citySelect.disabled = false;
 }
 
 function updateFilterModels() {
@@ -2237,26 +1516,17 @@ function updateFilterModels() {
 
 function updatePublishModels() {
   const brand = document.getElementById('publishBrand').value;
-  const modelInput = document.getElementById('publishModel');
-  const datalist = document.getElementById('publishModelList');
-  if (datalist) datalist.innerHTML = '';
-  if (modelInput) modelInput.value = '';
+  const modelSelect = document.getElementById('publishModel');
+  modelSelect.innerHTML = '<option value="">Seleccionar modelo</option>';
   const type = document.getElementById('publishVehicleType')?.value || 'auto';
   const brands = getBrandsForType(type);
-  if (brand && brands[brand] && datalist) brands[brand].forEach(m => { const o = document.createElement('option'); o.value = m; datalist.appendChild(o); });
-  const publishBodyTypeEl = document.getElementById('publishBodyType');
-  if (publishBodyTypeEl) publishBodyTypeEl.value = '';
-  toggleBodyTypeField('publish');
-  toggleDrivetrainField('publish');
+  if (brand && brands[brand]) brands[brand].forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = m; modelSelect.appendChild(o); });
 }
+
 // VEHICLE DETAIL
-async function viewVehicle(id, options = {}) {
-  const previousSection = currentSectionId;
-  if (previousSection === 'vehicles') {
-    persistVehiclesListState();
-  }
+async function viewVehicle(id) {
   currentVehicleId = id;
-  showSection('vehicle-detail', { pushHistory: false });
+  showSection('vehicle-detail');
   const detailContainer = document.getElementById('vehicleDetailContent');
   if (detailContainer) {
     detailContainer.innerHTML = `
@@ -2295,52 +1565,17 @@ async function viewVehicle(id, options = {}) {
     const images = sortedVehicleImages.length ? sortedVehicleImages : [{ url: vehicle.image_url || PLACEHOLDER_IMG }];
     const mainImgUrl = (images.find(img => img.is_primary)?.url || images[0].url);
     updateSEOMeta(vehicle, mainImgUrl);
-    const nextDetailState = { section: 'vehicle-detail', vehicleId: Number(vehicle.id) };
-    if (options.pushHistory === false || isHandlingPopState) {
-      window.history.replaceState(nextDetailState, '', `?vehicle=${vehicle.id}`);
-    } else {
-      window.history.pushState(nextDetailState, '', `?vehicle=${vehicle.id}`);
-    }
     const ownerWhatsapp = (vehicle.contact_phone || '').replace(/[\s\-\(\)]/g, '').replace(/^\+/, '');
     const ownerLocationAddress = (vehicle.contact_address || '').trim();
     const ownerLocationProvince = (vehicle.province || '').replace(/\s*\(.*?\)/g, '').trim();
     const ownerLocationCity = (vehicle.city || '').trim();
     const ownerLocationSummary = [ownerLocationCity, ownerLocationProvince].filter(Boolean).join(', ');
-    const ownerLocationDisplay = [ownerLocationAddress, ownerLocationCity, ownerLocationProvince].filter(Boolean).join(', ') || ownerLocationSummary;
     const ownerLocationQuery = [ownerLocationAddress, ownerLocationCity, ownerLocationProvince].filter(Boolean).join(', ');
     const ownerLocationUrl = ownerLocationQuery ? googleMapsSearchUrl(ownerLocationQuery) : '';
     const showDealershipLocationButton = !!ownerLocationAddress;
     const profileWhatsapp = (vehicle.seller_profile?.phone || '').replace(/[\s\-\(\)]/g, '').replace(/^\+/, '');
-    const sellerAddress = String(vehicle.seller_profile?.dealership_address || '').trim();
-    const sellerCityMatch = AR_CITIES.find(c => c.city === vehicle.seller_profile?.city);
-    const sellerCity = sellerCityMatch ? String(vehicle.seller_profile?.city || '').trim() : '';
-    const sellerProvince = sellerCityMatch ? String(sellerCityMatch.prov || '').replace(/\s*\(.*?\)/g, '').trim() : '';
-    const sellerLocationDisplay = [sellerAddress, sellerCity, sellerProvince].filter(Boolean).join(', ') || sellerAddress;
-    const sellerLocationQuery = [sellerAddress, sellerCity, sellerProvince].filter(Boolean).join(', ');
-    const sellerMapsUrl = sellerLocationQuery ? googleMapsSearchUrl(sellerLocationQuery) : '';
-    const whatsappText = encodeURIComponent(`Hola, te contacto desde la pagina *Autoventa* por el siguiente anuncio: https://autoventa.online/?vehicle=${vehicle.id}`);
-    const prestitoWhatsappText = encodeURIComponent(`Hola, vi en *Autoventa* este vehículo (${vehicle.title}). Quiero consultar financiación con Préstito: https://autoventa.online/?vehicle=${vehicle.id}`);
-    const ownFinancingWhatsappText = encodeURIComponent(`Hola, vi en *Autoventa* este vehículo (${vehicle.title}). Quiero consultar la financiación propia del vendedor: https://autoventa.online/?vehicle=${vehicle.id}`);
-    const financingProvider = String(vehicle.financing_provider || '').trim().toLowerCase();
-    const isOwnFinancing = financingProvider === 'propia';
-    const financingUsesPrestito = financingProvider === 'prestito';
-    const financingTitleText = isOwnFinancing
-      ? 'Este vendedor ofrece financiacion propia'
-      : 'Este vendedor ofrece financiacion';
-    const financingSubtitleText = financingUsesPrestito
-      ? 'Podes simular cuotas y consultar requisitos'
-      : 'Consulta condiciones directamente con el vendedor';
-    const financingPrimaryCtaHtml = financingUsesPrestito
-      ? `<button class="btn btn-primary financing-cta-btn" onclick="openPrestitoQuoteModal(${vehicle.id}, ${Number(vehicle.year || 0)}, ${Number(vehicle.price || 0)}, ${Number(vehicle.price_original || 0)}, '${escapeHtml(vehicle.title).replace(/'/g, '&#39;')}')">Cotizar con Prestito</button>`
-      : '';
-    const financingQuickMessage = financingUsesPrestito
-      ? 'Quiero consultar financiacion con Prestito.'
-      : (isOwnFinancing ? 'Quiero consultar financiacion propia.' : 'Quiero consultar financiacion.');
-    const financingSecondaryCtaHtml = (vehicle.seller_profile?.phone && vehicle.seller_profile?.show_phone !== false)
-      ? `<a href="https://wa.me/${escapeHtml(profileWhatsapp)}?text=${financingUsesPrestito ? prestitoWhatsappText : ownFinancingWhatsappText}" target="_blank" rel="noopener" class="btn btn-secondary financing-cta-btn">Consultar con el vendedor</a>`
-      : (isLoggedIn
-          ? `<button class="btn btn-secondary financing-cta-btn" onclick="const qm=document.getElementById('quickMsgInput'); if(qm){qm.value='${financingQuickMessage}'; qm.focus();}">Consultar por chat</button>`
-          : '');
+    const sellerMapsUrl = vehicle.seller_profile?.dealership_address ? googleMapsSearchUrl(vehicle.seller_profile.dealership_address) : '';
+    const whatsappText = encodeURIComponent(`Hola, te contacto desde AutoVenta.online por el siguiente anuncio: https://autoventa.online/?vehicle=${vehicle.id}`);
     const descriptionParagraphs = String(vehicle.description || '')
       .split(/\n\s*\n/)
       .map(p => p.trim())
@@ -2360,6 +1595,27 @@ async function viewVehicle(id, options = {}) {
       ? normalizedDescriptionParagraphs.map(p => `<p>${escapeHtml(p)}</p>`).join('')
       : '';
     const pickupLocationLabel = [ownerLocationCity, ownerLocationProvince].filter(Boolean).join(', ');
+
+    // Price history
+    let priceChangeHtml = '';
+    try {
+      const priceHistoryRes = await request(`/vehicles/${id}/price-history`);
+      // BUG-07: guard against race condition — user may have navigated away
+      if (currentVehicleId !== id) return;
+      const history = priceHistoryRes?.history || [];
+      if (history.length >= 2) {
+        const oldest = history[0].price;
+        const latest = history[history.length - 1].price;
+        const diff = latest - oldest;
+        const pct = Math.round(Math.abs(diff) / oldest * 100);
+        const days = Math.round((new Date() - new Date(history[0].created_at)) / 86400000);
+        if (diff < 0 && pct > 0) {
+          priceChangeHtml = `<span class="price-change price-down">&#9660; Bajó ${pct}% (hace ${days} días)</span>`;
+        } else if (diff > 0 && pct > 0) {
+          priceChangeHtml = `<span class="price-change price-up">&#9650; Subió ${pct}% (hace ${days} días)</span>`;
+        }
+      }
+    } catch {}
 
     const content = document.getElementById('vehicleDetailContent');
     content.innerHTML = `
@@ -2382,11 +1638,12 @@ async function viewVehicle(id, options = {}) {
           <h1>${escapeHtml(vehicle.title)}</h1>
           <p class="detail-subtitle">${escapeHtml(vehicle.brand)} ${escapeHtml(vehicle.model)}</p>
           <div class="detail-price-block">
-            ${formatPesos(vehicle.price, vehicle) ? `<div class="detail-price">${formatPesos(vehicle.price, vehicle)}</div><div class="detail-price-ars">USD ${formatNumber(vehicle.price)}</div>` : `<div class="detail-price">USD ${formatNumber(vehicle.price)}</div>`}
-            ${ownerLocationDisplay ? `
+            <div class="detail-price">USD ${formatNumber(vehicle.price)}${priceChangeHtml}</div>
+            ${formatPesos(vehicle.price, vehicle) ? `<div class="detail-price-ars">${formatPesos(vehicle.price, vehicle)}</div>` : ''}
+            ${ownerLocationSummary ? `
               <div class="detail-price-location">
                 <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-                ${escapeHtml(ownerLocationDisplay)}
+                ${escapeHtml(ownerLocationSummary)}
               </div>
             ` : ''}
             ${vehicle.contact_phone && vehicle.status !== 'sold' ? `
@@ -2420,7 +1677,6 @@ async function viewVehicle(id, options = {}) {
               <div class="spec-head"><img class="spec-icon" src="/icons/spec-transmission.svg" alt="" loading="lazy"><div class="label">Transmisión</div></div>
               <div class="value">${escapeHtml(vehicle.transmission || 'N/A')}</div>
             </div>
-            ${vehicle.drivetrain ? `<div class="spec-card"><div class="spec-head"><img class="spec-icon" src="/icons/spec-transmission.svg" alt="" loading="lazy"><div class="label">Tracción</div></div><div class="value">${escapeHtml(vehicle.drivetrain)}</div></div>` : ''}
             ${vehicle.vehicle_type === 'moto' && vehicle.engine_cc ? `<div class="spec-card"><div class="spec-head"><img class="spec-icon" src="/icons/spec-transmission.svg" alt="" loading="lazy"><div class="label">Cilindrada</div></div><div class="value">${vehicle.engine_cc} cc</div></div>` : ''}
           </div>
         </div>
@@ -2449,10 +1705,10 @@ async function viewVehicle(id, options = {}) {
             
             ${(vehicle.seller_verified && (vehicle.seller_profile?.dealership_address || vehicle.seller_profile?.instagram)) || vehicle.seller_profile?.phone ? `
               <div class="seller-contact-actions">
-                ${vehicle.seller_verified && sellerMapsUrl ? `
-                  <a href="${escapeHtml(sellerMapsUrl)}" target="_blank" rel="noopener" class="seller-contact-link location" title="${escapeHtml(sellerLocationDisplay || '')}">
+                ${vehicle.seller_verified && vehicle.seller_profile?.dealership_address ? `
+                  <a href="${escapeHtml(sellerMapsUrl)}" target="_blank" rel="noopener" class="seller-contact-link">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-                    Ver ubicación concesionaria
+                    ${escapeHtml(vehicle.seller_profile.dealership_address)}
                   </a>
                 ` : ''}
                 ${vehicle.seller_profile?.instagram ? `
@@ -2462,8 +1718,8 @@ async function viewVehicle(id, options = {}) {
                   </a>
                 ` : ''}
                 ${(vehicle.seller_profile?.phone && vehicle.seller_profile?.show_phone !== false) && vehicle.status !== 'sold' ? `
-                  <a href="https://wa.me/${escapeHtml(profileWhatsapp)}?text=${whatsappText}" target="_blank" rel="noopener" class="seller-contact-link whatsapp">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                  <a href="https://wa.me/${escapeHtml(profileWhatsapp)}?text=${whatsappText}" target="_blank" rel="noopener" class="btn btn-primary" style="background:#25D366;border:none;width:100%;margin-top:0.5rem;">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="margin-right:0.4rem;"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                     Contactar por WhatsApp
                   </a>
                 ` : ''}
@@ -2472,11 +1728,11 @@ async function viewVehicle(id, options = {}) {
           </div>
           
           
-          ${ownerLocationDisplay ? `
+          ${vehicle.city ? `
             <div class="detail-map-section">
               <h4 style="margin-bottom:0.75rem;font-size:0.9rem;color:var(--text-2);display:flex;align-items:center;gap:0.4rem;">
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-                  Ubicacion: ${escapeHtml(ownerLocationDisplay)}
+                  Ubicacion: ${escapeHtml(ownerLocationSummary || vehicle.city)}
                 </h4>
                 <div id="vehicleMap" class="vehicle-map"></div>
               </div>
@@ -2493,21 +1749,6 @@ ${vehicle.accepts_trade && isLoggedIn && !isOwner && vehicle.status === 'active'
               <button class="btn btn-primary" style="white-space:nowrap;" onclick="openTradeModal(${vehicle.id})">Proponer permuta</button>
             </div>
           ` : ''}
-          ${vehicle.accepts_financing && vehicle.status !== 'sold' ? `
-            <div style="margin-top:0.75rem;background:rgba(59,130,246,0.07);border:1px solid rgba(59,130,246,0.22);border-radius:var(--radius-md);padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
-              <div class="financing-card-copy">
-                <div class="financing-card-title">
-                  ${financingUsesPrestito ? `<img src="/logoprestito.png" alt="Prestito" class="financing-prestito-logo" loading="lazy">` : ''}
-                  <span>${financingTitleText}</span>
-                </div>
-                <div style="font-size:0.82rem;color:var(--text-2);margin-top:2px;">${financingSubtitleText}</div>
-              </div>
-              <div class="financing-cta-buttons">
-                ${financingPrimaryCtaHtml}
-                ${financingSecondaryCtaHtml}
-              </div>
-            </div>
-          ` : ''}
 
           ${isLoggedIn && !isOwner && vehicle.status === 'active' ? `
             <div class="marketplace-chat-box" style="margin-top:1.5rem;background:var(--dark-2);padding:1.5rem;border-radius:var(--radius-lg);border:1px solid var(--border);" id="chatBoxContainer">
@@ -2521,7 +1762,6 @@ ${vehicle.accepts_trade && isLoggedIn && !isOwner && vehicle.status === 'active'
                   <button class="btn btn-ghost btn-sm" onclick="document.getElementById('quickMsgInput').value = '¿Sigue disponible?'">¿Sigue disponible?</button>
                   <button class="btn btn-ghost btn-sm" onclick="document.getElementById('quickMsgInput').value = '¿Cuál es el precio final?'">¿Precio final?</button>
                   <button class="btn btn-ghost btn-sm" onclick="document.getElementById('quickMsgInput').value = '¿Aceptas permutas?'">¿Permutas?</button>
-                  ${vehicle.accepts_financing ? `<button class="btn btn-ghost btn-sm" onclick="document.getElementById('quickMsgInput').value = '¿Ofreces financiación?'">¿Financiación?</button>` : ''}
                 </div>
                 <div class="chat-input-row" style="display:flex;gap:0.5rem;">
                   <input type="text" id="quickMsgInput" placeholder="Envía un mensaje..." style="flex:1;">
@@ -2534,13 +1774,9 @@ ${vehicle.accepts_trade && isLoggedIn && !isOwner && vehicle.status === 'active'
           <div class="detail-actions-zone">
             <div class="detail-actions" style="margin-top:1.5rem;display:flex;gap:1rem;flex-direction:column;">
               <button class="btn btn-secondary share-btn" onclick="shareVehicle(${vehicle.id}, '${escapeHtml(vehicle.title).replace(/'/g, '&#39;')}', ${vehicle.price})"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="margin-right:0.5rem;"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>Compartir</button>
-              ${isAdminView ? `
-                <button id="igPublishBtn" class="btn btn-secondary" onclick="publishVehicleToInstagram(${vehicle.id}, event)"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="margin-right:0.5rem;"><path d="M7.75 2h8.5A5.75 5.75 0 0 1 22 7.75v8.5A5.75 5.75 0 0 1 16.25 22h-8.5A5.75 5.75 0 0 1 2 16.25v-8.5A5.75 5.75 0 0 1 7.75 2zm0 1.5A4.25 4.25 0 0 0 3.5 7.75v8.5a4.25 4.25 0 0 0 4.25 4.25h8.5a4.25 4.25 0 0 0 4.25-4.25v-8.5a4.25 4.25 0 0 0-4.25-4.25h-8.5zM17.5 6.25a1.25 1.25 0 1 1 0 2.5 1.25 1.25 0 0 1 0-2.5zM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 1.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z"/></svg>Publicar en Instagram</button>
-                <button class="btn btn-ghost" onclick="configureInstagramFromAdmin(event)">Config Instagram</button>
-              ` : ''}
               ${isLoggedIn && (vehicle.status !== 'sold' || isFavorite) ? `<button id="detailFavBtn" class="btn ${isFavorite ? 'btn-primary' : 'btn-secondary'}" onclick="toggleFavorite(${vehicle.id}, event)"><svg width="18" height="18" viewBox="0 0 24 24" fill="${isFavorite ? 'currentColor' : 'none'}" stroke="currentColor" style="margin-right:0.5rem;"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>${isFavorite ? 'Quitar de favoritos' : 'Guardar en favoritos'}</button>` : ''}
               ${isLoggedIn && !isOwner ? `<button class="btn btn-ghost" onclick="openReportModal(${vehicle.id})" style="color:var(--text-3);">Reportar esta publicación</button>` : ''}
-              ${!isLoggedIn ? `<button class="btn btn-primary" style="width:100%" onclick="showSection('login')">Iniciar sesión para mejorar la experiencia</button>` : ''}
+              ${!isLoggedIn ? `<button class="btn btn-primary" style="width:100%" onclick="showSection('login')">Iniciar sesión para contactar y ofrecer permutas</button>` : ''}
             </div>
           </div>
           ${isAdminView ? `
@@ -2552,12 +1788,12 @@ ${vehicle.accepts_trade && isLoggedIn && !isOwner && vehicle.status === 'active'
             </div>
           ` : ''}
           </div>
-          ${ownerLocationDisplay ? `
+          ${vehicle.city ? `
             <div class="detail-secondary-map">
               <div class="detail-map-section detail-map-section-secondary">
                 <h4 style="margin-bottom:0.75rem;font-size:0.9rem;color:var(--text-2);display:flex;align-items:center;gap:0.4rem;">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-                    Ubicacion: ${escapeHtml(ownerLocationDisplay)}
+                    Ubicacion: ${escapeHtml(ownerLocationSummary || vehicle.city)}
                   </h4>
                   <div id="vehicleMapSecondary" class="vehicle-map"></div>
                 </div>
@@ -2638,7 +1874,7 @@ async function compressImage(file, maxWidth = 1920, maxHeight = 1080, quality = 
 }
 
 async function handleImageSelect(e) {
-  const files = Array.from(e.target.files).slice(0, Math.max(0, MAX_VEHICLE_IMAGES - uploadedImages.length));
+  const files = Array.from(e.target.files).slice(0, 12 - uploadedImages.length);
   for (const file of files) {
     if (!file.type.startsWith('image/')) continue;
     try {
@@ -2652,18 +1888,6 @@ async function handleImageSelect(e) {
   e.target.value = '';
 }
 
-async function getUploadErrorMessage(res, fallback) {
-  try {
-    const data = await res.clone().json();
-    if (data?.error) return data.error;
-  } catch {}
-  try {
-    const text = (await res.text()).trim();
-    if (text) return text;
-  } catch {}
-  return fallback;
-}
-
 async function uploadImages() {
   const urls = [];
   for (let i = 0; i < uploadedImages.length; i++) {
@@ -2672,7 +1896,7 @@ async function uploadImages() {
     const formData = new FormData();
     formData.append('image', img.file);
     const res = await fetch('/api/upload', { method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }, body: formData });
-    if (!res.ok) throw new Error(await getUploadErrorMessage(res, `Error al subir la imagen ${i + 1}`));
+    if (!res.ok) throw new Error(`Error al subir la imagen ${i + 1}`);
     const data = await res.json();
     urls.push(data.url);
   }
@@ -2680,7 +1904,7 @@ async function uploadImages() {
 }
 
 async function handleEditImageSelect(e) {
-  const files = Array.from(e.target.files).slice(0, Math.max(0, MAX_VEHICLE_IMAGES - editUploadedImages.length));
+  const files = Array.from(e.target.files).slice(0, 12 - editUploadedImages.length);
   for (const file of files) {
     if (!file.type.startsWith('image/')) continue;
     try {
@@ -2702,7 +1926,7 @@ async function uploadEditImages() {
     const formData = new FormData();
     formData.append('image', img.file);
     const res = await fetch('/api/upload', { method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }, body: formData });
-    if (!res.ok) throw new Error(await getUploadErrorMessage(res, `Error al subir la imagen ${i + 1}`));
+    if (!res.ok) throw new Error(`Error al subir la imagen ${i + 1}`);
     const data = await res.json();
     urls.push(data.url);
   }
@@ -2785,75 +2009,50 @@ function removeImage(index) {
 async function handlePublish(e) {
   e.preventDefault();
   const btn = document.getElementById('publishBtn');
-
-  const province = document.getElementById('publishProvince').value;
-  const city = document.getElementById('publishCity').value;
-  const title = document.getElementById('publishTitle').value.trim();
-  const brand = document.getElementById('publishBrand').value;
-  const model = document.getElementById('publishModel').value;
-  const year = document.getElementById('publishYear').value;
-  const price = getPriceInUSD('publish');
-  const fuel = document.getElementById('publishFuel').value;
-  const transmission = document.getElementById('publishTransmission').value;
-  const description = document.getElementById('publishDescription').value.trim();
-
-  const missing = [];
-  if (!title) missing.push('título');
-  if (!brand) missing.push('marca');
-  if (!model) missing.push('modelo');
-  if (!year) missing.push('año');
-  if (!price || isNaN(price) || price <= 0) missing.push('precio');
-  if ((document.getElementById('publishCurrency')?.value || 'USD') === 'ARS' && !dolarRate?.venta) missing.push('cotizacion del dolar');
-  if (!fuel) missing.push('combustible');
-  if (!transmission) missing.push('transmisión');
-  if (!province || !city) missing.push('ubicación');
-  if (!description) missing.push('descripción');
-  if (!uploadedImages.length) {
-    showToast('Agregá al menos una foto del vehículo', 'error');
-    const uploadArea = document.getElementById('imageUploadArea');
-    if (uploadArea) {
-      uploadArea.classList.add('upload-error-shake');
-      setTimeout(() => uploadArea.classList.remove('upload-error-shake'), 700);
-      document.getElementById('publishStepPhotos')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-    return;
-  }
-
-  if (missing.length) {
-    showToast(`Completá: ${missing.join(', ')}`, 'error');
-    return;
-  }
-
-  // Show preview modal before publishing
-  openPublishPreviewModal();
-}
-
-async function _doPublish() {
-  const btn = document.getElementById('publishBtn');
-  const confirmBtn = document.getElementById('publishPreviewConfirmBtn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Publicando...'; }
-  if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.textContent = 'Publicando...'; }
+  btn.disabled = true;
+  btn.textContent = 'Publicando...';
   try {
     const province = document.getElementById('publishProvince').value;
     const city = document.getElementById('publishCity').value;
-    const publishVehicleType = document.getElementById('publishVehicleType')?.value || 'auto';
-    const publishBodyType = document.getElementById('publishBodyType')?.value || '';
+    const title = document.getElementById('publishTitle').value.trim();
+    const brand = document.getElementById('publishBrand').value;
+    const model = document.getElementById('publishModel').value;
+    const year = document.getElementById('publishYear').value;
+    const price = getPriceInUSD('publish');
+    const fuel = document.getElementById('publishFuel').value;
+    const transmission = document.getElementById('publishTransmission').value;
+    const description = document.getElementById('publishDescription').value.trim();
 
+    const missing = [];
+    if (!title) missing.push('título');
+    if (!brand) missing.push('marca');
+    if (!model) missing.push('modelo');
+    if (!year) missing.push('año');
+    if (!price || isNaN(price) || price <= 0) missing.push('precio');
+    if (!fuel) missing.push('combustible');
+    if (!transmission) missing.push('transmisión');
+    if (!province || !city) missing.push('ubicación');
+    if (!description) missing.push('descripción');
+    if (!uploadedImages.length) missing.push('al menos una foto');
+
+    if (missing.length) {
+      showToast(`Completá: ${missing.join(', ')}`, 'error');
+      btn.disabled = false;
+      btn.textContent = 'Publicar Vehículo';
+      return;
+    }
     const urls = await uploadImages();
     const publishCurrency = document.getElementById('publishCurrency')?.value || 'USD';
     const publishRawPrice = parseFloat(document.getElementById('publishPrice').value) || null;
-    const publishPriceUSD = getPriceInUSD('publish');
-    const publishFrozenArs = publishCurrency === 'ARS' ? publishRawPrice : (dolarRate?.venta ? Math.round(publishPriceUSD * dolarRate.venta) : null);
-    const acceptsFinancing = document.getElementById('publishAcceptsFinancing')?.checked || false;
     const data = {
       title: document.getElementById('publishTitle').value,
       brand: document.getElementById('publishBrand').value,
       model: document.getElementById('publishModel').value,
       version: document.getElementById('publishVersion')?.value || '',
       year: document.getElementById('publishYear').value,
-      price: publishPriceUSD,
+      price: getPriceInUSD('publish'),
       // Si se publicó en ARS, guardamos el monto ingresado para trazabilidad histórica.
-      price_original: publishFrozenArs,
+      price_original: publishCurrency === 'ARS' ? publishRawPrice : null,
       price_currency: publishCurrency,
       transmission: document.getElementById('publishTransmission').value,
       mileage: document.getElementById('publishMileage').value || 0,
@@ -2862,66 +2061,41 @@ async function _doPublish() {
       province: province,
       description: document.getElementById('publishDescription').value,
       accepts_trade: document.getElementById('publishAcceptsTrade').checked,
-      accepts_financing: acceptsFinancing,
-      financing_provider: acceptsFinancing
-        ? (document.getElementById('publishFinancingProvider')?.value || 'prestito')
-        : null,
-      vehicle_type: publishVehicleType,
-      body_type: publishVehicleType === 'auto' ? (publishBodyType || null) : null,
-      drivetrain: normalizedDrivetrainValue(document.getElementById('publishDrivetrain')?.value) || null,
+      vehicle_type: document.getElementById('publishVehicleType')?.value || 'auto',
       engine_cc: document.getElementById('publishEngineCC')?.value ? parseInt(document.getElementById('publishEngineCC').value) : null,
       contact_phone: document.getElementById('publishContactPhone')?.value?.trim() || null,
       contact_address: document.getElementById('publishContactAddress')?.value?.trim() || null,
       images: urls
     };
-    const createdVehicle = await request('/vehicles', { method: 'POST', body: JSON.stringify(data) });
-    if (acceptsFinancing && createdVehicle && !Object.prototype.hasOwnProperty.call(createdVehicle, 'financing_provider')) {
-      showToast('No se guardo el tipo de financiacion. Ejecuta la migracion add-financing-provider-to-vehicles.sql', 'error');
-    }
+    await request('/vehicles', { method: 'POST', body: JSON.stringify(data) });
     showToast('¡Vehículo publicado!', 'success');
     resetPublishForm();
     showSection('my-vehicles');
   } catch (err) { showToast(err.message, 'error'); }
   finally {
     // BUG-09: always re-enable the button, even on error
-    if (btn) { btn.disabled = false; btn.textContent = 'Vista previa y Publicar'; }
-    if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = '✓ Confirmar y Publicar'; }
+    btn.disabled = false;
+    btn.textContent = 'Publicar Vehículo';
   }
 }
 
 // MY VEHICLES
-async function loadMyVehicles(page = 1) {
+async function loadMyVehicles() {
   try {
-    const response = await request(`/my-vehicles?page=${page}&limit=12`);
-    const vehicles = Array.isArray(response) ? response : (response.vehicles || []);
-    myVehiclesHasMore = Array.isArray(response) ? false : !!response.has_more;
-    myVehiclesPage = page;
-
+    const vehicles = await request('/my-vehicles');
     const vehicleStats = await request('/my-vehicles/stats').catch(() => []);
     const statsMap = Object.fromEntries((vehicleStats || []).map(s => [String(s.id), s]));
-    const container = document.getElementById('myVehiclesList');
-    const moreWrap = document.getElementById('myVehiclesMoreWrap');
-    const moreBtn = document.getElementById('myVehiclesMoreBtn');
-    if (!container) return;
-
-    if (page === 1) {
-      const stats = await request('/stats').catch(() => null);
-      const dashboard = document.getElementById('statsDashboard');
-      if (dashboard) dashboard.innerHTML = stats ? `
+    const stats = await request('/stats').catch(() => null);
+    const dashboard = document.getElementById('statsDashboard');
+    dashboard.innerHTML = stats ? `
       <div class="stat-card"><div class="icon"><svg viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99z"/></svg></div><div class="stat-meta"><div class="number">${stats.vehicles_count}</div><div class="label">Vehículos</div></div></div>
       <div class="stat-card"><div class="icon"><svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z"/></svg></div><div class="stat-meta"><div class="number">${stats.total_views}</div><div class="label">Vistas totales</div></div></div>
       <div class="stat-card"><div class="icon"><svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg></div><div class="stat-meta"><div class="number">${stats.conversations_count}</div><div class="label">Conversaciones</div></div></div>
       <div class="stat-card"><div class="icon"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></div><div class="stat-meta"><div class="number">${stats.favorites_count}</div><div class="label">Favoritos</div></div></div>
     ` : '';
-
-      if (!vehicles?.length) {
-        container.innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg><h3>Sin publicaciones</h3><p>Publica tu primer vehículo</p></div>';
-        if (moreWrap) moreWrap.style.display = 'none';
-        return;
-      }
-    }
-
-    const html = vehicles.map(v => `
+    const container = document.getElementById('myVehiclesList');
+    if (!vehicles?.length) { container.innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg><h3>Sin publicaciones</h3><p>Publica tu primer vehículo</p></div>'; return; }
+    container.innerHTML = vehicles.map(v => `
       <div class="vehicle-card" onclick="viewVehicle(${v.id})">
         <div class="vehicle-image-container">
           <img src="${thumbUrl(v.images?.find(i => i.is_primary)?.url || v.images?.[0]?.url || v.image_url)}" class="vehicle-image" alt="${escapeHtml(v.title)}" loading="lazy" onerror="this.src=PLACEHOLDER_IMG">
@@ -2931,61 +2105,24 @@ async function loadMyVehicles(page = 1) {
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
           <p class="vehicle-brand">${escapeHtml(v.brand)} ${escapeHtml(v.model)}</p>
           <div class="vehicle-price-block">
-            ${formatPesos(v.price, v) ? `<p class="vehicle-price">${formatPesos(v.price, v)}</p><p class="vehicle-price-ars">USD ${formatNumber(v.price)}</p>` : `<p class="vehicle-price">USD ${formatNumber(v.price)}</p>`}
+            <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
+            ${formatPesos(v.price, v) ? `<p class="vehicle-price-ars">${formatPesos(v.price, v)}</p>` : ''}
           </div>
           <div class="vehicle-mini-stats">
-            <span title="Vistas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>${(statsMap[String(v.id)]?.view_count || v.view_count || 0)}</span>
-            <span title="Guardados"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>${(statsMap[String(v.id)]?.favorites_count || 0)}</span>
-            <span title="Consultas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>${(statsMap[String(v.id)]?.messages_count || 0)}</span>
-          </div>
-          <div class="my-vehicle-actions">
-            <select class="my-vehicle-status-select" onclick="event.stopPropagation()" onchange="changeVehicleStatus(${v.id}, this.value, this)">
-              <option value="active" ${v.status === 'active' ? 'selected' : ''}>Activo</option>
-              <option value="reserved" ${v.status === 'reserved' ? 'selected' : ''}>Reservado</option>
-              <option value="sold" ${v.status === 'sold' ? 'selected' : ''}>Vendido</option>
-              <option value="paused" ${v.status === 'paused' ? 'selected' : ''}>Pausado</option>
-            </select>
-            <button class="btn btn-secondary" onclick="openEditModal(${v.id}, event)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path></svg>Editar</button>
-            <button class="btn btn-danger" onclick="deleteVehicle(${v.id}, event)">Eliminar</button>
+  <span title="Vistas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>${(statsMap[String(v.id)]?.view_count || v.view_count || 0)}</span>
+  <span title="Guardados"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>${(statsMap[String(v.id)]?.favorites_count || 0)}</span>
+  <span title="Consultas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>${(statsMap[String(v.id)]?.messages_count || 0)}</span>
+</div>
+          <div style="display:flex;gap:0.5rem;margin-top:0.75rem;">
+            <button class="btn btn-secondary" style="flex:1;" onclick="openEditModal(${v.id}, event)">✏️ Editar</button>
+            <button class="btn btn-danger" style="flex:1;" onclick="deleteVehicle(${v.id}, event)">Eliminar</button>
           </div>
         </div>
       </div>
     `).join('');
-
-    if (page === 1) container.innerHTML = html;
-    else container.insertAdjacentHTML('beforeend', html);
-
     applyCardCascade(container);
-    if (page === 1) loadTradeOffers();
-
-    if (moreWrap && moreBtn) {
-      moreWrap.style.display = myVehiclesHasMore ? 'block' : 'none';
-      moreBtn.disabled = false;
-      moreBtn.textContent = 'Cargar más';
-      moreBtn.onclick = () => {
-        moreBtn.disabled = true;
-        moreBtn.textContent = 'Cargando...';
-        loadMyVehicles(myVehiclesPage + 1);
-      };
-    }
+    loadTradeOffers();
   } catch (err) { showToast(err.message, 'error'); }
-}
-async function changeVehicleStatus(id, status, selectEl) {
-  const prev = selectEl.dataset.prev || selectEl.value;
-  selectEl.dataset.prev = status;
-  try {
-    await request(`/vehicles/${id}`, { method: 'PUT', body: JSON.stringify({ status }) });
-    showToast(`Estado actualizado: ${status === 'sold' ? 'Vendido' : status === 'reserved' ? 'Reservado' : status === 'paused' ? 'Pausado' : 'Activo'}`, 'success');
-    // Actualizar badge visible en la tarjeta
-    const badge = selectEl.closest('.vehicle-card')?.querySelector('.vehicle-badge');
-    if (badge) {
-      badge.className = `vehicle-badge${status === 'sold' ? ' badge-sold' : ''}`;
-      badge.textContent = status === 'active' ? 'Activo' : status === 'sold' ? 'VENDIDO' : status === 'paused' ? 'Pausado' : 'Reservado';
-    }
-  } catch (err) {
-    selectEl.value = prev;
-    showToast(err.message || 'Error al actualizar', 'error');
-  }
 }
 
 function deleteVehicle(id, e) {
@@ -3031,32 +2168,15 @@ async function openEditModal(id, e) {
     // Populate models for this brand then set value
     updateEditModels();
     const editModelEl = document.getElementById('editModel');
-    if (editModelEl) {
-      editModelEl.value = v.model || '';
-    }
-    const editBodyTypeEl = document.getElementById('editBodyType');
-    if (editBodyTypeEl) editBodyTypeEl.value = v.body_type || '';
-    toggleBodyTypeField('edit');
-    const editDrivetrainEl = document.getElementById('editDrivetrain');
-    if (editDrivetrainEl) editDrivetrainEl.value = normalizedDrivetrainValue(v.drivetrain);
-    toggleDrivetrainField('edit');
+    if (editModelEl) editModelEl.value = v.model || '';
     document.getElementById('editYear').value = v.year || '';
     document.getElementById('editVersion').value = v.version || '';
     updateEditTitle();
     const editCurrencyEl = document.getElementById('editCurrency');
-    const editPriceEl = document.getElementById('editPrice');
-    if (editCurrencyEl && editPriceEl) {
-      const vehicleCurrency = v.price_currency || 'USD';
-      editCurrencyEl.value = vehicleCurrency;
-      editCurrencyEl.dataset.prev = vehicleCurrency;
-      if (vehicleCurrency === 'ARS' && v.price_original) {
-        editPriceEl.value = v.price_original;
-      } else {
-        editPriceEl.value = v.price || '';
-      }
-      syncPriceBaseUSD('edit');
-      updatePriceHint('edit');
-    }
+    if (editCurrencyEl) { editCurrencyEl.value = 'USD'; editCurrencyEl.dataset.prev = 'USD'; }
+    document.getElementById('editPrice').value = v.price || '';
+    syncPriceBaseUSD('edit');
+    updatePriceHint('edit');
     document.getElementById('editMileage').value = v.mileage || '';
     document.getElementById('editFuel').value = v.fuel || '';
     document.getElementById('editTransmission').value = v.transmission || '';
@@ -3075,15 +2195,6 @@ async function openEditModal(id, e) {
     editDescEl.removeEventListener('input', markEditDescriptionEdited);
     editDescEl.addEventListener('input', markEditDescriptionEdited);
     document.getElementById('editAcceptsTrade').checked = !!v.accepts_trade;
-    const editFinancingEl = document.getElementById('editAcceptsFinancing');
-    if (editFinancingEl) editFinancingEl.checked = !!v.accepts_financing;
-    const editFinancingProviderEl = document.getElementById('editFinancingProvider');
-    if (editFinancingProviderEl) {
-      editFinancingProviderEl.value = String(v.financing_provider || 'prestito').toLowerCase() === 'propia'
-        ? 'propia'
-        : 'prestito';
-    }
-    toggleFinancingProviderField('edit');
     const editCCEl = document.getElementById('editEngineCC');
     if (editCCEl) editCCEl.value = v.engine_cc || '';
     toggleEngineCCField('edit');
@@ -3098,16 +2209,16 @@ async function openEditModal(id, e) {
     const editImageInput = document.getElementById('editImageInput');
     if (editImageInput) editImageInput.value = '';
     renderEditImagePreviews();
-    openAccessibleModal('editVehicleModal', { initialFocusSelector: '#editBrand' });
+    document.getElementById('editVehicleModal').style.display = 'block';
+    document.getElementById('modalOverlay').style.display = 'block';
   } catch (err) { showToast(err.message, 'error'); }
 }
 
 function closeEditModal() {
-  closeAccessibleModal('editVehicleModal');
+  document.getElementById('editVehicleModal').style.display = 'none';
+  document.getElementById('modalOverlay').style.display = 'none';
   const editCur = document.getElementById('editCurrency');
   if (editCur) { editCur.value = 'USD'; editCur.dataset.prev = 'USD'; }
-  const editDrive = document.getElementById('editDrivetrain');
-  if (editDrive) editDrive.value = '';
   const editHint = document.getElementById('editPriceHint');
   if (editHint) editHint.textContent = '';
   editUploadedImages = [];
@@ -3132,23 +2243,13 @@ async function handleEditVehicle(e) {
       btn.textContent = 'Guardar cambios';
       return;
     }
-    if ((document.getElementById('editCurrency')?.value || 'USD') === 'ARS' && !dolarRate?.venta) {
-      showToast('No se pudo obtener la cotizacion del dolar para convertir ARS a USD', 'error');
-      btn.disabled = false;
-      btn.textContent = 'Guardar cambios';
-      return;
-    }
     const editBrand = document.getElementById('editBrand')?.value || '';
     const editModel = document.getElementById('editModel')?.value || '';
     const editYear  = document.getElementById('editYear')?.value || '';
     const editVersion = document.getElementById('editVersion').value;
     const editVehicleType = document.getElementById('editVehicleTypeTop')?.value || 'auto';
-    const editBodyType = document.getElementById('editBodyType')?.value || '';
-    const editAcceptsFinancing = document.getElementById('editAcceptsFinancing')?.checked || false;
     const editCurrency = document.getElementById('editCurrency')?.value || 'USD';
     const editRawPrice = parseFloat(document.getElementById('editPrice').value) || null;
-    const editPriceUSD = getPriceInUSD('edit');
-    const editFrozenArs = editCurrency === 'ARS' ? editRawPrice : (dolarRate?.venta ? Math.round(editPriceUSD * dolarRate.venta) : null);
     if (!editUploadedImages.length) {
       showToast('Debe quedar al menos una foto', 'error');
       btn.disabled = false;
@@ -3157,7 +2258,7 @@ async function handleEditVehicle(e) {
     }
     const editImageUrls = await uploadEditImages();
     const autoTitle = `${editBrand} ${editModel} ${editVersion} ${editYear}`.replace(/\s+/g, ' ').trim();
-    const updatedVehicle = await request(`/vehicles/${id}`, {
+    await request(`/vehicles/${id}`, {
       method: 'PUT',
       body: JSON.stringify({
         title: autoTitle,
@@ -3165,8 +2266,8 @@ async function handleEditVehicle(e) {
         model: editModel,
         year: editYear,
         version: editVersion,
-        price: editPriceUSD,
-        price_original: editFrozenArs,
+        price: getPriceInUSD('edit'),
+        price_original: editCurrency === 'ARS' ? editRawPrice : null,
         price_currency: editCurrency,
         mileage: document.getElementById('editMileage').value,
         fuel: document.getElementById('editFuel').value,
@@ -3176,22 +2277,13 @@ async function handleEditVehicle(e) {
         status: document.getElementById('editStatus').value,
         description: document.getElementById('editDescription').value,
         accepts_trade: document.getElementById('editAcceptsTrade').checked,
-        accepts_financing: editAcceptsFinancing,
-        financing_provider: editAcceptsFinancing
-          ? (document.getElementById('editFinancingProvider')?.value || 'prestito')
-          : null,
         vehicle_type: editVehicleType,
-        body_type: editVehicleType === 'auto' ? (editBodyType || null) : null,
-        drivetrain: normalizedDrivetrainValue(document.getElementById('editDrivetrain')?.value) || null,
         engine_cc: document.getElementById('editEngineCC')?.value ? parseInt(document.getElementById('editEngineCC').value) : null,
         contact_phone: document.getElementById('editContactPhone')?.value?.trim() || null,
         contact_address: document.getElementById('editContactAddress')?.value?.trim() || null,
         images: editImageUrls
       })
     });
-    if (editAcceptsFinancing && updatedVehicle && !Object.prototype.hasOwnProperty.call(updatedVehicle, 'financing_provider')) {
-      showToast('No se guardo el tipo de financiacion. Ejecuta la migracion add-financing-provider-to-vehicles.sql', 'error');
-    }
     showToast('¡Publicación actualizada!', 'success');
     closeEditModal();
     if (String(currentVehicleId) === String(id)) {
@@ -3220,7 +2312,8 @@ async function loadFavorites() {
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
           <p class="vehicle-brand">${escapeHtml(v.brand)} ${escapeHtml(v.model)}</p>
           <div class="vehicle-price-block">
-            ${formatPesos(v.price, v) ? `<p class="vehicle-price">${formatPesos(v.price, v)}</p><p class="vehicle-price-ars">USD ${formatNumber(v.price)}</p>` : `<p class="vehicle-price">USD ${formatNumber(v.price)}</p>`}
+            <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
+            ${formatPesos(v.price, v) ? `<p class="vehicle-price-ars">${formatPesos(v.price, v)}</p>` : ''}
           </div>
           <button class="btn btn-ghost btn-sm" style="margin-top:0.5rem;color:var(--text-3);width:100%;" onclick="toggleFavorite(${v.id}, event);this.closest('.vehicle-card').remove()">Eliminar de favoritos</button>
         </div>
@@ -3311,20 +2404,7 @@ async function loadConversations(page = 1) {
       container.insertAdjacentHTML('beforeend', `<button class="btn btn-ghost btn-sm load-more-btn" style="width:100%;margin-top:0.5rem;" onclick="loadConversations(${page + 1})">Cargar más</button>`);
     }
     if (page === 1) { if (currentConversationId) loadChatFull(currentConversationId); else renderEmptyChat(); }
-  } catch (err) {
-    const container = document.getElementById('conversationsListContent');
-    if (container && page === 1) {
-      container.innerHTML = `
-        <div class="empty-state" style="padding:1.5rem;text-align:center;">
-          <h3 style="margin-bottom:0.5rem;font-size:1rem;">No pudimos cargar tus chats</h3>
-          <p style="color:var(--text-2);font-size:0.9rem;margin-bottom:0.9rem;">Reintenta en unos segundos.</p>
-          <button class="btn btn-secondary btn-sm" onclick="loadConversations(1)">Reintentar</button>
-        </div>
-      `;
-      renderEmptyChat();
-    }
-    showToast(err.message || 'No se pudieron cargar las conversaciones', 'error');
-  }
+  } catch (err) { console.error(err); }
 }
 
 async function openConversation(convId, el) {
@@ -3906,11 +2986,10 @@ const NOTIF_ICONS = {
   new_vehicle:   `<svg viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99z"/></svg>`,
   rating:        `<svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>`,
   favorite_sold: `<svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`,
-  admin_contact_request: `<svg viewBox="0 0 24 24"><path d="M12 1l9 4v6c0 5.55-3.84 10.74-9 12-5.16-1.26-9-6.45-9-12V5l9-4zm-1 11l6-6-1.41-1.41L11 9.17 8.41 6.59 7 8l4 4z"/></svg>`,
 };
 function notifIcon(type) {
   const svg = NOTIF_ICONS[type] || `<svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>`;
-  const colors = { message:'#60a5fa', trade_offer:'#f59e0b', trade_accepted:'#22c55e', trade_rejected:'#ef4444', follow:'#a78bfa', new_vehicle:'#f59e0b', rating:'#facc15', favorite_sold:'#ef4444', admin_contact_request:'#38bdf8' };
+  const colors = { message:'#60a5fa', trade_offer:'#f59e0b', trade_accepted:'#22c55e', trade_rejected:'#ef4444', follow:'#a78bfa', new_vehicle:'#f59e0b', rating:'#facc15', favorite_sold:'#ef4444' };
   const bg = colors[type] || 'var(--text-3)';
   return `<div class="notification-icon" style="background:${bg}22;color:${bg};">${svg}</div>`;
 }
@@ -3921,6 +3000,9 @@ let notificationsTotal = 0;
 async function loadNotifications(offset = 0) {
   try {
     if (offset === 0) {
+      request('/notifications/read-all', { method: 'PUT' }).catch(() => {});
+      const badge = document.getElementById('notificationsBadge');
+      if (badge) { badge.textContent = ''; badge.style.display = 'none'; }
       notificationsOffset = 0;
     }
     const { notifications, total } = await request(`/notifications?offset=${offset}`);
@@ -3951,19 +3033,7 @@ async function loadNotifications(offset = 0) {
       btn.onclick = () => loadNotifications(notificationsOffset);
       container.appendChild(btn);
     }
-  } catch (err) {
-    const container = document.getElementById('notificationsList');
-    if (container && offset === 0) {
-      container.innerHTML = `
-        <div class="empty-state" style="padding:1.5rem;text-align:center;">
-          <h3 style="margin-bottom:0.5rem;font-size:1rem;">No pudimos cargar notificaciones</h3>
-          <p style="color:var(--text-2);font-size:0.9rem;margin-bottom:0.9rem;">Verifica tu conexión e intenta de nuevo.</p>
-          <button class="btn btn-secondary btn-sm" onclick="loadNotifications(0)">Reintentar</button>
-        </div>
-      `;
-    }
-    showToast(err.message || 'No se pudieron cargar las notificaciones', 'error');
-  }
+  } catch (err) { console.error(err); }
 }
 
 async function loadNotificationCount() {
@@ -3993,11 +3063,6 @@ async function handleNotificationClick(link, id) {
     viewProfile(link.split('/').pop());
   } else if (link === 'trade-offers') {
     showSection('my-vehicles');
-  } else if (link === 'admin/contact-requests') {
-    if (currentUser?.profile?.is_admin) {
-      adminPreferredTab = 'contact-requests';
-      showSection('admin');
-    }
   }
 }
 
@@ -4060,23 +3125,7 @@ async function viewProfile(id) {
       }
     }
     const canFollow = !isOwn && !!localStorage.getItem('token');
-    const canEditProfile = isOwn || !!currentUser?.profile?.is_admin;
-    const cityMeta = AR_CITIES.find(c => c.city === profile.city);
-    const profileProvince = cityMeta ? String(cityMeta.prov || '').replace(/\s*\(.*?\)/g, '').trim() : '';
-    const profileCity = cityMeta ? String(profile.city || '').trim() : '';
-    const profileStreet = String(
-      profile.dealership_address || (!cityMeta ? (profile.city || '') : '')
-    ).trim();
-    const profileLocationText = [profileStreet, profileCity, profileProvince].filter(Boolean).join(', ');
-    const profileLocationDisplay = profileLocationText || String(profile.city || '').trim();
-    const profileMapsQuery = profileLocationText || [profileCity, profileProvince].filter(Boolean).join(', ');
-    const profileMapsUrl = profile.is_verified && profileMapsQuery ? googleMapsSearchUrl(profileMapsQuery) : '';
-    const fullName = [profile.first_name, profile.last_name]
-      .map(v => String(v || '').trim())
-      .filter(Boolean)
-      .join(' ');
-    const showDealershipName = !!(profile.is_verified && profile.dealership_name);
-    const profileTitle = showDealershipName ? profile.dealership_name : (fullName || profile.username);
+    const profileMapsUrl = profile.is_verified && profile.dealership_address ? googleMapsSearchUrl(profile.dealership_address) : '';
     
     // Header content
     let headerHtml = `
@@ -4088,8 +3137,8 @@ async function viewProfile(id) {
           </div>
         </div>
 
-        <h2>${escapeHtml(profileTitle)}</h2>
-        ${showDealershipName && fullName ? `<p class="profile-owner-name">${escapeHtml(fullName)}</p>` : ''}
+        <h2>${escapeHtml(profile.is_verified && profile.dealership_name ? profile.dealership_name : (profile.first_name && profile.last_name) ? `${profile.first_name} ${profile.last_name}` : profile.username)}</h2>
+        <p style="color:var(--text-3);font-size:0.9rem;margin-top:0.1rem;">@${escapeHtml(profile.username)}</p>
         ${profile.is_verified ? verifiedImageBadge('verified-image-badge-profile') : ''}
         
         ${profile.rating ? `
@@ -4099,9 +3148,10 @@ async function viewProfile(id) {
           </div>
         ` : '<p style="color:var(--text-3); margin-top:0.5rem;">Sin reseñas aún</p>'}
         
-        ${profileLocationDisplay ? `
-          <div class="profile-location">
-            <span class="profile-location-text">${escapeHtml(profileLocationDisplay)}</span>
+        ${profile.city ? `
+          <div class="location">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+            ${escapeHtml(profile.city)}${(() => { const m = AR_CITIES.find(c => c.city === profile.city); return m ? ', ' + escapeHtml(m.prov.replace(/\s*\(.*?\)/g,'').trim()) : ''; })()}
           </div>
         ` : ''}
         
@@ -4111,7 +3161,7 @@ async function viewProfile(id) {
           ${profileMapsUrl ? `
             <a href="${escapeHtml(profileMapsUrl)}" target="_blank" rel="noopener" class="profile-action-btn location">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-              Ver ubicación
+              Ubicacion
             </a>
           ` : ''}
           ${profile.instagram ? `
@@ -4126,8 +3176,8 @@ async function viewProfile(id) {
               WhatsApp
             </a>
           ` : ''}
-          ${canEditProfile ? `
-            <button class="profile-action-btn" onclick="showSection('profile'); editProfile(${id})">
+          ${isOwn ? `
+            <button class="profile-action-btn" onclick="showSection('profile'); editProfile()">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
               Editar perfil
             </button>
@@ -4158,72 +3208,29 @@ async function viewProfile(id) {
     
     document.getElementById('profileHeader').innerHTML = headerHtml;
     const isViewerAdmin = !!currentUser?.profile?.is_admin;
-    const profileVehiclesList = document.getElementById('profileVehiclesList');
-    const profileVehiclesMoreWrap = document.getElementById('profileVehiclesMoreWrap');
-    const profileVehiclesMoreBtn = document.getElementById('profileVehiclesMoreBtn');
-    profileVehiclesPage = 1;
-    profileVehiclesHasMore = false;
-    profileVehiclesUserId = String(id);
-
-    const renderProfileVehicles = (list, append = false) => {
-      const html = list.map(v => `
+    const vehicles = await request(`/vehicles?user_id=${id}`).catch(() => ({ vehicles: [] }));
+    document.getElementById('profileVehiclesList').innerHTML = vehicles.vehicles?.length ? vehicles.vehicles.map(v => `
       <div class="vehicle-card" onclick="viewVehicle(${v.id})">
         <div class="vehicle-image-container">
           <img src="${thumbUrl(v.images?.find(i => i.is_primary)?.url || v.images?.[0]?.url || v.image_url)}" class="vehicle-image" alt="${escapeHtml(v.title)}" loading="lazy" onerror="this.src=PLACEHOLDER_IMG">
           <div class="vehicle-img-overlay"></div>
           <span class="vehicle-badge">${escapeHtml(String(v.year))}</span>
           ${v.status === 'sold' ? '<span class="vehicle-badge badge-sold">VENDIDO</span>' : ''}
-          ${buildVehicleStatusBadges(v, { compact: true })}
+          ${v.status !== 'sold' ? `<span class="vehicle-trade-badge ${v.accepts_trade ? 'trade-yes' : 'trade-no'}">${v.accepts_trade ? '🔄 Permuta' : 'Sin permuta'}</span>` : ''}
           ${v.status !== 'sold' ? `<button class="favorite-btn ${userFavoriteIds.has(v.id) ? 'active' : ''}" data-vehicle-id="${v.id}" onclick="toggleFavorite(${v.id}, event)" aria-label="Agregar a favoritos"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>` : ''}
         </div>
         <div class="vehicle-info">
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
           ${v.city ? `<p class="vehicle-location"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> ${escapeHtml(v.city)}${v.province ? ', ' + escapeHtml(v.province.replace(/\s*\(.*?\)/g,'').trim()) : ''}</p>` : ''}
           <div class="vehicle-price-block">
-            ${formatPesos(v.price, v) ? `<p class="vehicle-price">${formatPesos(v.price, v)}</p><p class="vehicle-price-ars">USD ${formatNumber(v.price)}</p>` : `<p class="vehicle-price">USD ${formatNumber(v.price)}</p>`}
+            <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
+            ${formatPesos(v.price, v) ? `<p class="vehicle-price-ars">${formatPesos(v.price, v)}</p>` : ''}
           </div>
           ${buildVehicleMetaHtml(v)}
-          ${isViewerAdmin && !isOwn ? `<button class="btn btn-sm btn-danger" style="margin-top:0.5rem;width:100%;" data-vid="${v.id}" data-title="${escapeHtml(v.title)}" onclick="event.stopPropagation(); adminDeleteVehicle(+this.dataset.vid, this.dataset.title)">Eliminar</button>` : ''}
+          ${isViewerAdmin && !isOwn ? `<button class="btn btn-sm btn-danger" style="margin-top:0.5rem;width:100%;" data-vid="${v.id}" data-title="${escapeHtml(v.title)}" onclick="event.stopPropagation(); adminDeleteVehicle(+this.dataset.vid, this.dataset.title)">🗑 Eliminar</button>` : ''}
         </div>
       </div>
-    `).join('');
-
-      if (!append) profileVehiclesList.innerHTML = html;
-      else profileVehiclesList.insertAdjacentHTML('beforeend', html);
-      applyCardCascade(profileVehiclesList);
-    };
-
-    const loadProfileVehiclesPage = async (page = 1) => {
-      const resp = await request(`/vehicles?user_id=${id}&page=${page}&limit=12`).catch(() => ({ vehicles: [], total: 0 }));
-      if (profileVehiclesUserId !== String(id)) return;
-
-      const list = resp?.vehicles || [];
-      const total = Number(resp?.total || 0);
-      profileVehiclesPage = page;
-      profileVehiclesHasMore = (page * 12) < total;
-
-      if (page === 1 && !list.length) {
-        profileVehiclesList.innerHTML = '<p style="color:var(--text-secondary)">Sin vehículos publicados</p>';
-      } else if (list.length) {
-        renderProfileVehicles(list, page > 1);
-      }
-
-      if (profileVehiclesMoreWrap && profileVehiclesMoreBtn) {
-        profileVehiclesMoreWrap.style.display = profileVehiclesHasMore ? 'block' : 'none';
-        profileVehiclesMoreBtn.disabled = false;
-        profileVehiclesMoreBtn.textContent = 'Cargar más publicaciones';
-      }
-    };
-
-    await loadProfileVehiclesPage(1);
-    if (profileVehiclesMoreBtn) {
-      profileVehiclesMoreBtn.onclick = async () => {
-        if (!profileVehiclesHasMore || profileVehiclesUserId !== String(id)) return;
-        profileVehiclesMoreBtn.disabled = true;
-        profileVehiclesMoreBtn.textContent = 'Cargando...';
-        await loadProfileVehiclesPage(profileVehiclesPage + 1);
-      };
-    }
+    `).join('') : '<p style="color:var(--text-secondary)">Sin vehículos publicados</p>';
     document.getElementById('profileReviewsList').innerHTML = ratings?.length ? ratings.map(r => `
       <div class="review-item"><div class="stars">${'★'.repeat(r.stars)}${'☆'.repeat(5-r.stars)}</div><div class="author">${escapeHtml(r.from_user?.username)} - ${formatRelTime(r.created_at)}</div>${r.review ? `<div class="text">${escapeHtml(r.review)}</div>` : ''}</div>
     `).join('') : '<p style="color:var(--text-secondary)">Sin reseñas</p>';
@@ -4231,66 +3238,37 @@ async function viewProfile(id) {
   } catch (err) { showToast(err.message, 'error'); }
 }
 
-async function editProfile(targetUserId = null) {
+function editProfile() {
   if (!currentUser) return;
   pendingAvatarFile = null;
-
-  const normalizedTarget = targetUserId ? parseInt(targetUserId, 10) : currentUser.id;
-  const isAdminEditingOther = !!currentUser?.profile?.is_admin && normalizedTarget && String(normalizedTarget) !== String(currentUser.id);
-
-  let sourceUser = { ...currentUser };
-  let sourceProfile = { ...(currentUser.profile || {}) };
-
-  if (isAdminEditingOther) {
-    const data = await request(`/admin/users/${normalizedTarget}/profile`);
-    sourceUser = {
-      id: data.id,
-      username: data.username,
-      email: data.email
-    };
-    sourceProfile = { ...(data.profile || {}) };
-  }
-
-  editProfileTarget = {
-    userId: sourceUser.id,
-    isAdminEditingOther
-  };
-
-  const titleEl = document.querySelector('#editProfileModal .modal-header h3');
-  if (titleEl) {
-    titleEl.textContent = isAdminEditingOther
-      ? `Editar perfil de @${sourceUser.username || sourceUser.id}`
-      : 'Editar perfil';
-  }
-
   document.getElementById('editProfileModalBody').innerHTML = `
     <form onsubmit="saveProfile(event)" style="padding:0.25rem 0;">
       <div class="form-group" style="margin-bottom:1rem;">
         <label>Foto de perfil</label>
         <div style="display:flex;align-items:center;gap:1rem;">
-          <div class="profile-avatar" style="width:60px;height:60px;margin:0;" id="editAvatarPreview">${sourceProfile?.avatar_url ? `<img src="${sourceProfile.avatar_url}" loading="lazy">` : (sourceUser.username || '').charAt(0).toUpperCase()}</div>
+          <div class="profile-avatar" style="width:60px;height:60px;margin:0;" id="editAvatarPreview">${currentUser.profile?.avatar_url ? `<img src="${currentUser.profile.avatar_url}" loading="lazy">` : currentUser.username.charAt(0).toUpperCase()}</div>
           <input type="file" id="editAvatarFile" accept="image/*" onchange="previewProfileImage(event)" style="flex:1;">
         </div>
-        <input type="hidden" id="editAvatarBase64" value="${sourceProfile?.avatar_url || ''}">
+        <input type="hidden" id="editAvatarBase64" value="${currentUser.profile?.avatar_url || ''}">
       </div>
-      <div class="form-group"><label for="editUsername">Nombre de usuario</label><input type="text" id="editUsername" value="${escapeHtml(sourceUser.username || '')}" placeholder="tunombre" minlength="3"></div>
+      <div class="form-group"><label for="editUsername">Nombre de usuario</label><input type="text" id="editUsername" value="${escapeHtml(currentUser.username || '')}" placeholder="tunombre" minlength="3"></div>
       <div class="form-group">
         <label for="editPhone">Teléfono / WhatsApp</label>
-        <input type="tel" id="editPhone" value="${escapeHtml(sourceProfile?.phone || '')}" placeholder="+54...">
+        <input type="tel" id="editPhone" value="${escapeHtml(currentUser.profile?.phone || '')}" placeholder="+54...">
         <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.5rem;">
-          <input type="checkbox" id="editShowPhone" ${sourceProfile?.show_phone !== false ? 'checked' : ''} style="width:auto;margin:0;">
-          <label for="editShowPhone" style="margin:0;font-size:0.88rem;color:var(--text-secondary);cursor:pointer;">Mostrar botón de WhatsApp en perfil y publicaciones</label>
+          <input type="checkbox" id="editShowPhone" ${currentUser.profile?.show_phone !== false ? 'checked' : ''} style="width:auto;margin:0;">
+          <label for="editShowPhone" style="margin:0;font-size:0.88rem;color:var(--text-secondary);cursor:pointer;">Mostrar botón de WhatsApp en mi perfil y publicaciones</label>
         </div>
       </div>
       <div class="form-group"><label for="editProfileProvince">Provincia</label><select id="editProfileProvince" onchange="onEditProfileProvinceChange()"><option value="">Seleccioná una provincia</option>${AR_PROVINCES.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('')}</select></div>
       <div class="form-group"><label for="editProfileCity">Ciudad</label><select id="editProfileCity"><option value="">Seleccioná una ciudad</option></select></div>
-      <div class="form-group"><label for="editBio">Bio</label><textarea id="editBio" rows="3" placeholder="Cuéntanos sobre ti...">${escapeHtml(sourceProfile?.bio || '')}</textarea></div>
-      ${sourceProfile?.is_verified ? `
+      <div class="form-group"><label for="editBio">Bio</label><textarea id="editBio" rows="3" placeholder="Cuéntanos sobre ti...">${escapeHtml(currentUser.profile?.bio || '')}</textarea></div>
+      ${currentUser.profile?.is_verified ? `
         <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);">
           <h4 style="font-size:0.95rem;margin-bottom:0.75rem;color:var(--primary);">Datos de concesionaria (verificado)</h4>
-          <div class="form-group"><label>Nombre de la concesionaria</label><input type="text" id="editDealershipName" value="${escapeHtml(sourceProfile?.dealership_name || '')}" placeholder="Ej: Autos Premium SRL"></div>
-          <div class="form-group"><label>Dirección de la concesionaria</label><input type="text" id="editDealershipAddress" value="${escapeHtml(sourceProfile?.dealership_address || '')}" placeholder="Ej: Av. Libertador 1234, CABA"></div>
-          <div class="form-group"><label>Instagram</label><input type="text" id="editInstagram" value="${escapeHtml(sourceProfile?.instagram || '')}" placeholder="https://instagram.com/tuconcesionaria"><small style="color:var(--text-secondary);font-size:0.78rem;">Pegá el enlace completo de Instagram</small></div>
+          <div class="form-group"><label>Nombre de la concesionaria</label><input type="text" id="editDealershipName" value="${escapeHtml(currentUser.profile?.dealership_name || '')}" placeholder="Ej: Autos Premium SRL"></div>
+          <div class="form-group"><label>Dirección de la concesionaria</label><input type="text" id="editDealershipAddress" value="${escapeHtml(currentUser.profile?.dealership_address || '')}" placeholder="Ej: Av. Libertador 1234, CABA"></div>
+          <div class="form-group"><label>Instagram</label><input type="text" id="editInstagram" value="${escapeHtml(currentUser.profile?.instagram || '')}" placeholder="https://instagram.com/tuconcesionaria"><small style="color:var(--text-secondary);font-size:0.78rem;">Pegá el enlace completo de tu perfil de Instagram</small></div>
         </div>
       ` : ''}
       <div style="display:flex;gap:0.75rem;margin-top:1.25rem;">
@@ -4299,15 +3277,14 @@ async function editProfile(targetUserId = null) {
       </div>
     </form>
   `;
-  openAccessibleModal('editProfileModal', { initialFocusSelector: '#editUsername' });
-  setTimeout(() => initEditProfileCity(sourceProfile?.city || ''), 0);
+  document.getElementById('editProfileModal').style.display = 'flex';
+  document.getElementById('modalOverlay').style.display = 'block';
+  setTimeout(initEditProfileCity, 0);
 }
 
 function closeEditProfileModal() {
-  closeAccessibleModal('editProfileModal');
-  const titleEl = document.querySelector('#editProfileModal .modal-header h3');
-  if (titleEl) titleEl.textContent = 'Editar perfil';
-  editProfileTarget = null;
+  document.getElementById('editProfileModal').style.display = 'none';
+  document.getElementById('modalOverlay').style.display = 'none';
 }
 
 function onEditProfileProvinceChange() {
@@ -4319,7 +3296,8 @@ function onEditProfileProvinceChange() {
     cities.map(c => `<option value="${escapeHtml(c.city)}">${escapeHtml(c.city)}</option>`).join('');
 }
 
-function initEditProfileCity(savedCity = '') {
+function initEditProfileCity() {
+  const savedCity = currentUser.profile?.city || '';
   if (!savedCity) return;
   const match = AR_CITIES.find(c => c.city === savedCity);
   if (!match) return;
@@ -4350,13 +3328,6 @@ async function saveProfile(e) {
   if (btn) btn.disabled = true;
 
   try {
-    const targetId = editProfileTarget?.userId || currentUser?.id;
-    const adminEditingOther = !!editProfileTarget?.isAdminEditingOther && String(targetId) !== String(currentUser?.id);
-    const endpoint = adminEditingOther ? `/admin/users/${targetId}/profile` : '/profile';
-    const fallbackUsername = adminEditingOther
-      ? (document.getElementById('editUsername')?.defaultValue || currentUser?.username || '')
-      : currentUser?.username;
-
     let avatarUrl = document.getElementById('editAvatarBase64').value; // valor previo (si existe)
 
     if (pendingAvatarFile) {
@@ -4369,14 +3340,14 @@ async function saveProfile(e) {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
         body: formData
       });
-      if (!res.ok) throw new Error(await getUploadErrorMessage(res, 'Error al subir la imagen de perfil'));
+      if (!res.ok) throw new Error('Error al subir la imagen de perfil a Supabase');
       const data = await res.json();
       avatarUrl = data.url;
       pendingAvatarFile = null;
     }
 
-    await request(endpoint, { method: 'PUT', body: JSON.stringify({
-      username: document.getElementById('editUsername')?.value?.trim() || fallbackUsername,
+    await request('/profile', { method: 'PUT', body: JSON.stringify({
+      username: document.getElementById('editUsername')?.value?.trim() || currentUser.username,
       phone: document.getElementById('editPhone').value,
       show_phone: document.getElementById('editShowPhone')?.checked ?? true,
       city: document.getElementById('editProfileCity')?.value || '',
@@ -4386,22 +3357,11 @@ async function saveProfile(e) {
       dealership_address: document.getElementById('editDealershipAddress')?.value ?? '',
       instagram: document.getElementById('editInstagram')?.value ?? '',
     }) });
-
-    showToast(adminEditingOther ? 'Perfil actualizado (admin)' : 'Perfil actualizado', 'success');
+    showToast('Perfil actualizado', 'success');
     closeEditProfileModal();
-    if (adminEditingOther) {
-      if (currentProfileId && String(currentProfileId) === String(targetId)) {
-        viewProfile(currentProfileId);
-      }
-      const adminSection = document.getElementById('admin');
-      if (adminSection && adminSection.style.display !== 'none') {
-        loadAdminUsers();
-      }
-    } else {
-      currentUser = await request('/user');
-      updateNav();
-      if (currentProfileId) viewProfile(currentProfileId);
-    }
+    currentUser = await request('/user');
+    updateNav();
+    if (currentProfileId) viewProfile(currentProfileId);
   } catch (err) {
     showToast(err.message, 'error');
   } finally {
@@ -4410,29 +3370,16 @@ async function saveProfile(e) {
 }
 
 // ADMIN
-let adminPreferredTab = null;
-
-function renderAdminStats(stats = {}) {
-  document.getElementById('adminStats').innerHTML = `
-    <div class="admin-stat"><div class="number">${stats.users || 0}</div><div class="label">Usuarios</div></div>
-    <div class="admin-stat"><div class="number">${stats.vehicles || 0}</div><div class="label">Vehículos</div></div>
-    <div class="admin-stat"><div class="number">${stats.active_vehicles || 0}</div><div class="label">Activos</div></div>
-    <div class="admin-stat"><div class="number">${stats.pending_reports || 0}</div><div class="label">Reportes pendientes</div></div>
-    <div class="admin-stat"><div class="number">${stats.pending_admin_contact_requests || 0}</div><div class="label">Consultas pendientes</div></div>
-  `;
-}
-
-async function refreshAdminStats() {
-  const stats = await request('/admin/stats');
-  renderAdminStats(stats || {});
-}
-
 async function loadAdmin() {
   try {
-    await refreshAdminStats();
-    const nextTab = adminPreferredTab || 'reports';
-    adminPreferredTab = null;
-    showAdminTab(nextTab);
+    const stats = await request('/admin/stats');
+    document.getElementById('adminStats').innerHTML = `
+      <div class="admin-stat"><div class="number">${stats.users || 0}</div><div class="label">Usuarios</div></div>
+      <div class="admin-stat"><div class="number">${stats.vehicles || 0}</div><div class="label">Vehículos</div></div>
+      <div class="admin-stat"><div class="number">${stats.active_vehicles || 0}</div><div class="label">Activos</div></div>
+      <div class="admin-stat"><div class="number">${stats.pending_reports || 0}</div><div class="label">Reportes pendientes</div></div>
+    `;
+    showAdminTab('reports');
   } catch (err) { showToast(err.message, 'error'); }
 }
 
@@ -4440,7 +3387,6 @@ function showAdminTab(tab, el) {
   document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
   (el || document.querySelector(`.admin-tab[onclick*="'${tab}'"]`))?.classList.add('active');
   if (tab === 'reports') loadAdminReports();
-  else if (tab === 'contact-requests') loadAdminContactRequests();
   else if (tab === 'users') loadAdminUsers();
   else if (tab === 'vehicles') loadAdminVehicles(1);
 }
@@ -4464,7 +3410,7 @@ async function loadAdminReports() {
                   <button class="btn btn-sm btn-ghost" onclick="resolveReport(${r.id}, 'dismissed')">Descartar</button>
                 ` : ''}
                 ${r.vehicle?.id ? `
-                  <button class="btn btn-sm btn-secondary" onclick="openEditModal(${r.vehicle.id}, event)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path></svg>Editar pub.</button>
+                  <button class="btn btn-sm btn-secondary" onclick="openEditModal(${r.vehicle.id}, event)">✏️ Editar pub.</button>
                   <button class="btn btn-sm btn-danger" data-vid="${r.vehicle.id}" data-title="${escapeHtml(r.vehicle.title || '')}" onclick="adminDeleteVehicle(+this.dataset.vid, this.dataset.title)">🗑 Eliminar pub.</button>
                 ` : ''}
               </td>
@@ -4476,68 +3422,6 @@ async function loadAdminReports() {
   } catch (err) { showToast(err.message, 'error'); }
 }
 
-async function loadAdminContactRequests() {
-  try {
-    const requests = await request('/admin/contact-requests');
-    document.getElementById('adminContent').innerHTML = requests?.length ? `
-      <div class="table-responsive">
-        <table class="admin-table">
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Motivo</th>
-              <th>Contacto</th>
-              <th>Usuario</th>
-              <th>Detalle</th>
-              <th>Estado</th>
-              <th>Acción</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${requests.map((item) => `
-              <tr>
-                <td>${formatRelTime(item.created_at)}</td>
-                <td>${escapeHtml(item.reason || '-')}</td>
-                <td style="max-width:220px;word-break:break-word;">${escapeHtml(item.contact || '-')}</td>
-                <td>${escapeHtml(item.requester?.username || item.requester?.email || 'Anónimo')}</td>
-                <td style="max-width:280px;word-break:break-word;">${escapeHtml(item.message || '-')}</td>
-                <td>
-                  <span style="font-size:0.75rem;padding:2px 7px;border-radius:5px;font-weight:600;
-                    background:${item.status === 'pending' ? 'rgba(245,158,11,0.12)' : item.status === 'resolved' ? 'rgba(34,197,94,0.12)' : item.status === 'dismissed' ? 'rgba(239,68,68,0.12)' : 'rgba(59,130,246,0.12)'};
-                    color:${item.status === 'pending' ? '#f59e0b' : item.status === 'resolved' ? '#22c55e' : item.status === 'dismissed' ? '#ef4444' : '#60a5fa'};"
-                  >${escapeHtml(item.status || 'pending')}</span>
-                </td>
-                <td style="display:flex;gap:0.35rem;flex-wrap:wrap;">
-                  ${item.status !== 'resolved' ? `<button class="btn btn-sm btn-secondary" onclick="updateAdminContactRequestStatus(${item.id}, 'resolved')">Resolver</button>` : ''}
-                  ${item.status !== 'reviewed' ? `<button class="btn btn-sm btn-ghost" onclick="updateAdminContactRequestStatus(${item.id}, 'reviewed')">Revisar</button>` : ''}
-                  ${item.status !== 'dismissed' ? `<button class="btn btn-sm btn-danger" onclick="updateAdminContactRequestStatus(${item.id}, 'dismissed')">Descartar</button>` : ''}
-                  ${item.status !== 'pending' ? `<button class="btn btn-sm btn-ghost" onclick="updateAdminContactRequestStatus(${item.id}, 'pending')">Reabrir</button>` : ''}
-                </td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-    ` : '<p>Sin consultas al administrador</p>';
-  } catch (err) {
-    showToast(err.message || 'No se pudieron cargar las consultas', 'error');
-  }
-}
-
-async function updateAdminContactRequestStatus(id, status) {
-  try {
-    await request(`/admin/contact-requests/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify({ status })
-    });
-    showToast('Consulta actualizada', 'success');
-    loadAdminContactRequests();
-    refreshAdminStats().catch(() => {});
-  } catch (err) {
-    showToast(err.message || 'No se pudo actualizar la consulta', 'error');
-  }
-}
-
 async function adminDeleteVehicle(id, title) {
   showConfirmModal(
     '¿Eliminar publicación?',
@@ -4545,11 +3429,8 @@ async function adminDeleteVehicle(id, title) {
     'Eliminar',
     async () => {
       try {
-        const result = await request(`/vehicles/${id}`, { method: 'DELETE' });
+        await request(`/vehicles/${id}`, { method: 'DELETE' });
         showToast('Publicación eliminada', 'success');
-        if (result?.instagram_cleanup?.failed > 0) {
-          showToast('La publicación web se eliminó, pero no se pudo borrar en Instagram (revisar permisos/token).', 'warning');
-        }
         // Recargar la vista actual
         const profileSection = document.getElementById('profile');
         if (profileSection && profileSection.style.display !== 'none' && currentProfileId) {
@@ -4604,7 +3485,7 @@ async function loadAdminVehicles(page = 1) {
                   <td style="text-align:center;font-size:0.82rem;">${v.view_count || 0}</td>
                   <td style="font-size:0.78rem;color:var(--text-3);">${formatRelTime(v.created_at)}</td>
                   <td style="display:flex;gap:0.4rem;flex-wrap:wrap;">
-                    <button class="btn btn-sm btn-secondary" onclick="openEditModal(${v.id}, event)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path></svg>Editar</button>
+                    <button class="btn btn-sm btn-secondary" onclick="openEditModal(${v.id}, event)">✏️ Editar</button>
                     <button class="btn btn-sm btn-danger" data-vid="${v.id}" data-title="${escapeHtml(v.title)}"
                       onclick="adminDeleteVehicle(+this.dataset.vid, this.dataset.title)">Eliminar</button>
                   </td>
@@ -4653,10 +3534,6 @@ async function loadAdminUsers() {
                     }
                   </td>
                   <td style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-                    <button class="btn btn-sm btn-secondary" onclick="editProfile('${u.id}')">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path></svg>
-                      Editar perfil
-                    </button>
                     <button class="btn btn-sm ${isBanned ? 'btn-secondary' : 'btn-danger'}" onclick="toggleBan('${u.id}')">
                       ${isBanned ? 'Reactivar' : 'Suspender'}
                     </button>
@@ -4684,8 +3561,8 @@ async function toggleFollow(id) {
     if (btn) {
       btn.disabled = false;
       btn.textContent = res.following ? 'Dejar de seguir' : '+ Seguir';
-      btn.className = `profile-action-btn ${res.following ? 'btn-secondary' : 'btn-primary'}`;
-      btn.style.removeProperty('min-width');
+      btn.className = `btn ${res.following ? 'btn-secondary' : 'btn-primary'}`;
+      btn.style.minWidth = '140px';
     }
     showToast(res.following ? 'Ahora seguís a este vendedor' : 'Dejaste de seguir', 'success');
   } catch (err) {
@@ -4703,7 +3580,8 @@ async function openTradeModal(vehicleId) {
   const select = document.getElementById('tradeOfferedVehicle');
   select.innerHTML = '<option value="">Cargando tus vehículos...</option>';
   document.getElementById('tradeMessage').value = '';
-  openAccessibleModal('tradeModal', { initialFocusSelector: '#tradeOfferedVehicle' });
+  document.getElementById('tradeModal').style.display = 'block';
+  document.getElementById('modalOverlay').style.display = 'block';
   try {
     const vehicles = await request('/my-vehicles');
     const active = (vehicles || []).filter(v => v.status === 'active');
@@ -4717,7 +3595,8 @@ async function openTradeModal(vehicleId) {
 }
 
 function closeTradeModal() {
-  closeAccessibleModal('tradeModal');
+  document.getElementById('tradeModal').style.display = 'none';
+  document.getElementById('modalOverlay').style.display = 'none';
   tradeTargetVehicleId = null;
 }
 
@@ -4890,237 +3769,6 @@ async function updateTradeCardStatuses() {
   } catch {}
 }
 
-const PRESTITO_FALLBACK_CONFIG = Object.freeze({
-  interesAutoR1: 1.015,
-  interesAutoR2: 0.87,
-  interesAutoR3: 0.72,
-  cuotasAutoR1: 24,
-  cuotasAutoR2: 36,
-  cuotasAutoR3: 48,
-  intervaloAuto: 2
-});
-
-function normalizePrestitoAmount(value = '') {
-  return String(value || '').replace(/\D/g, '');
-}
-
-function handlePrestitoAmountInput(event) {
-  const target = event?.target || document.getElementById('prestitoAmount');
-  if (!target) return;
-  const clean = normalizePrestitoAmount(target.value);
-  target.value = clean ? formatNumber(Number(clean)) : '';
-}
-
-function parsePrestitoAmountInput() {
-  const amountEl = document.getElementById('prestitoAmount');
-  const clean = normalizePrestitoAmount(amountEl?.value || '');
-  return Number(clean || 0);
-}
-
-function prestitoPMT(ir, np, pv, fv = 0, type = 0) {
-  if (!ir) return -(pv + fv) / np;
-  const pvif = Math.pow(1 + ir, np);
-  let pmt = -ir * (pv * pvif + fv) / (pvif - 1);
-  if (type === 1) pmt /= (1 + ir);
-  return pmt;
-}
-
-function getPrestitoRangeConfig(config, modelYear) {
-  const year = Number(modelYear);
-  const currentYear = new Date().getFullYear();
-  const age = currentYear - year;
-  if (!Number.isFinite(age) || age < 0 || age > 15) {
-    return { eligible: false, age };
-  }
-  if (age >= 11) {
-    return { eligible: true, age, interest: Number(config.interesAutoR1), cuotas: Number(config.cuotasAutoR1), intervalo: Number(config.intervaloAuto) };
-  }
-  if (age >= 8) {
-    return { eligible: true, age, interest: Number(config.interesAutoR2), cuotas: Number(config.cuotasAutoR2), intervalo: Number(config.intervaloAuto) };
-  }
-  return { eligible: true, age, interest: Number(config.interesAutoR3), cuotas: Number(config.cuotasAutoR3), intervalo: Number(config.intervaloAuto) };
-}
-
-async function getPrestitoQuoteConfig(force = false) {
-  if (prestitoConfigCache && !force) return prestitoConfigCache;
-  try {
-    const data = await request('/partners/prestito/config');
-    const cfg = data?.config || {};
-    prestitoConfigCache = {
-      interesAutoR1: Number(cfg.interesAutoR1) || PRESTITO_FALLBACK_CONFIG.interesAutoR1,
-      interesAutoR2: Number(cfg.interesAutoR2) || PRESTITO_FALLBACK_CONFIG.interesAutoR2,
-      interesAutoR3: Number(cfg.interesAutoR3) || PRESTITO_FALLBACK_CONFIG.interesAutoR3,
-      cuotasAutoR1: Number(cfg.cuotasAutoR1) || PRESTITO_FALLBACK_CONFIG.cuotasAutoR1,
-      cuotasAutoR2: Number(cfg.cuotasAutoR2) || PRESTITO_FALLBACK_CONFIG.cuotasAutoR2,
-      cuotasAutoR3: Number(cfg.cuotasAutoR3) || PRESTITO_FALLBACK_CONFIG.cuotasAutoR3,
-      intervaloAuto: Number(cfg.intervaloAuto) || PRESTITO_FALLBACK_CONFIG.intervaloAuto
-    };
-  } catch {
-    prestitoConfigCache = { ...PRESTITO_FALLBACK_CONFIG };
-  }
-  return prestitoConfigCache;
-}
-
-async function calculatePrestitoQuote() {
-  const yearEl = document.getElementById('prestitoModelYear');
-  const infoEl = document.getElementById('prestitoQuoteInfo');
-  const rowsEl = document.getElementById('prestitoQuoteRows');
-  const tableWrap = document.getElementById('prestitoTableWrap');
-  if (!yearEl || !infoEl || !rowsEl || !tableWrap) return;
-
-  const modelYear = parseInt(yearEl.value, 10);
-  const amount = parsePrestitoAmountInput();
-  if (!Number.isFinite(modelYear) || modelYear < 2000) {
-    showToast('Ingresá un año de modelo válido', 'error');
-    return;
-  }
-  if (!Number.isFinite(amount) || amount <= 0) {
-    showToast('Ingresá un importe válido', 'error');
-    return;
-  }
-
-  const maxFinancingAmount = Number(prestitoVehicleContext?.maxFinancingAmount || 0);
-  if (maxFinancingAmount > 0 && amount > maxFinancingAmount) {
-    showToast(`El importe no puede superar el 50% del vehículo ($${formatNumber(maxFinancingAmount)})`, 'warning');
-    return;
-  }
-
-  const config = await getPrestitoQuoteConfig();
-  const range = getPrestitoRangeConfig(config, modelYear);
-  if (!range.eligible) {
-    tableWrap.style.display = 'none';
-    rowsEl.innerHTML = '';
-    infoEl.textContent = 'Préstito financia autos con antigüedad de hasta 15 años.';
-    return;
-  }
-
-  const cuotas = Math.max(2, Number(range.cuotas || 24));
-  const intervalo = Math.max(1, Number(range.intervalo || 2));
-  const startAt = Math.max(2, intervalo + 2);
-  const monthlyRate = Number(range.interest || 0) / 12;
-
-  const rows = [];
-  for (let n = startAt; n <= cuotas; n += intervalo) {
-    const cuotaEstimada = Math.round(prestitoPMT(monthlyRate, n, amount * -1));
-    rows.push({ cuotas: n, cuota: cuotaEstimada });
-  }
-  if (!rows.length) {
-    const cuotaEstimada = Math.round(prestitoPMT(monthlyRate, cuotas, amount * -1));
-    rows.push({ cuotas, cuota: cuotaEstimada });
-  }
-
-  rowsEl.innerHTML = rows.map((row) => `
-    <tr>
-      <td>${row.cuotas}</td>
-      <td>$ ${formatNumber(row.cuota)}</td>
-    </tr>
-  `).join('');
-
-  const tasaAnual = Math.round(Number(range.interest || 0) * 1000) / 10;
-  infoEl.textContent = `Modelo ${modelYear} (${range.age} años) · Hasta ${cuotas} cuotas · Tasa de referencia ${tasaAnual}% anual`;
-  tableWrap.style.display = 'block';
-}
-
-function openPrestitoQuoteModal(vehicleId, vehicleYear, vehiclePriceUsd, vehiclePriceArs, vehicleTitle = '') {
-  const yearEl = document.getElementById('prestitoModelYear');
-  const amountEl = document.getElementById('prestitoAmount');
-  const emailEl = document.getElementById('prestitoEmail');
-  const rowsEl = document.getElementById('prestitoQuoteRows');
-  const tableWrap = document.getElementById('prestitoTableWrap');
-  const infoEl = document.getElementById('prestitoQuoteInfo');
-  const titleEl = document.getElementById('prestitoVehicleTitle');
-
-  const numericYear = Number(vehicleYear || 0);
-  const numericPriceUsd = Number(vehiclePriceUsd || 0);
-  const numericPriceArs = Number(vehiclePriceArs || 0);
-  const maxFinancingAmount = numericPriceArs > 0 ? Math.round(numericPriceArs * 0.5) : 0;
-
-  prestitoVehicleContext = {
-    vehicleId: Number(vehicleId || 0),
-    year: Number.isFinite(numericYear) && numericYear > 0 ? numericYear : new Date().getFullYear(),
-    priceUsd: Number.isFinite(numericPriceUsd) ? numericPriceUsd : 0,
-    priceArs: Number.isFinite(numericPriceArs) ? numericPriceArs : 0,
-    maxFinancingAmount
-  };
-
-  if (titleEl) {
-    const safeTitle = String(vehicleTitle || '').trim();
-    titleEl.textContent = safeTitle
-      ? `Simulá cuotas para ${safeTitle}`
-      : 'Simulá tus cuotas en pesos para este vehículo.';
-  }
-  if (yearEl) yearEl.value = String(prestitoVehicleContext.year);
-  if (amountEl) amountEl.value = maxFinancingAmount > 0 ? formatNumber(maxFinancingAmount) : '';
-  if (emailEl) emailEl.value = String(currentUser?.email || '').trim();
-  if (rowsEl) rowsEl.innerHTML = '';
-  if (tableWrap) tableWrap.style.display = 'none';
-  if (infoEl) {
-    infoEl.textContent = maxFinancingAmount > 0
-      ? `Monto máximo estimado (50%): $${formatNumber(maxFinancingAmount)}`
-      : 'Ingresá monto y año para calcular cuotas estimadas.';
-  }
-
-  openAccessibleModal('prestitoModal', { initialFocusSelector: '#prestitoAmount' });
-  calculatePrestitoQuote().catch(() => {});
-}
-
-function closePrestitoQuoteModal() {
-  closeAccessibleModal('prestitoModal');
-  prestitoVehicleContext = null;
-}
-
-async function submitPrestitoLead() {
-  const btn = document.getElementById('prestitoLeadBtn');
-  const email = String(document.getElementById('prestitoEmail')?.value || '').trim();
-  const modelYear = parseInt(document.getElementById('prestitoModelYear')?.value || '', 10);
-  const amount = parsePrestitoAmountInput();
-
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    showToast('Ingresá un email válido para enviar la solicitud', 'error');
-    return;
-  }
-  if (!Number.isFinite(modelYear) || modelYear < 2000) {
-    showToast('Ingresá un año válido', 'error');
-    return;
-  }
-  if (!Number.isFinite(amount) || amount <= 0) {
-    showToast('Ingresá un importe válido', 'error');
-    return;
-  }
-
-  const maxFinancingAmount = Number(prestitoVehicleContext?.maxFinancingAmount || 0);
-  if (maxFinancingAmount > 0 && amount > maxFinancingAmount) {
-    showToast(`El importe no puede superar el 50% del vehículo ($${formatNumber(maxFinancingAmount)})`, 'warning');
-    return;
-  }
-
-  const defaultLabel = btn?.textContent || 'Enviar a Préstito';
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = 'Enviando...';
-  }
-  try {
-    await request('/partners/prestito/lead', {
-      method: 'POST',
-      body: JSON.stringify({
-        tipo: 'Auto',
-        modelo: modelYear,
-        importe: amount,
-        correo: email,
-        vehicle_id: prestitoVehicleContext?.vehicleId || null
-      })
-    });
-    showToast('Solicitud enviada a Préstito. Te van a contactar por email.', 'success');
-  } catch (err) {
-    showToast(err.message || 'No se pudo enviar a Préstito', 'error');
-  } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = defaultLabel;
-    }
-  }
-}
-
 async function toggleVerify(id) {
   try {
     const res = await request(`/admin/users/${id}/verify`, { method: 'PUT' });
@@ -5148,11 +3796,13 @@ async function toggleBan(id) {
 // MODALS
 function openReportModal(vehicleId) {
   reportVehicleId = vehicleId;
-  openAccessibleModal('reportModal', { initialFocusSelector: '#reportReason' });
+  document.getElementById('reportModal').style.display = 'block';
+  document.getElementById('modalOverlay').style.display = 'block';
 }
 
 function closeReportModal() {
-  closeAccessibleModal('reportModal');
+  document.getElementById('reportModal').style.display = 'none';
+  document.getElementById('modalOverlay').style.display = 'none';
   reportVehicleId = null;
 }
 
@@ -5171,28 +3821,33 @@ function openRateModal(convId, recipientId, vehicleId) {
   rateConversationId = convId;
   rateRecipientId = recipientId;
   rateVehicleId = vehicleId || null;
-  setStarRating(0);
+  document.getElementById('starRating').querySelectorAll('.star').forEach(s => s.classList.remove('active'));
   document.getElementById('rateReview').value = '';
-  openAccessibleModal('rateModal', { initialFocusSelector: '#starRating .star' });
+  document.getElementById('rateModal').style.display = 'block';
+  document.getElementById('modalOverlay').style.display = 'block';
 }
 
 function closeRateModal() {
-  closeAccessibleModal('rateModal');
+  document.getElementById('rateModal').style.display = 'none';
+  document.getElementById('modalOverlay').style.display = 'none';
   rateConversationId = null;
   rateRecipientId = null;
   rateVehicleId = null;
 }
 
 document.addEventListener('click', e => {
-  const star = e.target.closest('#starRating .star');
-  if (star) {
-    const value = parseInt(star.dataset.value || '0', 10);
-    if (value > 0) setStarRating(value);
+  if (e.target.classList.contains('star') && e.target.closest('#starRating')) {
+    const stars = e.target.closest('#starRating').querySelectorAll('.star');
+    const clickedIndex = Array.from(stars).indexOf(e.target);
+    stars.forEach((s, i) => {
+      if (i <= clickedIndex) s.classList.add('active');
+      else s.classList.remove('active');
+    });
   }
 });
 
 async function submitRating() {
-  const stars = parseInt(document.getElementById('starRating')?.dataset.value || '0', 10);
+  const stars = document.querySelectorAll('#starRating .star.active').length;
   const review = document.getElementById('rateReview').value;
   if (!stars) { showToast('Selecciona estrellas', 'error'); return; }
   try {
@@ -5201,16 +3856,10 @@ async function submitRating() {
     closeRateModal();
   } catch (err) { showToast(err.message, 'error'); }
 }
+
 function closeAllModals() {
-  if (isVisibleElement(document.getElementById('editVehicleModal'))) closeEditModal();
-  if (isVisibleElement(document.getElementById('tradeModal'))) closeTradeModal();
-  if (isVisibleElement(document.getElementById('reportModal'))) closeReportModal();
-  if (isVisibleElement(document.getElementById('rateModal'))) closeRateModal();
-  if (isVisibleElement(document.getElementById('prestitoModal'))) closePrestitoQuoteModal();
-  if (isVisibleElement(document.getElementById('confirmModal'))) closeConfirmModal();
-  if (isVisibleElement(document.getElementById('editProfileModal'))) closeEditProfileModal();
-  modalStack = [];
-  syncModalOverlay();
+  document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+  document.getElementById('modalOverlay').style.display = 'none';
   closeLightbox();
   confirmCallback = null;
 }
@@ -5218,43 +3867,11 @@ function closeAllModals() {
 // Lightbox
 let lightboxImages = [];
 let lightboxIndex = 0;
-let lightboxTouchStartX = 0;
-let lightboxTouchStartY = 0;
-let lightboxTouchActive = false;
-
-function lightboxOnTouchStart(e) {
-  if (!e.touches || !e.touches.length) return;
-  const t = e.touches[0];
-  lightboxTouchStartX = t.clientX;
-  lightboxTouchStartY = t.clientY;
-  lightboxTouchActive = true;
-}
-
-function lightboxOnTouchEnd(e) {
-  if (!lightboxTouchActive || lightboxImages.length <= 1) return;
-  const t = e.changedTouches && e.changedTouches[0];
-  if (!t) return;
-  const dx = t.clientX - lightboxTouchStartX;
-  const dy = t.clientY - lightboxTouchStartY;
-  lightboxTouchActive = false;
-  if (Math.abs(dx) < 45 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
-  if (dx < 0) lightboxNav(1);
-  else lightboxNav(-1);
-}
-
-function initLightboxSwipe() {
-  const img = document.getElementById('lightboxImage');
-  if (!img || img.dataset.swipeBound === '1') return;
-  img.addEventListener('touchstart', lightboxOnTouchStart, { passive: true });
-  img.addEventListener('touchend', lightboxOnTouchEnd, { passive: true });
-  img.dataset.swipeBound = '1';
-}
-
 function openLightbox(images, startIndex) {
   if (!images?.length) return;
   lightboxImages = images;
   lightboxIndex = typeof startIndex === 'number' ? startIndex : 0;
-  initLightboxSwipe();
+  const modal = document.getElementById('lightboxModal');
   // Render thumbnail strip
   const thumbsEl = document.getElementById('lightboxThumbs');
   if (thumbsEl) {
@@ -5276,11 +3893,11 @@ function openLightbox(images, startIndex) {
   } else {
     counterEl.style.display = 'none';
   }
-  openAccessibleModal('lightboxModal', { display: 'flex', initialFocusSelector: '.lightbox-close' });
+  modal.style.display = 'flex';
 }
 function closeLightbox(e) {
   if (e && e.target && e.target.tagName === 'IMG') return;
-  closeAccessibleModal('lightboxModal');
+  document.getElementById('lightboxModal').style.display = 'none';
 }
 function lightboxSetIndex(i) {
   lightboxIndex = i;
@@ -5298,105 +3915,10 @@ function lightboxNav(dir) {
   lightboxSetIndex((lightboxIndex + dir + lightboxImages.length) % lightboxImages.length);
 }
 document.addEventListener('keydown', e => {
-  const lightboxVisible = isVisibleElement(document.getElementById('lightboxModal'));
-  if (lightboxVisible) {
-    if (e.key === 'Escape') { e.preventDefault(); closeLightbox(); }
-    if (e.key === 'ArrowLeft') { e.preventDefault(); lightboxNav(-1); }
-    if (e.key === 'ArrowRight') { e.preventDefault(); lightboxNav(1); }
-    return;
-  }
-
-  const mobileMenuVisible = isVisibleElement(document.getElementById('mobileAccountMenu'));
-  if (e.key === 'Escape') {
-    if (closeTopAccessibleModal()) {
-      e.preventDefault();
-      return;
-    }
-    if (mobileMenuVisible) {
-      closeMobileMenu();
-      e.preventDefault();
-      return;
-    }
-  }
-
-  const activeModal = modalStack.length ? document.getElementById(modalStack[modalStack.length - 1].id) : null;
-  if (!activeModal && mobileMenuVisible && e.key === 'Tab') {
-    const menu = document.getElementById('mobileAccountMenu');
-    const focusable = getFocusableElements(menu);
-    if (!focusable.length) return;
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    const active = document.activeElement;
-    if (e.shiftKey && active === first) {
-      e.preventDefault();
-      last.focus();
-    } else if (!e.shiftKey && active === last) {
-      e.preventDefault();
-      first.focus();
-    }
-    return;
-  }
-  if (activeModal && e.key === 'Tab') {
-    const focusable = getFocusableElements(activeModal);
-    if (!focusable.length) {
-      e.preventDefault();
-      activeModal.focus();
-      return;
-    }
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    const active = document.activeElement;
-    if (e.shiftKey && active === first) {
-      e.preventDefault();
-      last.focus();
-    } else if (!e.shiftKey && active === last) {
-      e.preventDefault();
-      first.focus();
-    }
-  }
-});
-
-document.addEventListener('keydown', e => {
-  const target = e.target;
-  if (!(target instanceof HTMLElement)) return;
-  if (target.dataset.kbClick === '1' && (e.key === 'Enter' || e.key === ' ')) {
-    e.preventDefault();
-    target.click();
-  }
-});
-
-document.addEventListener('keydown', e => {
-  const star = e.target instanceof HTMLElement ? e.target.closest('#starRating .star') : null;
-  if (!star) return;
-  const rating = document.getElementById('starRating');
-  if (!rating) return;
-  const stars = Array.from(rating.querySelectorAll('.star'));
-  const idx = stars.indexOf(star);
-  if (idx === -1) return;
-
-  if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
-    e.preventDefault();
-    const next = Math.min(stars.length - 1, idx + 1);
-    setStarRating(next + 1);
-    stars[next]?.focus();
-  } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
-    e.preventDefault();
-    const prev = Math.max(0, idx - 1);
-    setStarRating(prev + 1);
-    stars[prev]?.focus();
-  } else if (e.key === 'Home') {
-    e.preventDefault();
-    setStarRating(1);
-    stars[0]?.focus();
-  } else if (e.key === 'End') {
-    e.preventDefault();
-    setStarRating(stars.length);
-    stars[stars.length - 1]?.focus();
-  } else if (e.key === 'Enter' || e.key === ' ') {
-    e.preventDefault();
-    const value = parseInt(star.dataset.value || '0', 10);
-    if (value > 0) setStarRating(value);
-  }
+  if (document.getElementById('lightboxModal').style.display === 'none') return;
+  if (e.key === 'Escape') closeLightbox();
+  if (e.key === 'ArrowLeft') lightboxNav(-1);
+  if (e.key === 'ArrowRight') lightboxNav(1);
 });
 
 // Confirm Modal
@@ -5408,10 +3930,12 @@ function showConfirmModal(title, message, buttonText, callback) {
   btn.textContent = buttonText;
   confirmCallback = callback;
   btn.onclick = () => { const cb = confirmCallback; closeConfirmModal(); if (cb) cb(); };
-  openAccessibleModal('confirmModal', { initialFocusSelector: '#confirmModalAction' });
+  document.getElementById('confirmModal').style.display = 'block';
+  document.getElementById('modalOverlay').style.display = 'block';
 }
 function closeConfirmModal() {
-  closeAccessibleModal('confirmModal');
+  document.getElementById('confirmModal').style.display = 'none';
+  document.getElementById('modalOverlay').style.display = 'none';
   confirmCallback = null;
 }
 
@@ -5465,116 +3989,10 @@ function googleMapsSearchUrl(address) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(address).trim())}`;
 }
 
-async function configureInstagramFromAdmin(event) {
-  if (event) event.stopPropagation();
-  if (!currentUser?.profile?.is_admin) {
-    showToast('Solo administradores pueden configurar Instagram', 'error');
-    return;
-  }
-
-  try {
-    const current = await request('/admin/instagram-config');
-    const businessId = prompt(
-      'Instagram Business Account ID:',
-      String(current?.business_account_id || '').trim()
-    );
-    if (businessId === null) return;
-
-    const tokenInput = prompt(
-      'Access Token de Instagram (deja vacio para mantener el actual):',
-      ''
-    );
-    if (tokenInput === null) return;
-
-    const apiVersion = prompt(
-      'Version Graph API (ej: v25.0):',
-      String(current?.graph_api_version || 'v25.0').trim()
-    );
-    if (apiVersion === null) return;
-
-    const hashtags = prompt(
-      'Hashtags por defecto:',
-      String(current?.default_hashtags || '').trim()
-    );
-    if (hashtags === null) return;
-
-    const payload = {
-      business_account_id: String(businessId || '').trim(),
-      graph_api_version: String(apiVersion || '').trim(),
-      default_hashtags: String(hashtags || '').trim()
-    };
-    if (String(tokenInput || '').trim()) {
-      payload.access_token = String(tokenInput).trim();
-    }
-
-    const saved = await request('/admin/instagram-config', {
-      method: 'PUT',
-      body: JSON.stringify(payload)
-    });
-
-    if (saved?.configured) showToast('Instagram configurado y guardado en base', 'success');
-    else showToast(`Configuracion parcial. Falta: ${(saved?.missing || []).join(', ')}`, 'warning');
-  } catch (err) {
-    showToast(err.message || 'No se pudo guardar configuracion de Instagram', 'error');
-  }
-}
-
-async function publishVehicleToInstagram(vehicleId, event) {
-  if (event) event.stopPropagation();
-  if (!currentUser?.profile?.is_admin) {
-    showToast('Solo administradores pueden publicar en Instagram', 'error');
-    return;
-  }
-
-  const btn = document.getElementById('igPublishBtn');
-  const defaultHtml = btn?.innerHTML || 'Publicar en Instagram';
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = 'Publicando...';
-  }
-
-  try {
-    const result = await request(`/admin/vehicles/${vehicleId}/publish-instagram`, { method: 'POST' });
-    showToast('Publicado en Instagram', 'success');
-    if (result?.permalink) {
-      window.open(result.permalink, '_blank', 'noopener');
-    }
-  } catch (err) {
-    const msg = err.message || 'No se pudo publicar en Instagram';
-    showToast(msg, 'error');
-    if (currentUser?.profile?.is_admin && /Instagram no est[aá] configurado/i.test(msg)) {
-      const wantsConfigure = confirm('Falta configuración de Instagram. ¿Querés cargarla ahora?');
-      if (wantsConfigure) await configureInstagramFromAdmin();
-    }
-  } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.innerHTML = defaultHtml;
-    }
-  }
-}
-
-function shareHomepage() {
-  const url = `${window.location.origin}/`;
-  const title = 'Autoventa - Compra, venta y permuta de vehiculos';
-  const text = 'Te comparto Autoventa: publica tu vehiculo gratis, recibe consultas directas por WhatsApp y encontra autos con vendedores verificados. ' + url;
-
-  if (navigator.share) {
-    navigator.share({ title, text, url }).catch(() => {});
-    return;
-  }
-
-  navigator.clipboard.writeText(url)
-    .then(() => showToast('Link de Autoventa copiado', 'success'))
-    .catch(() => showToast('No se pudo copiar el link', 'error'));
-}
-window.shareHomepage = shareHomepage;
-
 function shareVehicle(id, title, price) {
   const url = `${window.location.origin}${window.location.pathname}?vehicle=${id}`;
-  const text = `${title}\nUSD ${Number(price).toLocaleString('es-AR')}\n${url}`;
+  const text = `🚗 ${title}\n💰 $${Number(price).toLocaleString('es-AR')}\n${url}`;
   const waUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
-  const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
 
   const existing = document.getElementById('shareDropdown');
   if (existing) { existing.remove(); return; }
@@ -5584,21 +4002,10 @@ function shareVehicle(id, title, price) {
   dropdown.className = 'share-dropdown';
   dropdown.innerHTML = `
     <a href="${escapeHtml(waUrl)}" target="_blank" rel="noopener" class="share-option">
-      <span class="share-option-icon share-icon-wa"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M20.52 3.48A11.82 11.82 0 0 0 12.13 0C5.57 0 .23 5.35.23 11.93c0 2.1.55 4.14 1.59 5.93L0 24l6.3-1.65a11.86 11.86 0 0 0 5.81 1.49h.01c6.56 0 11.9-5.35 11.9-11.93a11.8 11.8 0 0 0-3.5-8.43zM12.12 21.8h-.01a9.78 9.78 0 0 1-4.98-1.36l-.36-.21-3.74.98 1-3.63-.24-.37a9.8 9.8 0 0 1-1.5-5.22c0-5.4 4.4-9.8 9.82-9.8a9.76 9.76 0 0 1 6.95 2.89 9.76 9.76 0 0 1 2.88 6.95c0 5.41-4.4 9.8-9.82 9.8zm5.38-7.35c-.3-.15-1.75-.86-2.02-.96-.27-.1-.47-.15-.67.15-.2.3-.77.96-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.25-.46-2.38-1.47-.88-.78-1.48-1.75-1.65-2.05-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.61-.92-2.2-.24-.58-.48-.5-.66-.5-.17-.01-.37-.01-.57-.01-.2 0-.52.07-.79.37-.27.3-1.03 1.01-1.03 2.47s1.06 2.87 1.21 3.07c.15.2 2.09 3.2 5.07 4.49.7.3 1.26.48 1.69.61.71.23 1.35.2 1.86.12.57-.09 1.75-.72 2-1.42.25-.7.25-1.3.18-1.42-.08-.13-.28-.2-.57-.35z"/></svg></span> Compartir por WhatsApp
+      <span>📱</span> Compartir por WhatsApp
     </a>
-    <a href="${escapeHtml(fbUrl)}" target="_blank" rel="noopener" class="share-option">
-      <span class="share-option-icon share-icon-fb"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M22 12a10 10 0 1 0-11.56 9.88v-6.99H7.9V12h2.54V9.8c0-2.5 1.5-3.88 3.8-3.88 1.1 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56V12h2.77l-.44 2.89h-2.33v6.99A10 10 0 0 0 22 12z"/></svg></span> Compartir en Facebook
-    </a>
-    <button class="share-option" id="instagramStoryBtn">
-      <span class="share-option-icon share-icon-ig"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"></rect><circle cx="12" cy="12" r="4"></circle><circle cx="17.5" cy="6.5" r="1"></circle></svg></span> Historia de Instagram
-    </button>
-    ${(navigator.share ? `
-    <button class="share-option" id="nativeShareBtn">
-      <span class="share-option-icon share-icon-app"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="M8.7 10.7l6.6-3.4M8.7 13.3l6.6 3.4"></path></svg></span> Compartir con apps
-    </button>
-    ` : '')}
     <button class="share-option" id="copyLinkBtn">
-      <span class="share-option-icon share-icon-link"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 1 0-7l2-2a5 5 0 0 1 7 7l-1.5 1.5"></path><path d="M14 11a5 5 0 0 1 0 7l-2 2a5 5 0 0 1-7-7L6.5 11.5"></path></svg></span> Copiar link
+      <span>🔗</span> Copiar link
     </button>
   `;
 
@@ -5615,34 +4022,11 @@ function shareVehicle(id, title, price) {
     document.getElementById('shareDropdown')?.remove();
   });
 
-  const igBtn = document.getElementById('instagramStoryBtn');
-  if (igBtn) {
-    igBtn.addEventListener('click', () => {
-      navigator.clipboard.writeText(text)
-        .then(() => showToast('Link copiado. Pegalo en historia (sticker enlace), bio o DM.', 'success'))
-        .catch(() => showToast('No se pudo copiar. Copia el link manualmente.', 'warning'));
-      window.open('https://www.instagram.com/direct/inbox/', '_blank', 'noopener');
-      document.getElementById('shareDropdown')?.remove();
-    });
-  }
-
-  const nativeBtn = document.getElementById('nativeShareBtn');
-  if (nativeBtn) {
-    nativeBtn.addEventListener('click', async () => {
-      try {
-        await navigator.share({ title, text, url });
-      } catch (_) {
-        // user cancelled
-      } finally {
-        document.getElementById('shareDropdown')?.remove();
-      }
-    });
-  }
-
   setTimeout(() => document.addEventListener('click', function handler(e) {
     if (!dropdown.contains(e.target)) { dropdown.remove(); document.removeEventListener('click', handler); }
   }), 0);
 }
+
 // VEHICLE MAP
 const CITY_COORDS = {
   'Buenos Aires': [-34.6037, -58.3816],
@@ -5760,9 +4144,6 @@ function showToast(msg, type = 'info') {
   const toast = document.createElement('div');
   toast.className = `toast ${type} toast-enter`;
   toast.textContent = msg;
-  const isAssertive = type === 'error' || type === 'warning';
-  toast.setAttribute('role', isAssertive ? 'alert' : 'status');
-  toast.setAttribute('aria-live', isAssertive ? 'assertive' : 'polite');
   toast.onclick = () => removeToast(toast);
   container.appendChild(toast);
   setTimeout(() => removeToast(toast), 3500);
@@ -5781,7 +4162,6 @@ function updateNav() {
   
   document.getElementById('navHome').style.display = 'flex';
   document.getElementById('navVehicles').style.display = 'flex';
-  document.getElementById('navSupport').style.display = 'flex';
   
   if (isLogged) {
     loadLucideIcons();
@@ -5844,31 +4224,24 @@ function updateEditBrands() {
   initBrandPicker('editBrand');
   updateEditModels();
   toggleEngineCCField('edit');
-  toggleBodyTypeField('edit');
-  toggleDrivetrainField('edit');
 }
 
 function updateEditModels() {
   const brand = document.getElementById('editBrand')?.value || '';
   const type = document.getElementById('editVehicleTypeTop')?.value || 'auto';
   const brandsObj = getBrandsForType(type);
-  const modelInput = document.getElementById('editModel');
-  const datalist = document.getElementById('editModelList');
-  if (!modelInput) return;
-  const prev = modelInput.value;
-  if (datalist) datalist.innerHTML = '';
-  if (brand && brandsObj[brand] && datalist) {
+  const modelSelect = document.getElementById('editModel');
+  if (!modelSelect) return;
+  const prev = modelSelect.value;
+  modelSelect.innerHTML = '<option value="">Seleccionar modelo</option>';
+  if (brand && brandsObj[brand]) {
     brandsObj[brand].forEach(m => {
       const o = document.createElement('option');
-      o.value = m;
-      datalist.appendChild(o);
+      o.value = m; o.textContent = m;
+      modelSelect.appendChild(o);
     });
   }
-  modelInput.value = prev || '';
-  const editBodyTypeEl = document.getElementById('editBodyType');
-  if (editBodyTypeEl) editBodyTypeEl.value = '';
-  toggleBodyTypeField('edit');
-  toggleDrivetrainField('edit');
+  modelSelect.value = prev || '';
 }
 
 function updateEditTitle() {
@@ -5966,23 +4339,14 @@ checkAuth().then(async () => {
   const params = new URLSearchParams(window.location.search);
   const vehicleId = params.get('vehicle');
   const section = params.get('section');
-  const profileId = params.get('profile');
   if (vehicleId) {
     window.history.replaceState({}, '', window.location.pathname);
     viewVehicle(parseInt(vehicleId));
-  } else if (profileId) {
-    window.history.replaceState({}, '', window.location.pathname);
-    viewProfile(profileId);
-  } else if (section === 'profile') {
-    window.history.replaceState({}, '', window.location.pathname);
-    if (currentUser?.id) viewProfile(currentUser.id);
-    else showSection('home');
   } else if (section) {
     window.history.replaceState({}, '', window.location.pathname);
     showSection(section);
   } else {
-    // Home is already visible by CSS; keep it stable to prevent layout shift.
-    initHomeWithoutShift();
+    showSection('home');
   }
 });
 
@@ -6029,84 +4393,9 @@ function tryPublish() {
   }
 }
 
-function prefillSupportContact() {
-  const contactEl = document.getElementById('supportContact');
-  if (!contactEl) return;
-  if (String(contactEl.value || '').trim()) return;
-
-  const profilePhone = String(currentUser?.profile?.phone || '').trim();
-  const userEmail = String(currentUser?.email || '').trim();
-  const userUsername = String(currentUser?.username || '').trim();
-  if (profilePhone) {
-    contactEl.value = profilePhone;
-    return;
-  }
-  if (userEmail) {
-    contactEl.value = userEmail;
-    return;
-  }
-  if (userUsername) {
-    contactEl.value = `@${userUsername}`;
-  }
-}
-
-async function submitAdminContactRequest(event) {
-  event.preventDefault();
-  const reason = String(document.getElementById('supportReason')?.value || '').trim();
-  const contact = String(document.getElementById('supportContact')?.value || '').trim();
-  const message = String(document.getElementById('supportMessage')?.value || '').trim();
-  const captchaToken = getHCaptchaToken('supportCaptcha');
-
-  if (!reason) {
-    showToast('Seleccioná un motivo', 'error');
-    return;
-  }
-  if (contact.length < 5) {
-    showToast('Ingresá un contacto válido', 'error');
-    return;
-  }
-  if (!captchaToken) {
-    showToast('Completá el captcha para enviar el reclamo', 'error');
-    ensureHCaptchaForSection('support');
-    return;
-  }
-
-  const submitBtn = document.getElementById('supportSubmitBtn');
-  const defaultText = submitBtn?.textContent || 'Enviar a administración';
-  if (submitBtn) {
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Enviando...';
-  }
-
-  try {
-    await request('/admin/contact-requests', {
-      method: 'POST',
-      body: JSON.stringify({ reason, contact, message, captchaToken })
-    });
-    showToast('Consulta enviada. Te va a contactar el administrador.', 'success');
-    const messageEl = document.getElementById('supportMessage');
-    const reasonEl = document.getElementById('supportReason');
-    if (reasonEl) reasonEl.value = '';
-    if (messageEl) messageEl.value = '';
-    resetHCaptchaWidget('supportCaptcha');
-  } catch (err) {
-    showToast(err.message || 'No se pudo enviar la consulta', 'error');
-    resetHCaptchaWidget('supportCaptcha');
-  } finally {
-    if (submitBtn) {
-      submitBtn.disabled = false;
-      submitBtn.textContent = defaultText;
-    }
-  }
-}
-
 initBrandFilters();
 updateVehicleTypeOptions('publish');
 updateVehicleTypeOptions('filter');
-toggleBodyTypeField('publish');
-toggleBodyTypeField('edit');
-toggleDrivetrainField('publish');
-toggleDrivetrainField('edit');
 
 function autoFillTitle() {
   const brand = document.getElementById('publishBrand')?.value || '';
@@ -6126,268 +4415,27 @@ function autoFillTitle() {
 document.getElementById('publishBrand')?.addEventListener('change', autoFillTitle);
 document.getElementById('publishModel')?.addEventListener('change', autoFillTitle);
 document.getElementById('publishVersion')?.addEventListener('input', autoFillTitle);
-document.getElementById('publishYear')?.addEventListener('change', autoFillTitle);
+document.getElementById('publishYear')?.addEventListener('input', autoFillTitle);
 
-// ─── PUBLISH YEAR SELECT ─────────────────────────────────────────────────────
-function initPublishYearSelect() {
-  const sel = document.getElementById('publishYear');
-  if (!sel) return;
-  const currentYear = new Date().getFullYear();
-  // Only populate once or if already populated with wrong range
-  if (sel.options.length > 2) return;
-  sel.innerHTML = '<option value="">Seleccionar año</option>';
-  for (let y = currentYear; y >= 1990; y--) {
-    const opt = document.createElement('option');
-    opt.value = String(y);
-    opt.textContent = String(y);
-    sel.appendChild(opt);
-  }
-}
-
-// ─── FORCE AUTO-GENERATE DESCRIPTION ────────────────────────────────────────
-function forceAutoGenPublishDescription() {
-  const brand = document.getElementById('publishBrand')?.value || '';
-  const model = document.getElementById('publishModel')?.value || '';
-  const version = document.getElementById('publishVersion')?.value || '';
-  const year = document.getElementById('publishYear')?.value || '';
-  const fuel = document.getElementById('publishFuel')?.value || '';
-  const transmission = document.getElementById('publishTransmission')?.value || '';
-  const mileage = document.getElementById('publishMileage')?.value || '';
-  const vehicleType = document.getElementById('publishVehicleType')?.value || 'auto';
-  const bodyType = document.getElementById('publishBodyType')?.value || '';
-  const province = document.getElementById('publishProvince')?.value || '';
-  const city = document.getElementById('publishCity')?.value || '';
-  const acceptsTrade = document.getElementById('publishAcceptsTrade')?.checked || false;
-  const acceptsFinancing = document.getElementById('publishAcceptsFinancing')?.checked || false;
-
-  const parts = [];
-
-  const vehicleName = [brand, model, version].filter(Boolean).join(' ');
-  if (vehicleName) {
-    const yearStr = year ? ` ${year}` : '';
-    const typeLabels = { auto: 'Auto', utilitario: 'Utilitario', moto: 'Moto', cuatri: 'Cuatriciclo', camion: 'Camión' };
-    const typeLabel = typeLabels[vehicleType] || 'Vehículo';
-    const bodyLabel = bodyType ? ` ${bodyType}` : '';
-    parts.push(`${typeLabel}${bodyLabel} ${vehicleName}${yearStr} en excelente estado de conservación.`);
-  }
-
-  const techParts = [];
-  if (fuel) techParts.push(`motor a ${fuel}`);
-  if (transmission) techParts.push(`caja ${transmission.toLowerCase()}`);
-  if (techParts.length) parts.push(`Cuenta con ${techParts.join(' y ')}.`);
-
-  if (mileage) {
-    const km = parseInt(mileage, 10);
-    if (!isNaN(km)) {
-      if (km === 0) parts.push('Sin kilómetros, 0 km.');
-      else parts.push(`Kilometraje: ${km.toLocaleString('es-AR')} km.`);
-    }
-  }
-
-  const locationParts = [city, province].filter(Boolean);
-  if (locationParts.length) parts.push(`Ubicado en ${locationParts.join(', ')}.`);
-
-  const extras = [];
-  if (acceptsTrade) extras.push('se aceptan permutas');
-  if (acceptsFinancing) extras.push('se ofrece financiación');
-  if (extras.length) parts.push(`Consultas bienvenidas — ${extras.join(', ')}.`);
-
-  if (!parts.length) {
-    showToast('Completá al menos marca, modelo o año para generar la descripción', 'info');
-    return;
-  }
-
-  const textarea = document.getElementById('publishDescription');
-  if (textarea) {
-    textarea.value = parts.join(' ');
-    textarea.dispatchEvent(new Event('input'));
-    showToast('Descripción generada', 'success');
-  }
-}
-
-// ─── PUBLISH PREVIEW MODAL ───────────────────────────────────────────────────
-function openPublishPreviewModal() {
-  const brand = document.getElementById('publishBrand')?.value || '';
-  const model = document.getElementById('publishModel')?.value || '';
-  const version = document.getElementById('publishVersion')?.value || '';
-  const year = document.getElementById('publishYear')?.value || '';
-  const title = document.getElementById('publishTitle')?.value || [brand, model, version, year].filter(Boolean).join(' ');
-  const rawPrice = parseFloat(document.getElementById('publishPrice')?.value) || 0;
-  const currency = document.getElementById('publishCurrency')?.value || 'ARS';
-  const fuel = document.getElementById('publishFuel')?.value || '';
-  const transmission = document.getElementById('publishTransmission')?.value || '';
-  const mileage = document.getElementById('publishMileage')?.value || '';
-  const province = document.getElementById('publishProvince')?.value || '';
-  const city = document.getElementById('publishCity')?.value || '';
-  const description = document.getElementById('publishDescription')?.value || '';
-  const vehicleType = document.getElementById('publishVehicleType')?.value || '';
-  const bodyType = document.getElementById('publishBodyType')?.value || '';
-
-  const priceDisplay = rawPrice > 0
-    ? `${currency} ${rawPrice.toLocaleString('es-AR')}`
-    : '—';
-
-  const locationDisplay = [city, province].filter(Boolean).join(', ') || '—';
-
-  const firstImage = uploadedImages.length > 0 ? uploadedImages[0] : null;
-  const imgHtml = firstImage
-    ? `<img src="${firstImage.preview || ''}" alt="Preview" style="width:100%;max-height:220px;object-fit:cover;border-radius:var(--radius-md);margin-bottom:1rem;">`
-    : `<div style="width:100%;height:120px;background:var(--dark-3);border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;color:var(--text-3);margin-bottom:1rem;font-size:0.9rem;">Sin fotos añadidas</div>`;
-
-  const badges = [];
-  if (vehicleType) badges.push(vehicleType);
-  if (bodyType) badges.push(bodyType);
-  if (fuel) badges.push(fuel);
-  if (transmission) badges.push(transmission);
-
-  const badgesHtml = badges.length
-    ? `<div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.85rem;">${badges.map(b => `<span style="background:var(--dark-3);border:1px solid var(--border);border-radius:99px;padding:0.2rem 0.65rem;font-size:0.78rem;color:var(--text-2);">${escapeHtml(b)}</span>`).join('')}</div>`
-    : '';
-
-  const detailRows = [
-    year ? ['Año', escapeHtml(year)] : null,
-    brand ? ['Marca', escapeHtml(brand)] : null,
-    model ? ['Modelo', escapeHtml(model)] : null,
-    mileage ? ['Kilometraje', `${parseInt(mileage).toLocaleString('es-AR')} km`] : null,
-    locationDisplay !== '—' ? ['Ubicación', escapeHtml(locationDisplay)] : null,
-  ].filter(Boolean);
-
-  const rowsHtml = detailRows.map(([k, v]) =>
-    `<div style="display:flex;justify-content:space-between;padding:0.45rem 0;border-bottom:1px solid var(--border);font-size:0.88rem;">
-      <span style="color:var(--text-2);">${k}</span>
-      <span style="font-weight:500;">${v}</span>
-    </div>`
-  ).join('');
-
-  const descHtml = description
-    ? `<div style="margin-top:1rem;"><p style="font-size:0.85rem;color:var(--text-2);margin-bottom:0.4rem;">Descripción</p><p style="font-size:0.9rem;line-height:1.55;white-space:pre-wrap;">${escapeHtml(description)}</p></div>`
-    : '';
-
-  const photosCount = uploadedImages.length;
-  const photosNote = photosCount > 1
-    ? `<p style="font-size:0.78rem;color:var(--text-3);margin-top:0.5rem;">+ ${photosCount - 1} foto${photosCount - 1 > 1 ? 's' : ''} más</p>`
-    : '';
-
-  const content = `
-    ${imgHtml}
-    ${photosNote}
-    <h3 style="font-size:1.15rem;font-weight:700;margin-bottom:0.4rem;">${escapeHtml(title || 'Sin título')}</h3>
-    <p style="font-size:1.35rem;font-weight:800;color:var(--primary);margin-bottom:0.75rem;">${priceDisplay}</p>
-    ${badgesHtml}
-    ${rowsHtml}
-    ${descHtml}
-  `;
-
-  const contentEl = document.getElementById('publishPreviewContent');
-  if (contentEl) contentEl.innerHTML = content;
-
-  openAccessibleModal('publishPreviewModal');
-}
-
-function closePublishPreviewModal() {
-  closeAccessibleModal('publishPreviewModal');
-}
-
-async function confirmPublishFromPreview() {
-  closePublishPreviewModal();
-  await _doPublish();
-}
-
-// ─── PUBLISH STEPPER ─────────────────────────────────────────────────────────
-function scrollToPublishSection(anchorId) {
-  const el = document.getElementById(anchorId);
-  if (!el) return;
-  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-function initPublishStepperObserver() {
-  const anchors = [
-    { id: 'publishStepVehicle', step: 1 },
-    { id: 'publishStepPrice', step: 2 },
-    { id: 'publishStepPhotos', step: 3 },
-    { id: 'publishStepDescription', step: 4 },
-  ];
-
-  const setActiveStep = (stepNum) => {
-    document.querySelectorAll('#publishStepper .publish-step').forEach(el => {
-      const s = parseInt(el.dataset.step, 10);
-      el.classList.toggle('active', s === stepNum);
-      el.classList.toggle('completed', s < stepNum);
-    });
-    document.querySelectorAll('#publishStepper .step-connector').forEach((el, i) => {
-      el.classList.toggle('completed', i + 1 < stepNum);
-    });
-  };
-
-  const observers = [];
-  let currentVisibleStep = 1;
-
-  anchors.forEach(({ id, step }) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const obs = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          currentVisibleStep = step;
-          setActiveStep(step);
-        }
-      });
-    }, { rootMargin: '-20% 0px -60% 0px', threshold: 0 });
-    obs.observe(el);
-    observers.push(obs);
-  });
-
-  return observers;
-}
+const yearInput = document.getElementById('publishYear');
+if (yearInput) yearInput.max = new Date().getFullYear() + 1;
 
 // MOBILE ACCOUNT MENU
 function toggleMobileMenu() {
   const menu = document.getElementById('mobileAccountMenu');
-  if (!menu) return;
-  if (menu.style.display === 'none' || menu.style.display === '' || !menu.classList.contains('is-open')) {
-    mobileMenuTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const userNameEl = document.getElementById('mobileMenuUsername');
-    if (userNameEl) userNameEl.textContent = currentUser?.username || '';
+  if (menu.style.display === 'none' || menu.style.display === '') {
+    document.getElementById('mobileMenuUsername').textContent = currentUser?.username || '';
     const adminItem = document.getElementById('mobileMenuAdmin');
     if (adminItem) adminItem.style.display = currentUser?.profile?.is_admin ? 'flex' : 'none';
     menu.style.display = 'flex';
-    menu.removeAttribute('inert');
-    menu.setAttribute('aria-hidden', 'false');
-    requestAnimationFrame(() => menu.classList.add('is-open'));
-    setBodyScrollLocked(true);
-    requestAnimationFrame(() => {
-      const first = menu.querySelector('.mobile-menu-item, .mobile-menu-header button');
-      (first || menu).focus?.();
-    });
     loadLucideIcons();
   } else {
-    closeMobileMenu();
+    menu.style.display = 'none';
   }
 }
 function closeMobileMenu() {
   const menu = document.getElementById('mobileAccountMenu');
-  if (!menu) return;
-  const returnTarget = (mobileMenuTrigger && document.contains(mobileMenuTrigger)) ? mobileMenuTrigger : null;
-  const fallbackTarget = document.querySelector('.bottom-nav .bottom-nav-item:last-child, .navbar .nav-brand');
-  const focusTarget = returnTarget || (fallbackTarget instanceof HTMLElement ? fallbackTarget : null);
-  const activeEl = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-  if (activeEl && menu.contains(activeEl)) {
-    if (focusTarget) focusTarget.focus({ preventScroll: true });
-    else activeEl.blur();
-  }
-  menu.classList.remove('is-open');
-  menu.setAttribute('aria-hidden', 'true');
-  menu.setAttribute('inert', '');
-  setTimeout(() => {
-    if (!menu.classList.contains('is-open')) menu.style.display = 'none';
-  }, 240);
-  setBodyScrollLocked(modalStack.length > 0);
-  if (focusTarget && document.contains(focusTarget)) {
-    requestAnimationFrame(() => {
-      if (document.contains(focusTarget)) focusTarget.focus({ preventScroll: true });
-    });
-  }
-  mobileMenuTrigger = null;
+  if (menu) menu.style.display = 'none';
 }
 
 let followingFeedPage = 1;
@@ -6423,7 +4471,19 @@ async function loadFollowingFeed(page = 1, reset = false) {
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
           ${v.city ? `<p class="vehicle-location">📍 ${escapeHtml(v.city)}${v.province ? ', ' + escapeHtml(v.province.replace(/\s*\(.*?\)/g,'').trim()) : ''}</p>` : ''}
           <div class="vehicle-price-block">
-            ${formatPesos(v.price, v) ? `<p class="vehicle-price">${formatPesos(v.price, v)}</p><p class="vehicle-price-ars">USD ${formatNumber(v.price)}</p>` : `<p class="vehicle-price">USD ${formatNumber(v.price)}</p>`}
+            <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
+            ${formatPesos(v.price, v) ? `<p class="vehicle-price-ars">${formatPesos(v.price, v)}</p>` : ''}
+            ${(() => {
+              const ph = v.price_history;
+              if (ph && ph.length >= 2) {
+                const oldest = ph[0].price;
+                const latest = ph[ph.length - 1].price;
+                const diff = latest - oldest;
+                const pct = Math.round(Math.abs(diff) / oldest * 100);
+                if (diff < 0 && pct > 0) return `<span class="price-drop-badge">↓ ${pct}%</span>`;
+              }
+              return '';
+            })()}
           </div>
           <div class="vehicle-card-footer">
             <div class="vehicle-seller">
@@ -6495,36 +4555,28 @@ async function loadHomeRecent() {
       `;
       return;
     }
-    container.innerHTML = vehicles.slice(0, 3).map((v, idx) => `
+    container.innerHTML = vehicles.slice(0, 3).map(v => `
       <div class="vehicle-card" onclick="viewVehicle(${v.id})">
         <div class="vehicle-image-container">
-          <img src="${thumbUrl(v.images?.find(i => i.is_primary)?.url || v.images?.[0]?.url || v.image_url)}" class="vehicle-image" alt="${escapeHtml(v.title)}" width="520" height="325" decoding="async" ${idx === 0 ? 'loading="eager" fetchpriority="high"' : 'loading="lazy"'} onerror="this.src=PLACEHOLDER_IMG">
+          <img src="${thumbUrl(v.images?.find(i => i.is_primary)?.url || v.images?.[0]?.url || v.image_url)}" class="vehicle-image" alt="${escapeHtml(v.title)}" loading="lazy" decoding="async" width="520" height="325" onerror="this.src=PLACEHOLDER_IMG">
           <div class="vehicle-img-overlay"></div>
           <span class="vehicle-badge">${escapeHtml(String(v.year))}</span>
           ${v.status === 'sold' ? '<span class="vehicle-badge badge-sold">VENDIDO</span>' : ''}
-          ${buildVehicleStatusBadges(v)}
+          ${v.status !== 'sold' ? `<span class="vehicle-trade-badge ${v.accepts_trade ? 'trade-yes' : 'trade-no'}">${v.accepts_trade ? '🔄 Permuta' : 'Sin permuta'}</span>` : ''}
           ${v.status !== 'sold' ? `<button class="favorite-btn ${userFavoriteIds.has(v.id) ? 'active' : ''}" data-vehicle-id="${v.id}" onclick="toggleFavorite(${v.id}, event)" aria-label="Agregar a favoritos"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>` : ''}
         </div>
         <div class="vehicle-info">
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
           ${v.city ? `<p class="vehicle-location"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> ${escapeHtml(v.city)}${v.province ? ', ' + escapeHtml(v.province.replace(/\s*\(.*?\)/g,'').trim()) : ''}</p>` : ''}
           <div class="vehicle-price-block">
-            ${formatPesos(v.price, v) ? `<p class="vehicle-price">${formatPesos(v.price, v)}</p><p class="vehicle-price-ars">USD ${formatNumber(v.price)}</p>` : `<p class="vehicle-price">USD ${formatNumber(v.price)}</p>`}
+            <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
+            ${formatPesos(v.price, v) ? `<p class="vehicle-price-ars">${formatPesos(v.price, v)}</p>` : ''}
           </div>
           ${buildVehicleMetaHtml(v)}
           <div class="vehicle-card-footer">
             <div class="vehicle-seller">
-              <div class="avatar-tiny">${(v.seller_verified ? v.seller_dealership : (v.seller_first_name || v.seller_name))?.charAt(0)?.toUpperCase()}</div>
-              <div class="vehicle-seller-info">
-                <div class="vehicle-seller-name-row">
-                <span>${escapeHtml(v.seller_verified && v.seller_dealership ? v.seller_dealership : (v.seller_first_name && v.seller_last_name ? `${v.seller_first_name} ${v.seller_last_name}` : (v.seller_name || 'Anónimo')))}</span>
-                ${v.seller_verified ? verifiedCheckIcon() : ''}
-                </div>
-              </div>
-            </div>
-            <div class="vehicle-views">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-              ${v.view_count || 0}
+              <div class="avatar-tiny">${v.seller_name?.charAt(0)?.toUpperCase()}</div>
+              <span>${escapeHtml(v.seller_name || 'Anónimo')}</span>
             </div>
           </div>
         </div>
@@ -6532,18 +4584,7 @@ async function loadHomeRecent() {
     `).join('');
     applyCardCascade(container);
     homeRecentLoadedAt = Date.now();
-  } catch (err) {
-    container.innerHTML = `
-      <div class="home-recent-empty">
-        <h4>No pudimos cargar los destacados</h4>
-        <p>Probá nuevamente en unos segundos.</p>
-        <div class="home-recent-empty-actions">
-          <button class="btn btn-secondary btn-sm" onclick="loadHomeRecent()">Reintentar</button>
-        </div>
-      </div>
-    `;
-    showToast(err?.message || 'No se pudieron cargar los destacados', 'error');
-  }
+  } catch { container.innerHTML = ''; }
 }
 
 function applyCardCascade(container) {
@@ -6604,8 +4645,6 @@ async function loadSimilarVehicles(vehicleId) {
     document.getElementById('similarVehiclesSection')?.remove();
   }
 }
-
-
 
 
 

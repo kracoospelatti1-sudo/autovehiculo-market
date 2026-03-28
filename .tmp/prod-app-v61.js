@@ -1,4 +1,4 @@
-const PLACEHOLDER_IMG = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"><rect width="400" height="300" fill="#1a1a2e"/><text x="200" y="140" text-anchor="middle" fill="#444" font-size="48">&#x1F697;</text><text x="200" y="185" text-anchor="middle" fill="#555" font-size="16">Sin imagen</text></svg>')}`;
+﻿const PLACEHOLDER_IMG = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"><rect width="400" height="300" fill="#1a1a2e"/><text x="200" y="140" text-anchor="middle" fill="#444" font-size="48">&#x1F697;</text><text x="200" y="185" text-anchor="middle" fill="#555" font-size="16">Sin imagen</text></svg>')}`;
 
 const MAX_VEHICLE_IMAGES = 15;
 let currentUser = null;
@@ -29,7 +29,6 @@ let leafletCssLoaded = false;
 let homeRecentLoadedAt = 0;
 let publicStatsLoadedAt = 0;
 let lucideLoadPromise = null;
-let hCaptchaLoadPromise = null;
 let myVehiclesPage = 1;
 let myVehiclesHasMore = false;
 let profileVehiclesPage = 1;
@@ -111,72 +110,14 @@ function loadLucideIcons() {
 }
 
 function loadHCaptcha() {
-  if (window.hcaptcha) return Promise.resolve();
-  if (hCaptchaLoadPromise) return hCaptchaLoadPromise;
-  hCaptchaLoadPromise = new Promise((resolve) => {
+  return new Promise((resolve) => {
+    if (window.hcaptcha) return resolve();
     const script = document.createElement('script');
     script.src = 'https://js.hcaptcha.com/1/api.js';
     script.async = true;
     script.onload = resolve;
-    script.onerror = () => resolve();
     document.head.appendChild(script);
   });
-  return hCaptchaLoadPromise;
-}
-
-function renderHCaptchaContainer(container) {
-  if (!container || !window.hcaptcha) return;
-  if (container.dataset.hcaptchaWidgetId !== undefined && container.dataset.hcaptchaWidgetId !== '') return;
-  const sitekey = String(container.dataset.sitekey || '').trim();
-  if (!sitekey) return;
-  try {
-    const widgetId = window.hcaptcha.render(container, {
-      sitekey,
-      size: container.dataset.size || 'normal'
-    });
-    container.dataset.hcaptchaWidgetId = String(widgetId);
-  } catch (e) {
-    // Ignore re-render errors; widget can already be mounted by hCaptcha internals.
-  }
-}
-
-function ensureHCaptchaForSection(sectionId) {
-  if (!['register', 'support'].includes(sectionId)) return;
-  loadHCaptcha().then(() => {
-    const section = document.getElementById(sectionId);
-    if (!section) return;
-    setTimeout(() => {
-      section.querySelectorAll('.h-captcha').forEach((container) => renderHCaptchaContainer(container));
-    }, 50);
-  });
-}
-
-function getHCaptchaToken(containerId) {
-  const container = document.getElementById(containerId);
-  if (!container || !window.hcaptcha) return '';
-  const widgetIdRaw = container.dataset.hcaptchaWidgetId;
-  if (widgetIdRaw === undefined || widgetIdRaw === '') return '';
-  const widgetId = Number(widgetIdRaw);
-  if (!Number.isFinite(widgetId)) return '';
-  try {
-    return String(window.hcaptcha.getResponse(widgetId) || '').trim();
-  } catch {
-    return '';
-  }
-}
-
-function resetHCaptchaWidget(containerId) {
-  const container = document.getElementById(containerId);
-  if (!container || !window.hcaptcha) return;
-  const widgetIdRaw = container.dataset.hcaptchaWidgetId;
-  if (widgetIdRaw === undefined || widgetIdRaw === '') return;
-  const widgetId = Number(widgetIdRaw);
-  if (!Number.isFinite(widgetId)) return;
-  try {
-    window.hcaptcha.reset(widgetId);
-  } catch {
-    // no-op
-  }
 }
 
 function isVisibleElement(el) {
@@ -248,7 +189,6 @@ function closeTopAccessibleModal() {
   else if (top.id === 'prestitoModal') closePrestitoQuoteModal();
   else if (top.id === 'confirmModal') closeConfirmModal();
   else if (top.id === 'editProfileModal') closeEditProfileModal();
-  else if (top.id === 'publishPreviewModal') closePublishPreviewModal();
   else closeAccessibleModal(top.id);
   return true;
 }
@@ -279,7 +219,7 @@ function updateSEOMeta(vehicle, imageUrl) {
   const price = Number(vehicle.price).toLocaleString('es-AR');
   const mileage = Number(vehicle.mileage).toLocaleString('es-AR');
   const location = vehicle.city + (vehicle.province ? ', ' + vehicle.province : '');
-  const title = `${vehicle.title} — $${price} | Autoventa`;
+  const title = `${vehicle.title} â $${price} | Autoventa`;
   const desc = `${vehicle.brand} ${vehicle.model} ${vehicle.year}, ${mileage}km, ${vehicle.fuel}, ${vehicle.transmission}. En ${location}.`;
   const url = `https://autoventa.online/?vehicle=${vehicle.id}`;
   const ogVersion = makeCacheToken(`${vehicle.updated_at || ''}|${imageUrl || ''}`);
@@ -297,7 +237,7 @@ function updateSEOMeta(vehicle, imageUrl) {
   setMeta('name', 'robots', 'index, follow');
   const canonical = document.querySelector('link[rel="canonical"]');
   if (canonical) canonical.href = url;
-  // JSON-LD por vehículo
+  // JSON-LD por vehÃ­culo
   document.getElementById('vehicle-jsonld')?.remove();
   const script = document.createElement('script');
   script.type = 'application/ld+json';
@@ -327,8 +267,8 @@ function updateSEOMeta(vehicle, imageUrl) {
 }
 
 function resetSEOMeta() {
-  const defaultTitle = 'Autoventa — Comprá y Vendé tu Vehículo en Argentina';
-  const defaultDesc = 'La plataforma más moderna para comprar y vender vehículos en Argentina. Publica gratis, chatea con vendedores y cerrá negocios de forma segura.';
+  const defaultTitle = 'Autoventa â ComprÃ¡ y VendÃ© tu VehÃ­culo en Argentina';
+  const defaultDesc = 'La plataforma mÃ¡s moderna para comprar y vender vehÃ­culos en Argentina. Publica gratis, chatea con vendedores y cerrÃ¡ negocios de forma segura.';
   const defaultUrl = 'https://autoventa.online/';
   const defaultImg = 'https://autoventa.online/og-default.png';
   document.title = defaultTitle;
@@ -364,27 +304,16 @@ const API_URL = '/api';
 
 let carBrands = {};
 let motoBrands = {};
-let utilitarioBrands = {};
-let cuatriBrands = {};
-let camionBrands = {};
 
-fetch('/brands-data.json?v=3').then(r => r.json()).then(d => {
+fetch('/brands-data.json?v=2').then(r => r.json()).then(d => {
   carBrands = d.carBrands || {};
   motoBrands = d.motoBrands || {};
-  utilitarioBrands = d.utilitarioBrands || {};
-  cuatriBrands = d.cuatriBrands || {};
-  camionBrands = d.camionBrands || {};
   // Re-populate brand selects now that data is loaded
   if (typeof initBrandFilters === 'function') initBrandFilters();
 }).catch(() => {});
 
 function getBrandsForType(type) {
-  if (type === 'moto') return motoBrands;
-  if (type === 'auto') return carBrands;
-  if (type === 'utilitario') return utilitarioBrands;
-  if (type === 'cuatri') return cuatriBrands;
-  if (type === 'camion') return camionBrands;
-  return { ...carBrands, ...utilitarioBrands, ...motoBrands, ...cuatriBrands, ...camionBrands };
+  return type === 'moto' ? motoBrands : carBrands;
 }
 
 const TOP_CAR_BRANDS = ['Volkswagen','Toyota','Chevrolet','Ford','Renault','Fiat','Peugeot','Citroen','Honda','Hyundai','Jeep','Nissan','Kia','Mercedes-Benz','BMW','Audi','Mitsubishi','Mazda','Subaru','Suzuki'];
@@ -402,140 +331,140 @@ const AR_CITIES = (() => {
   const data = {
     'Buenos Aires (CABA)': [
       'Buenos Aires','Palermo','Recoleta','Belgrano','Flores','Boedo','Villa Crespo',
-      'Caballito','Almagro','Villa Urquiza','Núñez','Coghlan','Saavedra','Villa Pueyrredón',
+      'Caballito','Almagro','Villa Urquiza','NÃºÃ±ez','Coghlan','Saavedra','Villa PueyrredÃ³n',
       'Devoto','Villa del Parque','Parque Patricios','Barracas','La Boca','San Telmo',
-      'Montserrat','Puerto Madero','Retiro','San Nicolás','Microcentro'
+      'Montserrat','Puerto Madero','Retiro','San NicolÃ¡s','Microcentro'
     ],
     'Buenos Aires (Prov.)': [
       // GBA Norte
-      'Tigre','San Fernando','Escobar','Pilar','San Isidro','Vicente López','San Martín',
-      'Tres de Febrero','Hurlingham','Ituzaingó','Morón','Malvinas Argentinas','José C. Paz',
-      'San Miguel','General Rodríguez','General Las Heras','Marcos Paz','Luján','Exaltación de la Cruz',
+      'Tigre','San Fernando','Escobar','Pilar','San Isidro','Vicente LÃ³pez','San MartÃ­n',
+      'Tres de Febrero','Hurlingham','ItuzaingÃ³','MorÃ³n','Malvinas Argentinas','JosÃ© C. Paz',
+      'San Miguel','General RodrÃ­guez','General Las Heras','Marcos Paz','LujÃ¡n','ExaltaciÃ³n de la Cruz',
       // GBA Oeste
-      'La Matanza','Merlo','Moreno','San Justo','Ramos Mejía','Haedo','Castelar','Palomar',
+      'La Matanza','Merlo','Moreno','San Justo','Ramos MejÃ­a','Haedo','Castelar','Palomar',
       // GBA Sur
-      'Quilmes','Lanús','Lomas de Zamora','Avellaneda','Florencio Varela','Berazategui',
-      'Ezeiza','Esteban Echeverría','Monte Grande','Burzaco','Banfield','Temperley','Adrogué',
+      'Quilmes','LanÃºs','Lomas de Zamora','Avellaneda','Florencio Varela','Berazategui',
+      'Ezeiza','Esteban EcheverrÃ­a','Monte Grande','Burzaco','Banfield','Temperley','AdroguÃ©',
       'San Vicente','Guernica','Canning','Longchamps','Glew','Claypole',
       // La Plata y alrededores
-      'La Plata','Berisso','Ensenada','Brandsen','Chascomús','Lezama','General Paz','Lobos',
+      'La Plata','Berisso','Ensenada','Brandsen','ChascomÃºs','Lezama','General Paz','Lobos',
       'Magdalena','Punta Indio',
-      // Costa Atlántica
-      'Mar del Plata','Pinamar','Villa Gesell','Necochea','Miramar','Mar de Ajó','San Clemente del Tuyú',
-      'Santa Teresita','Mar del Tuyú','Dolores','General Lavalle','General Madariaga',
+      // Costa AtlÃ¡ntica
+      'Mar del Plata','Pinamar','Villa Gesell','Necochea','Miramar','Mar de AjÃ³','San Clemente del TuyÃº',
+      'Santa Teresita','Mar del TuyÃº','Dolores','General Lavalle','General Madariaga',
       // Centro
-      'Tandil','Olavarría','Azul','Balcarce','Rauch','Ayacucho','Las Flores','Saladillo',
-      'General Alvear','Roque Pérez','Tapalqué','Laprida','Benito Juárez','Lobería',
+      'Tandil','OlavarrÃ­a','Azul','Balcarce','Rauch','Ayacucho','Las Flores','Saladillo',
+      'General Alvear','Roque PÃ©rez','TapalquÃ©','Laprida','Benito JuÃ¡rez','LoberÃ­a',
       'San Cayetano','Adolfo Gonzales Chaves',
       // Noroeste
-      'Junín','Chacabuco','Arrecifes','Salto','Rojas','San Antonio de Areco','Ramallo',
-      'San Pedro','San Nicolás de los Arroyos','Pergamino','Baradero','Zárate','Campana',
+      'JunÃ­n','Chacabuco','Arrecifes','Salto','Rojas','San Antonio de Areco','Ramallo',
+      'San Pedro','San NicolÃ¡s de los Arroyos','Pergamino','Baradero','ZÃ¡rate','Campana',
       'General Pinto','General Viamonte','Leandro N. Alem','Carlos Casares','Alberti',
       'Bragado','Chivilcoy','Suipacha','Mercedes','9 de Julio','Lincoln',
       // Oeste/Sur
-      'Trenque Lauquen','Pehuajó','Bolívar','Nueve de Julio','Daireaux','Hipólito Yrigoyen',
-      'General Villegas','Rivadavia','Salliqueló','Pellegrini','Henderson','Carlos Tejedor',
+      'Trenque Lauquen','PehuajÃ³','BolÃ­var','Nueve de Julio','Daireaux','HipÃ³lito Yrigoyen',
+      'General Villegas','Rivadavia','SalliquelÃ³','Pellegrini','Henderson','Carlos Tejedor',
       // Sur
-      'Bahía Blanca','Punta Alta','Coronel Rosales','Monte Hermoso','Coronel Dorrego',
-      'Coronel Suárez','Tres Arroyos','Coronel Pringles','Pigüé','Saavedra',
-      'Cañuelas','General Las Heras'
+      'BahÃ­a Blanca','Punta Alta','Coronel Rosales','Monte Hermoso','Coronel Dorrego',
+      'Coronel SuÃ¡rez','Tres Arroyos','Coronel Pringles','PigÃ¼Ã©','Saavedra',
+      'CaÃ±uelas','General Las Heras'
     ],
-    'Córdoba': [
-      'Córdoba','Río Cuarto','Villa María','Río Tercero','Villa Carlos Paz','Alta Gracia',
-      'Bell Ville','San Francisco','Río Ceballos','Cosquín','La Falda','Cruz del Eje',
-      'Dean Funes','Jesús María','Unquillo','Malagueño','Oncativo','Arroyito','Marcos Juárez',
-      'Laboulaye','Río Segundo','Morteros','Oliva','La Carlota','General Cabrera','Villa Dolores',
-      'Mina Clavero','Villa General Belgrano','Capilla del Monte','Huerta Grande','Bialet Massé',
+    'CÃ³rdoba': [
+      'CÃ³rdoba','RÃ­o Cuarto','Villa MarÃ­a','RÃ­o Tercero','Villa Carlos Paz','Alta Gracia',
+      'Bell Ville','San Francisco','RÃ­o Ceballos','CosquÃ­n','La Falda','Cruz del Eje',
+      'Dean Funes','JesÃºs MarÃ­a','Unquillo','MalagueÃ±o','Oncativo','Arroyito','Marcos JuÃ¡rez',
+      'Laboulaye','RÃ­o Segundo','Morteros','Oliva','La Carlota','General Cabrera','Villa Dolores',
+      'Mina Clavero','Villa General Belgrano','Capilla del Monte','Huerta Grande','Bialet MassÃ©',
       'Embalse','Almafuerte','Villa Nueva','Bower','Malvinas Argentinas','Mendiolaza'
     ],
     'Santa Fe': [
-      'Rosario','Santa Fe','Rafaela','Reconquista','Venado Tuerto','San Lorenzo','Villa Constitución',
-      'Casilda','Cañada de Gómez','Esperanza','Santo Tomé','Gálvez','Las Rosas','Pérez',
-      'Funes','Roldan','Granadero Baigorria','Capitán Bermúdez','Fray Luis Beltrán','San Lorenzo',
-      'Puerto General San Martín','Rufino','Firmat','Ceres','Vera','Tostado','San Jorge',
+      'Rosario','Santa Fe','Rafaela','Reconquista','Venado Tuerto','San Lorenzo','Villa ConstituciÃ³n',
+      'Casilda','CaÃ±ada de GÃ³mez','Esperanza','Santo TomÃ©','GÃ¡lvez','Las Rosas','PÃ©rez',
+      'Funes','Roldan','Granadero Baigorria','CapitÃ¡n BermÃºdez','Fray Luis BeltrÃ¡n','San Lorenzo',
+      'Puerto General San MartÃ­n','Rufino','Firmat','Ceres','Vera','Tostado','San Jorge',
       'Sunchales','Sastre','Morteros','Helvecia','San Javier'
     ],
     'Mendoza': [
-      'Mendoza','San Rafael','Godoy Cruz','Guaymallén','Las Heras','Maipú','Luján de Cuyo',
-      'Rivadavia','San Martín','Junín','La Paz','General Alvear','Malargüe','Tunuyán',
+      'Mendoza','San Rafael','Godoy Cruz','GuaymallÃ©n','Las Heras','MaipÃº','LujÃ¡n de Cuyo',
+      'Rivadavia','San MartÃ­n','JunÃ­n','La Paz','General Alvear','MalargÃ¼e','TunuyÃ¡n',
       'Tupungato','Santa Rosa','Lavalle','Ciudad de Mendoza','Palmira','San Vicente'
     ],
-    'Tucumán': [
-      'San Miguel de Tucumán','Yerba Buena','Tafí Viejo','Concepción','Monteros','Aguilares',
-      'Famaillá','Lules','Simoca','Bella Vista','Alberdi','Graneros','Juan Bautista Alberdi',
-      'Buruyacu','Cruz Alta','El Kadri','Acheral','Tafí del Valle'
+    'TucumÃ¡n': [
+      'San Miguel de TucumÃ¡n','Yerba Buena','TafÃ­ Viejo','ConcepciÃ³n','Monteros','Aguilares',
+      'FamaillÃ¡','Lules','Simoca','Bella Vista','Alberdi','Graneros','Juan Bautista Alberdi',
+      'Buruyacu','Cruz Alta','El Kadri','Acheral','TafÃ­ del Valle'
     ],
     'Salta': [
-      'Salta','Tartagal','Orán','Metán','Cafayate','San Ramón de la Nueva Orán','Palpalá',
-      'Libertador General San Martín','Rosario de la Frontera','Joaquín V. González',
-      'General Güemes','Embarcación','Rivadavia','Cachi','Molinos','Animaná'
+      'Salta','Tartagal','OrÃ¡n','MetÃ¡n','Cafayate','San RamÃ³n de la Nueva OrÃ¡n','PalpalÃ¡',
+      'Libertador General San MartÃ­n','Rosario de la Frontera','JoaquÃ­n V. GonzÃ¡lez',
+      'General GÃ¼emes','EmbarcaciÃ³n','Rivadavia','Cachi','Molinos','AnimanÃ¡'
     ],
     'Jujuy': [
-      'San Salvador de Jujuy','Palpalá','La Quiaca','Libertador General San Martín',
+      'San Salvador de Jujuy','PalpalÃ¡','La Quiaca','Libertador General San MartÃ­n',
       'Humahuaca','Perico','Tilcara','Purmamarca','Abra Pampa','Fraile Pintado'
     ],
-    'Entre Ríos': [
-      'Paraná','Concordia','Gualeguaychú','Gualeguay','Colón','Federación','Chajarí',
-      'Villaguay','Concepción del Uruguay','Victoria','Diamante','La Paz','Crespo',
-      'Basavilbaso','Nogoyá','Rosario del Tala','San José','Ibicuy'
+    'Entre RÃ­os': [
+      'ParanÃ¡','Concordia','GualeguaychÃº','Gualeguay','ColÃ³n','FederaciÃ³n','ChajarÃ­',
+      'Villaguay','ConcepciÃ³n del Uruguay','Victoria','Diamante','La Paz','Crespo',
+      'Basavilbaso','NogoyÃ¡','Rosario del Tala','San JosÃ©','Ibicuy'
     ],
     'Corrientes': [
-      'Corrientes','Paso de los Libres','Goya','Curuzú Cuatiá','Mercedes','Santo Tomé',
-      'Saladas','Bella Vista','Monte Caseros','Yapeyú','Ituzaingó','Esquina'
+      'Corrientes','Paso de los Libres','Goya','CuruzÃº CuatiÃ¡','Mercedes','Santo TomÃ©',
+      'Saladas','Bella Vista','Monte Caseros','YapeyÃº','ItuzaingÃ³','Esquina'
     ],
     'Misiones': [
-      'Posadas','Eldorado','Oberá','Apóstoles','Leandro N. Alem','Puerto Iguazú',
-      'Jardín América','Montecarlo','Campo Grande','San Vicente','El Dorado','Aristóbulo del Valle'
+      'Posadas','Eldorado','OberÃ¡','ApÃ³stoles','Leandro N. Alem','Puerto IguazÃº',
+      'JardÃ­n AmÃ©rica','Montecarlo','Campo Grande','San Vicente','El Dorado','AristÃ³bulo del Valle'
     ],
     'Chaco': [
-      'Resistencia','Presidencia Roque Sáenz Peña','Villa Ángela','Charata','Quitilipi',
-      'Las Breñas','Juan José Castelli','Machagai','Roque Sáenz Peña','General San Martín'
+      'Resistencia','Presidencia Roque SÃ¡enz PeÃ±a','Villa Ãngela','Charata','Quitilipi',
+      'Las BreÃ±as','Juan JosÃ© Castelli','Machagai','Roque SÃ¡enz PeÃ±a','General San MartÃ­n'
     ],
     'Formosa': [
-      'Formosa','Clorinda','Pirané','Las Lomitas','General Lucio Victorio Mansilla','El Colorado'
+      'Formosa','Clorinda','PiranÃ©','Las Lomitas','General Lucio Victorio Mansilla','El Colorado'
     ],
     'Santiago del Estero': [
-      'Santiago del Estero','La Banda','Termas de Río Hondo','Añatuya','Frías','Loreto',
-      'Quimilí','Ojo de Agua','Monte Quemado','Suncho Corral'
+      'Santiago del Estero','La Banda','Termas de RÃ­o Hondo','AÃ±atuya','FrÃ­as','Loreto',
+      'QuimilÃ­','Ojo de Agua','Monte Quemado','Suncho Corral'
     ],
     'La Rioja': [
-      'La Rioja','Chilecito','Aimogasta','Belén','Andalgalá','Tinogasta','Villa Unión',
+      'La Rioja','Chilecito','Aimogasta','BelÃ©n','AndalgalÃ¡','Tinogasta','Villa UniÃ³n',
       'Chamical','Chepes','Arauco'
     ],
     'Catamarca': [
-      'San Fernando del Valle de Catamarca','Tinogasta','Belén','Andalgalá','Santa María',
-      'Fiambalá','Antofagasta de la Sierra','Recreo','Pomán'
+      'San Fernando del Valle de Catamarca','Tinogasta','BelÃ©n','AndalgalÃ¡','Santa MarÃ­a',
+      'FiambalÃ¡','Antofagasta de la Sierra','Recreo','PomÃ¡n'
     ],
     'San Juan': [
-      'San Juan','Rivadavia','Chimbas','Rawson','Santa Lucía','Pocito','Caucete',
-      'San Martín','Albardón','Angaco','Calingasta','Jáchal','Ullum'
+      'San Juan','Rivadavia','Chimbas','Rawson','Santa LucÃ­a','Pocito','Caucete',
+      'San MartÃ­n','AlbardÃ³n','Angaco','Calingasta','JÃ¡chal','Ullum'
     ],
     'San Luis': [
-      'San Luis','Villa Mercedes','Merlo','Quines','Justo Daract','Concarán',
+      'San Luis','Villa Mercedes','Merlo','Quines','Justo Daract','ConcarÃ¡n',
       'Santa Rosa del Conlara','Buena Esperanza','La Toma'
     ],
-    'Neuquén': [
-      'Neuquén','Cutral-Có','Plaza Huincul','Zapala','San Martín de los Andes',
-      'Junín de los Andes','Chos Malal','Catriel','Allen','Cipolletti','Plottier',
-      'Centenario','Villa La Angostura','Las Lajas','Loncopué'
+    'NeuquÃ©n': [
+      'NeuquÃ©n','Cutral-CÃ³','Plaza Huincul','Zapala','San MartÃ­n de los Andes',
+      'JunÃ­n de los Andes','Chos Malal','Catriel','Allen','Cipolletti','Plottier',
+      'Centenario','Villa La Angostura','Las Lajas','LoncopuÃ©'
     ],
-    'Río Negro': [
+    'RÃ­o Negro': [
       'Viedma','San Carlos de Bariloche','Cipolletti','General Roca','Allen','Villa Regina',
-      'Cinco Saltos','El Bolsón','Las Grutas','Sierra Grande','Maquinchao',
-      'Ingeniero Jacobacci','Choele Choel','Luis Beltrán','Río Colorado','Catriel'
+      'Cinco Saltos','El BolsÃ³n','Las Grutas','Sierra Grande','Maquinchao',
+      'Ingeniero Jacobacci','Choele Choel','Luis BeltrÃ¡n','RÃ­o Colorado','Catriel'
     ],
     'Chubut': [
-      'Rawson','Trelew','Comodoro Rivadavia','Puerto Madryn','Esquel','Río Mayo',
-      'Caleta Olivia','Sarmiento','Gaiman','Dolavon','Puerto Pirámides','El Hoyo'
+      'Rawson','Trelew','Comodoro Rivadavia','Puerto Madryn','Esquel','RÃ­o Mayo',
+      'Caleta Olivia','Sarmiento','Gaiman','Dolavon','Puerto PirÃ¡mides','El Hoyo'
     ],
     'Santa Cruz': [
-      'Río Gallegos','Caleta Olivia','El Calafate','El Chaltén','Puerto Deseado',
-      'Pico Truncado','Las Heras','Puerto San Julián','Gobernador Gregores','Río Turbio','28 de Noviembre'
+      'RÃ­o Gallegos','Caleta Olivia','El Calafate','El ChaltÃ©n','Puerto Deseado',
+      'Pico Truncado','Las Heras','Puerto San JuliÃ¡n','Gobernador Gregores','RÃ­o Turbio','28 de Noviembre'
     ],
-    'Tierra del Fuego': ['Ushuaia','Río Grande','Tolhuin'],
+    'Tierra del Fuego': ['Ushuaia','RÃ­o Grande','Tolhuin'],
     'La Pampa': [
       'Santa Rosa','General Pico','Toay','Victorica','General Acha','Eduardo Castex',
-      'Realicó','Winifreda','Bernardo Larroudé','Catriló'
+      'RealicÃ³','Winifreda','Bernardo LarroudÃ©','CatrilÃ³'
     ],
   };
   const result = [];
@@ -563,7 +492,7 @@ function setupProvinceCity(provinceId, cityId) {
   // Al cambiar provincia, poblar ciudades
   provSelect.addEventListener('change', () => {
     const selectedProv = provSelect.value;
-    citySelect.innerHTML = '<option value="">Seleccioná una ciudad</option>';
+    citySelect.innerHTML = '<option value="">SeleccionÃ¡ una ciudad</option>';
     if (!selectedProv) {
       citySelect.disabled = true;
       return;
@@ -624,10 +553,10 @@ function updatePriceHint(prefix) {
   if (!baseUSD || !dolarRate?.venta) { hintEl.textContent = ''; return; }
   if (currency === 'USD') {
     const ars = Math.round(baseUSD * dolarRate.venta);
-    hintEl.textContent = `≈ ARS $${ars.toLocaleString('es-AR')}`;
+    hintEl.textContent = `â ARS $${ars.toLocaleString('es-AR')}`;
   } else {
     const usd = Math.round(baseUSD);
-    hintEl.textContent = `≈ USD $${usd.toLocaleString('es-AR')}`;
+    hintEl.textContent = `â USD $${usd.toLocaleString('es-AR')}`;
   }
 }
 
@@ -658,7 +587,7 @@ function getPriceInUSD(prefix) {
   return Math.round(baseUSD);
 }
 
-// ===== TEMA DÍA / NOCHE =====
+// ===== TEMA DÃA / NOCHE =====
 function isDay() {
   const h = new Date().getHours();
   return h >= 7 && h < 20;
@@ -667,13 +596,13 @@ function isDay() {
 function applyTheme(day) {
   document.body.classList.toggle('day-mode', day);
   const btn = document.getElementById('themeToggle');
-  if (btn) btn.textContent = day ? '🌙' : '☀️';
+  if (btn) btn.textContent = day ? 'ð' : 'âï¸';
   const mobileBtn = document.getElementById('mobileThemeToggle');
-  if (mobileBtn) mobileBtn.textContent = day ? '🌙 Cambiar a modo noche' : '☀️ Cambiar a modo día';
+  if (mobileBtn) mobileBtn.textContent = day ? 'ð Cambiar a modo noche' : 'âï¸ Cambiar a modo dÃ­a';
 }
 
 function initTheme() {
-  // Usar override de sesión si existe, si no usar modo noche por defecto
+  // Usar override de sesiÃ³n si existe, si no usar modo noche por defecto
   const override = sessionStorage.getItem('themeOverride');
   applyTheme(override !== null ? override === 'day' : false);
 }
@@ -703,7 +632,7 @@ function initStarRatingA11y() {
   const rating = document.getElementById('starRating');
   if (!rating) return;
   rating.setAttribute('role', 'radiogroup');
-  if (!rating.getAttribute('aria-label')) rating.setAttribute('aria-label', 'Calificación por estrellas');
+  if (!rating.getAttribute('aria-label')) rating.setAttribute('aria-label', 'CalificaciÃ³n por estrellas');
   const stars = Array.from(rating.querySelectorAll('.star'));
   stars.forEach((star, idx) => {
     star.setAttribute('role', 'radio');
@@ -726,12 +655,12 @@ function wireImplicitFormLabels() {
 
 function initAccessibilitySemantics() {
   const modalDefs = [
-    { id: 'editVehicleModal', label: 'Editar publicación' },
+    { id: 'editVehicleModal', label: 'Editar publicaciÃ³n' },
     { id: 'tradeModal', label: 'Proponer permuta' },
-    { id: 'reportModal', label: 'Reportar publicación' },
+    { id: 'reportModal', label: 'Reportar publicaciÃ³n' },
     { id: 'rateModal', label: 'Calificar vendedor' },
-    { id: 'prestitoModal', label: 'Cotizador Préstito' },
-    { id: 'confirmModal', label: 'Confirmación' },
+    { id: 'prestitoModal', label: 'Cotizador PrÃ©stito' },
+    { id: 'confirmModal', label: 'ConfirmaciÃ³n' },
     { id: 'editProfileModal', label: 'Editar perfil' }
   ];
   modalDefs.forEach(({ id, label }) => {
@@ -757,9 +686,9 @@ function initAccessibilitySemantics() {
     lightbox.setAttribute('role', 'dialog');
     lightbox.setAttribute('aria-modal', 'true');
     lightbox.setAttribute('tabindex', '-1');
-    if (!lightbox.getAttribute('aria-label')) lightbox.setAttribute('aria-label', 'Galería de imágenes');
+    if (!lightbox.getAttribute('aria-label')) lightbox.setAttribute('aria-label', 'GalerÃ­a de imÃ¡genes');
   }
-  document.querySelector('.lightbox-close')?.setAttribute('aria-label', 'Cerrar galería');
+  document.querySelector('.lightbox-close')?.setAttribute('aria-label', 'Cerrar galerÃ­a');
   document.querySelector('.lightbox-prev')?.setAttribute('aria-label', 'Imagen anterior');
   document.querySelector('.lightbox-next')?.setAttribute('aria-label', 'Siguiente imagen');
 
@@ -774,7 +703,7 @@ function initAccessibilitySemantics() {
     mobileMenu.setAttribute('role', 'dialog');
     mobileMenu.setAttribute('aria-modal', 'true');
     mobileMenu.setAttribute('tabindex', '-1');
-    mobileMenu.querySelector('.mobile-menu-header button')?.setAttribute('aria-label', 'Cerrar menú');
+    mobileMenu.querySelector('.mobile-menu-header button')?.setAttribute('aria-label', 'Cerrar menÃº');
   }
 
   const mobileThemeToggle = document.getElementById('mobileThemeToggle');
@@ -841,10 +770,10 @@ async function handleEmailLinks() {
   if (type === 'verify') {
     try {
       const data = await request(`/auth/verify-email?token=${token}`);
-      showToast(data.message || '¡Email verificado!', 'success');
+      showToast(data.message || 'Â¡Email verificado!', 'success');
       showSection('login');
     } catch (err) {
-      showToast(err.message || 'El link de verificación es inválido o expiró', 'error');
+      showToast(err.message || 'El link de verificaciÃ³n es invÃ¡lido o expirÃ³', 'error');
       showSection('login');
     }
     return true;
@@ -856,7 +785,7 @@ async function handleEmailLinks() {
   return false;
 }
 
-// Botón atrás del navegador
+// BotÃ³n atrÃ¡s del navegador
 function getActiveVehiclesPageFromDom() {
   const active = document.querySelector('#vehiclesPagination button.active');
   const parsed = parseInt(active?.textContent || '', 10);
@@ -1069,7 +998,7 @@ document.addEventListener('DOMContentLoaded', () => {
         this.parentNode.insertBefore(errSpan, this.nextSibling);
       }
       if (this.value.length > 0 && this.value.length < 6) {
-        errSpan.textContent = 'Mínimo 6 caracteres';
+        errSpan.textContent = 'MÃ­nimo 6 caracteres';
         this.style.borderColor = '#ef4444';
       } else {
         errSpan.textContent = '';
@@ -1099,15 +1028,6 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
   });
-
-  ['publish', 'edit'].forEach(prefix => {
-    const financingCheckbox = document.getElementById(`${prefix}AcceptsFinancing`);
-    if (financingCheckbox) {
-      financingCheckbox.addEventListener('change', () => toggleFinancingProviderField(prefix));
-      toggleFinancingProviderField(prefix);
-    }
-  });
-
   updateMobileFilterApplyButton();
   window.addEventListener('resize', updateMobileFilterApplyButton);
 });
@@ -1133,16 +1053,6 @@ function toggleBodyTypeField(prefix = 'publish') {
   if (!visible) select.value = '';
 }
 
-function toggleFinancingProviderField(prefix = 'publish') {
-  const checkbox = document.getElementById(`${prefix}AcceptsFinancing`);
-  const group = document.getElementById(`${prefix}FinancingProviderGroup`);
-  const select = document.getElementById(`${prefix}FinancingProvider`);
-  if (!checkbox || !group || !select) return;
-  const visible = checkbox.checked === true;
-  group.style.display = visible ? 'block' : 'none';
-  if (!visible) select.value = 'prestito';
-}
-
 function normalizeTextForCompare(value = '') {
   return String(value || '')
     .normalize('NFD')
@@ -1163,7 +1073,7 @@ function normalizedDrivetrainValue(value = '') {
   const v = String(value || '')
     .toLowerCase()
     .replace(/\s+/g, '')
-    .replace(/×/g, 'x')
+    .replace(/Ã/g, 'x')
     .replace(/\*/g, 'x');
   if (v === '4x2' || v === '4x4') return v;
   return '';
@@ -1192,14 +1102,14 @@ function updateVehicleTypeOptions(prefix = 'publish') {
   const isFilter = prefix === 'filter';
   const isMoto = type === 'moto';
   const isAuto = type === 'auto';
-  const isAll = !type; // "Todos" — solo aplica en filtros
+  const isAll = !type; // "Todos" â solo aplica en filtros
 
-  const autoFuels = [['Nafta', 'Nafta'], ['Diesel', 'Diesel'], ['Híbrido', 'Híbrido'], ['GNC', 'GNC']];
+  const autoFuels = [['Nafta', 'Nafta'], ['Diesel', 'Diesel'], ['HÃ­brido', 'HÃ­brido'], ['GNC', 'GNC']];
   const motoFuels = [['Nafta', 'Nafta']];
-  const commonFuels = [['Eléctrico', 'Eléctrico']];
+  const commonFuels = [['ElÃ©ctrico', 'ElÃ©ctrico']];
 
-  const autoTrans = [['Automático', 'Automático'], ['Automático CVT', 'Automático CVT'], ['Automático DSG', 'Automático DSG']];
-  const motoTrans = [['Automático', 'Automático'], ['Quick Shifter', 'Quick Shifter']];
+  const autoTrans = [['AutomÃ¡tico', 'AutomÃ¡tico'], ['AutomÃ¡tico CVT', 'AutomÃ¡tico CVT'], ['AutomÃ¡tico DSG', 'AutomÃ¡tico DSG']];
+  const motoTrans = [['AutomÃ¡tico', 'AutomÃ¡tico'], ['Quick Shifter', 'Quick Shifter']];
 
   let fuels, transmissions;
   if (isMoto) {
@@ -1209,7 +1119,7 @@ function updateVehicleTypeOptions(prefix = 'publish') {
     fuels = [...autoFuels, ...commonFuels];
     transmissions = [['Manual', 'Manual'], ...autoTrans];
   } else {
-    // "Todos" en filtros — mostrar todo excepto opciones exclusivas de moto
+    // "Todos" en filtros â mostrar todo excepto opciones exclusivas de moto
     fuels = [...autoFuels, ...commonFuels];
     transmissions = [['Manual', 'Manual'], ...autoTrans];
   }
@@ -1242,7 +1152,7 @@ async function initVehicleMap(city, province) {
   const el = document.getElementById('vehicleMapSecondary') || document.getElementById('vehicleMap');
   if (!el) return;
   try {
-    // Limpiar nombre de provincia: quitar paréntesis y su contenido (ej: "Buenos Aires (Prov.)" → "Buenos Aires")
+    // Limpiar nombre de provincia: quitar parÃ©ntesis y su contenido (ej: "Buenos Aires (Prov.)" â "Buenos Aires")
     const cleanProvince = province ? province.replace(/\s*\(.*?\)/g, '').trim() : '';
     const byCity = new URLSearchParams({ format: 'json', limit: '1', countrycodes: 'ar', addressdetails: '1' });
     if (cleanProvince) {
@@ -1267,7 +1177,7 @@ async function initVehicleMap(city, province) {
       keyboard: false
     }).setView([parseFloat(lat), parseFloat(lon)], 12);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      attribution: 'Â© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       maxZoom: 19
     }).addTo(vehicleMapInstance);
     const icon = L.divIcon({
@@ -1303,16 +1213,8 @@ async function request(endpoint, options = {}) {
   if (response.status === 204) return {};
   const contentType = response.headers.get('content-type') || '';
   const data = contentType.includes('application/json') ? await response.json() : {};
-  const text = contentType.includes('application/json') ? '' : await response.text().catch(() => '');
   if (!response.ok) {
-    const fallbackHttpMsg = `HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''}`;
-    const rawText = String(text || '').trim();
-    const looksLikeHtml = /<!doctype|<html|<head|<body/i.test(rawText) || rawText.startsWith('<');
-    const normalizedText = looksLikeHtml
-      ? ''
-      : rawText.replace(/\s+/g, ' ').slice(0, 180);
-    const err = new Error(data.error || data.message || normalizedText || fallbackHttpMsg);
-    err.status = response.status;
+    const err = new Error(data.error || 'Error');
     if (data.needsVerification) err.needsVerification = true;
     throw err;
   }
@@ -1331,9 +1233,9 @@ function showSection(sectionId, options = {}) {
     loadLucideIcons();
   }
   if (currentUser && (sectionId === 'login' || sectionId === 'register')) return;
-  // Push state para que el botón atrás funcione dentro del SPA
+  // Push state para que el botÃ³n atrÃ¡s funcione dentro del SPA
   if (pushHistory) {
-    const publicSections = ['home', 'vehicles', 'support', 'login', 'register', 'forgot-password', 'terms'];
+    const publicSections = ['home', 'vehicles', 'login', 'register', 'forgot-password', 'terms'];
     const profileRoute = sectionId === 'profile' && currentProfileId
       ? `/?section=profile&profile=${encodeURIComponent(String(currentProfileId))}`
       : null;
@@ -1348,7 +1250,7 @@ function showSection(sectionId, options = {}) {
       history.pushState({ section: sectionId }, '', `/?section=${sectionId}`);
     }
   }
-  // Limpiar el div de reenvío de verificación al salir del login
+  // Limpiar el div de reenvÃ­o de verificaciÃ³n al salir del login
   document.getElementById('resendVerificationDiv')?.remove();
   document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
   const section = document.getElementById(sectionId);
@@ -1371,14 +1273,18 @@ function showSection(sectionId, options = {}) {
     else if (sectionId === 'following-feed') loadFollowingFeed(1, true);
     else if (sectionId === 'admin') loadAdmin();
     else if (sectionId === 'register') {
-      ensureHCaptchaForSection('register');
+      // Render hCaptcha when section becomes visible (needed with render=explicit)
+      loadHCaptcha().then(() => {
+        setTimeout(() => {
+          const container = document.querySelector('.h-captcha');
+          if (container && window.hcaptcha && !container.querySelector('iframe')) {
+            try { hcaptcha.render(container, { sitekey: container.dataset.sitekey }); } catch(e) {}
+          }
+        }, 50);
+      });
     }
     else if (sectionId === 'publish') {
       resetPublishForm();
-    }
-    else if (sectionId === 'support') {
-      prefillSupportContact();
-      ensureHCaptchaForSection('support');
     }
   }
   if (sectionId !== 'messages') stopPolling();
@@ -1421,7 +1327,6 @@ function setBottomNavActive(sectionId) {
     'following-feed': 4,
     'my-vehicles': 4,
     'notifications': 4,
-    'support': 4,
     'profile': 4,
     'admin': 4,
   };
@@ -1460,13 +1365,13 @@ function resetPublishForm() {
   if (titleInput) titleInput.value = '';
   const titlePreview = document.getElementById('publishTitlePreview');
   if (titlePreview) {
-    titlePreview.textContent = 'Completá marca, modelo y año para ver el título';
+    titlePreview.textContent = 'CompletÃ¡ marca, modelo y aÃ±o para ver el tÃ­tulo';
     titlePreview.style.color = 'var(--text-3)';
   }
 
   const cityEl = document.getElementById('publishCity');
   if (cityEl) {
-    cityEl.innerHTML = '<option value="">Primero seleccioná una provincia</option>';
+    cityEl.innerHTML = '<option value="">Primero seleccionÃ¡ una provincia</option>';
     cityEl.disabled = true;
   }
 
@@ -1485,14 +1390,11 @@ function resetPublishForm() {
     syncBrandPickerTrigger('publishBrand');
   }
   const publishModelEl = document.getElementById('publishModel');
-  if (publishModelEl) publishModelEl.value = '';
-  const publishModelList = document.getElementById('publishModelList');
-  if (publishModelList) publishModelList.innerHTML = '';
+  if (publishModelEl) {
+    publishModelEl.innerHTML = '<option value="">Seleccionar modelo</option>';
+  }
   const publishDrivetrainEl = document.getElementById('publishDrivetrain');
   if (publishDrivetrainEl) publishDrivetrainEl.value = '';
-  const publishFinancingProviderEl = document.getElementById('publishFinancingProvider');
-  if (publishFinancingProviderEl) publishFinancingProviderEl.value = 'prestito';
-  toggleFinancingProviderField('publish');
 
   const pubCurrencyEl = document.getElementById('publishCurrency');
   if (pubCurrencyEl) {
@@ -1507,10 +1409,10 @@ function resetPublishForm() {
   const btn = document.getElementById('publishBtn');
   if (btn) {
     btn.disabled = false;
-    btn.textContent = 'Publicar Vehículo';
+    btn.textContent = 'Publicar VehÃ­culo';
   }
 
-  // Mostrar campo de teléfono de contacto solo para admins
+  // Mostrar campo de telÃ©fono de contacto solo para admins
   const phoneGroup = document.getElementById('publishContactPhoneGroup');
   if (phoneGroup) phoneGroup.style.display = currentUser?.profile?.is_admin ? 'block' : 'none';
   const addressGroup = document.getElementById('publishContactAddressGroup');
@@ -1519,8 +1421,6 @@ function resetPublishForm() {
   if (addressEl) addressEl.value = '';
 
   autofillPublishLocationFromProfile();
-  initPublishYearSelect();
-  initPublishStepperObserver();
 }
 
 
@@ -1558,11 +1458,11 @@ function updatePasswordStrength(password, scope = 'register') {
 
   const levels = [
     { pct: 0,   color: 'transparent', text: '' },
-    { pct: 20,  color: '#ef4444', text: '🔴 Muy débil' },
-    { pct: 45,  color: '#f97316', text: '🟠 Débil' },
-    { pct: 65,  color: '#eab308', text: '🟡 Moderada' },
-    { pct: 85,  color: '#22c55e', text: '🟢 Fuerte' },
-    { pct: 100, color: '#6c63ff', text: '💜 Muy fuerte' },
+    { pct: 20,  color: '#ef4444', text: 'ð´ Muy dÃ©bil' },
+    { pct: 45,  color: '#f97316', text: 'ð  DÃ©bil' },
+    { pct: 65,  color: '#eab308', text: 'ð¡ Moderada' },
+    { pct: 85,  color: '#22c55e', text: 'ð¢ Fuerte' },
+    { pct: 100, color: '#6c63ff', text: 'ð Muy fuerte' },
   ];
 
   const level = levels[Math.min(score, 5)];
@@ -1584,9 +1484,9 @@ async function handleRegister(e) {
   const username = document.getElementById('registerUsername').value;
   const email = document.getElementById('registerEmail').value;
   const password = document.getElementById('registerPassword').value;
-  let captchaToken = getHCaptchaToken('registerCaptcha');
+  let captchaToken = document.querySelector('[name="h-captcha-response"]')?.value || '';
   if (!captchaToken) {
-    showToast('Por favor completá el captcha', 'error');
+    showToast('Por favor completÃ¡ el captcha', 'error');
     btn.disabled = false;
     btn.textContent = originalText;
     return;
@@ -1595,21 +1495,21 @@ async function handleRegister(e) {
     const data = await request('/register', { method: 'POST', body: JSON.stringify({ username, email, password, captchaToken, firstName, lastName }) });
     if (data.needsVerification) {
       showSection('login');
-      showToast('¡Cuenta creada! Te enviamos un email de verificación. Revisá tu bandeja de entrada.', 'success');
+      showToast('Â¡Cuenta creada! Te enviamos un email de verificaciÃ³n. RevisÃ¡ tu bandeja de entrada.', 'success');
     } else {
-      // fallback por si el email no está configurado
+      // fallback por si el email no estÃ¡ configurado
       localStorage.setItem('token', data.token);
       currentUser = data.user;
       if (!heartbeatInterval) heartbeatInterval = setInterval(() => { if (currentUser && document.visibilityState === 'visible') request('/ping', { method: 'PUT' }).catch(() => {}); }, 30000);
       if (!notifInterval) notifInterval = setInterval(() => { if (currentUser) { loadCounts(); } }, 30000);
       updateNav();
       loadUserFavoriteIds();
-      showToast('Registro exitoso. ¡Bienvenido!', 'success');
+      showToast('Registro exitoso. Â¡Bienvenido!', 'success');
       showSection('home');
     }
   } catch (err) {
     showToast(err.message, 'error');
-    resetHCaptchaWidget('registerCaptcha');
+    if (window.hcaptcha) window.hcaptcha.reset();
   }
   finally {
     btn.disabled = false;
@@ -1622,7 +1522,7 @@ async function handleLogin(e) {
   const btn = e.target.querySelector('button[type="submit"]');
   const originalText = btn.textContent;
   btn.disabled = true;
-  btn.textContent = 'Iniciando sesión...';
+  btn.textContent = 'Iniciando sesiÃ³n...';
 
   const email = document.getElementById('loginEmail').value;
   const password = document.getElementById('loginPassword').value;
@@ -1634,12 +1534,12 @@ async function handleLogin(e) {
     if (!notifInterval) notifInterval = setInterval(() => { if (currentUser) { loadCounts(); } }, 30000);
     updateNav();
     loadUserFavoriteIds();
-    showToast('¡Bienvenido!', 'success');
+    showToast('Â¡Bienvenido!', 'success');
     showSection('home');
   } catch (err) {
     if (err.needsVerification) {
       showToast(err.message, 'error');
-      // Mostrar opción de reenviar verificación
+      // Mostrar opciÃ³n de reenviar verificaciÃ³n
       const loginForm = document.querySelector('#login .form-container');
       if (loginForm && !document.getElementById('resendVerificationBtn')) {
         const resendDiv = document.createElement('p');
@@ -1649,9 +1549,9 @@ async function handleLogin(e) {
         resendLink.id = 'resendVerificationBtn';
         resendLink.textContent = 'Reenviar';
         resendLink.style.cssText = 'color:var(--primary-light);cursor:pointer;font-weight:600;';
-        resendLink.dataset.email = email; // Sin insertar en onclick — evita XSS
+        resendLink.dataset.email = email; // Sin insertar en onclick â evita XSS
         resendLink.addEventListener('click', () => resendVerification(resendLink.dataset.email));
-        resendDiv.append('¿No recibiste el email? ', resendLink);
+        resendDiv.append('Â¿No recibiste el email? ', resendLink);
         loginForm.appendChild(resendDiv);
       }
     } else {
@@ -1673,7 +1573,7 @@ async function handleForgotPassword(e) {
   const email = document.getElementById('forgotEmail').value;
   try {
     await request('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) });
-    showToast('Si el email existe, te enviamos el link de recuperación. Revisá tu bandeja.', 'success');
+    showToast('Si el email existe, te enviamos el link de recuperaciÃ³n. RevisÃ¡ tu bandeja.', 'success');
     showSection('login');
   } catch (err) {
     showToast(err.message, 'error');
@@ -1690,12 +1590,12 @@ async function handleResetPassword(e) {
   const password = document.getElementById('resetPassword').value;
   const confirm = document.getElementById('resetPasswordConfirm').value;
   const token = document.getElementById('resetToken').value;
-  if (password !== confirm) { showToast('Las contraseñas no coinciden', 'error'); return; }
+  if (password !== confirm) { showToast('Las contraseÃ±as no coinciden', 'error'); return; }
   btn.disabled = true;
   btn.textContent = 'Guardando...';
   try {
     await request('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, password }) });
-    showToast('¡Contraseña actualizada! Ya podés iniciar sesión.', 'success');
+    showToast('Â¡ContraseÃ±a actualizada! Ya podÃ©s iniciar sesiÃ³n.', 'success');
     showSection('login');
   } catch (err) {
     showToast(err.message, 'error');
@@ -1710,8 +1610,8 @@ async function resendVerification(email) {
   if (btn) { btn.textContent = 'Enviando...'; btn.style.pointerEvents = 'none'; }
   try {
     await request('/auth/resend-verification', { method: 'POST', body: JSON.stringify({ email }) });
-    showToast('Email de verificación reenviado. Revisá tu bandeja.', 'success');
-    if (btn) btn.textContent = 'Enviado ✓';
+    showToast('Email de verificaciÃ³n reenviado. RevisÃ¡ tu bandeja.', 'success');
+    if (btn) btn.textContent = 'Enviado â';
   } catch (err) {
     showToast(err.message, 'error');
     if (btn) { btn.textContent = 'Reenviar'; btn.style.pointerEvents = ''; }
@@ -1732,7 +1632,7 @@ function logout() {
   if (dolarRateInterval) { clearInterval(dolarRateInterval); dolarRateInterval = null; }
   stopPolling();
   updateNav();
-  showToast('Sesión cerrada', 'success');
+  showToast('SesiÃ³n cerrada', 'success');
   showSection('home');
 }
 
@@ -1769,8 +1669,9 @@ async function loadVehicles(page = 1, scrollToResults = false, options = {}) {
     if (vehicleTypeEl?.value) params.append('vehicle_type', vehicleTypeEl.value);
     params.append('page', targetPage);
     const { vehicles = [], total = 0 } = await request(`/vehicles?${params}`, { signal: vehicleSearchAbortController.signal }) || {};
+    document.getElementById('vehiclesCount').textContent = `${total} vehÃ­culo${total !== 1 ? 's' : ''} encontrado${total !== 1 ? 's' : ''}`;
     if (!vehicles?.length) {
-      container.innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99z"/></svg><h3>No hay vehículos</h3><p>Sé el primero en publicar</p></div>';
+      container.innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99z"/></svg><h3>No hay vehÃ­culos</h3><p>SÃ© el primero en publicar</p></div>';
       return;
     }
     container.innerHTML = vehicles.map((v, idx) => `
@@ -1787,7 +1688,8 @@ async function loadVehicles(page = 1, scrollToResults = false, options = {}) {
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
           ${v.city ? `<p class="vehicle-location"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> ${escapeHtml(v.city)}${v.province ? ', ' + escapeHtml(v.province.replace(/\s*\(.*?\)/g,'').trim()) : ''}</p>` : ''}
           <div class="vehicle-price-block">
-            ${formatPesos(v.price, v) ? `<p class="vehicle-price">${formatPesos(v.price, v)}</p><p class="vehicle-price-ars">USD ${formatNumber(v.price)}</p>` : `<p class="vehicle-price">USD ${formatNumber(v.price)}</p>`}
+            <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
+            ${formatPesos(v.price, v) ? `<p class="vehicle-price-ars">${formatPesos(v.price, v)}</p>` : ''}
           </div>
           ${buildVehicleMetaHtml(v)}
           <div class="vehicle-card-footer">
@@ -1795,7 +1697,7 @@ async function loadVehicles(page = 1, scrollToResults = false, options = {}) {
               <div class="avatar-tiny">${(v.seller_verified ? v.seller_dealership : (v.seller_first_name || v.seller_name))?.charAt(0)?.toUpperCase()}</div>
               <div class="vehicle-seller-info">
                 <div class="vehicle-seller-name-row">
-                <span>${escapeHtml(v.seller_verified && v.seller_dealership ? v.seller_dealership : (v.seller_first_name && v.seller_last_name ? `${v.seller_first_name} ${v.seller_last_name}` : (v.seller_name || 'Anónimo')))}</span>
+                <span>${escapeHtml(v.seller_verified && v.seller_dealership ? v.seller_dealership : (v.seller_first_name && v.seller_last_name ? `${v.seller_first_name} ${v.seller_last_name}` : (v.seller_name || 'AnÃ³nimo')))}</span>
                 ${v.seller_verified ? verifiedCheckIcon() : ''}
                 </div>
               </div>
@@ -1844,7 +1746,7 @@ function renderPagination(total, current) {
   let prevPage = 0;
   for (const p of sortedPages) {
     if (p - prevPage > 1) {
-      html += `<button class="" disabled style="cursor:default;opacity:0.5;">…</button>`;
+      html += `<button class="" disabled style="cursor:default;opacity:0.5;">â¦</button>`;
     }
     html += `<button class="${p === current ? 'active' : ''}" onclick="loadVehicles(${p}, true)">${p}</button>`;
     prevPage = p;
@@ -1912,8 +1814,6 @@ function clearFilters() {
   });
   const filterModelEl = document.getElementById('filterModel');
   if (filterModelEl) filterModelEl.innerHTML = '<option value="">Todos</option>';
-  const filterCityEl = document.getElementById('filterCity');
-  if (filterCityEl) { filterCityEl.innerHTML = '<option value="">Todas las ciudades</option>'; filterCityEl.disabled = true; }
   filtersDirty = false;
   updateMobileFilterApplyButton();
   loadVehicles(1);
@@ -1935,14 +1835,14 @@ function buildVehicleStatusBadges(v, { compact = false } = {}) {
   if (!v || v.status === 'sold') return '';
 
   const tradeLabel = v.accepts_trade
-    ? (compact ? 'Permuta' : '🔄 Permuta')
+    ? (compact ? 'Permuta' : 'ð Permuta')
     : 'Sin permuta';
   const badges = [
     `<span class="vehicle-trade-badge ${v.accepts_trade ? 'trade-yes' : 'trade-no'}">${tradeLabel}</span>`
   ];
 
   if (v.accepts_financing) {
-    const financingLabel = compact ? 'Financiación' : '💳 Financiación';
+    const financingLabel = compact ? 'FinanciaciÃ³n' : 'ð³ FinanciaciÃ³n';
     badges.push(`<span class="vehicle-trade-badge finance-yes">${financingLabel}</span>`);
   }
 
@@ -2000,7 +1900,7 @@ function updateDolarWidget() {
   if (!el) return;
   if (!dolarRate?.venta) { el.style.display = 'none'; return; }
   el.style.display = 'inline-flex';
-  el.textContent = `💵 Blue $${Number(dolarRate.venta).toLocaleString('es-AR')}`;
+  el.textContent = `ðµ Blue $${Number(dolarRate.venta).toLocaleString('es-AR')}`;
 }
 
 async function loadDolarRate() {
@@ -2016,7 +1916,7 @@ async function loadDolarRate() {
 // ===== BRAND PICKER =====
 const BRAND_LOGO_MAP = {
   'Alfa Romeo': 'alfa-romeo', 'Audi': 'audi', 'BMW': 'bmw', 'Chevrolet': 'chevrolet',
-  'Citroën': 'citroen', 'Fiat': 'fiat', 'Ford': 'ford', 'Honda': 'honda',
+  'CitroÃ«n': 'citroen', 'Fiat': 'fiat', 'Ford': 'ford', 'Honda': 'honda',
   'Hyundai': 'hyundai', 'Jeep': 'jeep', 'Kia': 'kia', 'Land Rover': 'land-rover',
   'Mazda': 'mazda', 'Mercedes-Benz': 'mercedes-benz', 'Mini': 'mini',
   'Mitsubishi': 'mitsubishi', 'Nissan': 'nissan', 'Peugeot': 'peugeot',
@@ -2173,7 +2073,7 @@ function initBrandFilters() {
     });
   }
   if (select) {
-    const filterType = document.getElementById('filterVehicleType')?.value ?? '';
+    const filterType = document.getElementById('filterVehicleType')?.value || 'auto';
     const filterBrandsObj = getBrandsForType(filterType);
     select.innerHTML = '<option value="">Todas</option>';
     sortedBrandKeys(filterBrandsObj, filterType).forEach(brand => {
@@ -2198,32 +2098,11 @@ function initBrandFilters() {
       opt.textContent = brand;
       publishBrand.appendChild(opt);
     });
-    // Reset model input when brands change
+    // Reset model select when brands change
     const publishModel = document.getElementById('publishModel');
-    if (publishModel) publishModel.value = '';
-    const publishModelList = document.getElementById('publishModelList');
-    if (publishModelList) publishModelList.innerHTML = '';
+    if (publishModel) publishModel.innerHTML = '<option value="">Seleccionar modelo</option>';
     initBrandPicker('publishBrand');
   }
-}
-
-function updateFilterCities() {
-  const provSelect = document.getElementById('filterProvince');
-  const citySelect = document.getElementById('filterCity');
-  if (!provSelect || !citySelect) return;
-  const prov = provSelect.value;
-  citySelect.innerHTML = '<option value="">Todas las ciudades</option>';
-  if (!prov) {
-    citySelect.disabled = true;
-    return;
-  }
-  AR_CITIES.filter(c => c.prov === prov).forEach(c => {
-    const opt = document.createElement('option');
-    opt.value = c.city;
-    opt.textContent = c.city;
-    citySelect.appendChild(opt);
-  });
-  citySelect.disabled = false;
 }
 
 function updateFilterModels() {
@@ -2237,13 +2116,11 @@ function updateFilterModels() {
 
 function updatePublishModels() {
   const brand = document.getElementById('publishBrand').value;
-  const modelInput = document.getElementById('publishModel');
-  const datalist = document.getElementById('publishModelList');
-  if (datalist) datalist.innerHTML = '';
-  if (modelInput) modelInput.value = '';
+  const modelSelect = document.getElementById('publishModel');
+  modelSelect.innerHTML = '<option value="">Seleccionar modelo</option>';
   const type = document.getElementById('publishVehicleType')?.value || 'auto';
   const brands = getBrandsForType(type);
-  if (brand && brands[brand] && datalist) brands[brand].forEach(m => { const o = document.createElement('option'); o.value = m; datalist.appendChild(o); });
+  if (brand && brands[brand]) brands[brand].forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = m; modelSelect.appendChild(o); });
   const publishBodyTypeEl = document.getElementById('publishBodyType');
   if (publishBodyTypeEl) publishBodyTypeEl.value = '';
   toggleBodyTypeField('publish');
@@ -2319,28 +2196,6 @@ async function viewVehicle(id, options = {}) {
     const sellerLocationQuery = [sellerAddress, sellerCity, sellerProvince].filter(Boolean).join(', ');
     const sellerMapsUrl = sellerLocationQuery ? googleMapsSearchUrl(sellerLocationQuery) : '';
     const whatsappText = encodeURIComponent(`Hola, te contacto desde la pagina *Autoventa* por el siguiente anuncio: https://autoventa.online/?vehicle=${vehicle.id}`);
-    const prestitoWhatsappText = encodeURIComponent(`Hola, vi en *Autoventa* este vehículo (${vehicle.title}). Quiero consultar financiación con Préstito: https://autoventa.online/?vehicle=${vehicle.id}`);
-    const ownFinancingWhatsappText = encodeURIComponent(`Hola, vi en *Autoventa* este vehículo (${vehicle.title}). Quiero consultar la financiación propia del vendedor: https://autoventa.online/?vehicle=${vehicle.id}`);
-    const financingProvider = String(vehicle.financing_provider || '').trim().toLowerCase();
-    const isOwnFinancing = financingProvider === 'propia';
-    const financingUsesPrestito = financingProvider === 'prestito';
-    const financingTitleText = isOwnFinancing
-      ? 'Este vendedor ofrece financiacion propia'
-      : 'Este vendedor ofrece financiacion';
-    const financingSubtitleText = financingUsesPrestito
-      ? 'Podes simular cuotas y consultar requisitos'
-      : 'Consulta condiciones directamente con el vendedor';
-    const financingPrimaryCtaHtml = financingUsesPrestito
-      ? `<button class="btn btn-primary financing-cta-btn" onclick="openPrestitoQuoteModal(${vehicle.id}, ${Number(vehicle.year || 0)}, ${Number(vehicle.price || 0)}, ${Number(vehicle.price_original || 0)}, '${escapeHtml(vehicle.title).replace(/'/g, '&#39;')}')">Cotizar con Prestito</button>`
-      : '';
-    const financingQuickMessage = financingUsesPrestito
-      ? 'Quiero consultar financiacion con Prestito.'
-      : (isOwnFinancing ? 'Quiero consultar financiacion propia.' : 'Quiero consultar financiacion.');
-    const financingSecondaryCtaHtml = (vehicle.seller_profile?.phone && vehicle.seller_profile?.show_phone !== false)
-      ? `<a href="https://wa.me/${escapeHtml(profileWhatsapp)}?text=${financingUsesPrestito ? prestitoWhatsappText : ownFinancingWhatsappText}" target="_blank" rel="noopener" class="btn btn-secondary financing-cta-btn">Consultar con el vendedor</a>`
-      : (isLoggedIn
-          ? `<button class="btn btn-secondary financing-cta-btn" onclick="const qm=document.getElementById('quickMsgInput'); if(qm){qm.value='${financingQuickMessage}'; qm.focus();}">Consultar por chat</button>`
-          : '');
     const descriptionParagraphs = String(vehicle.description || '')
       .split(/\n\s*\n/)
       .map(p => p.trim())
@@ -2348,7 +2203,7 @@ async function viewVehicle(id, options = {}) {
     const normalizedDescriptionParagraphs = descriptionParagraphs.length
       ? descriptionParagraphs
       : String(vehicle.description || '')
-          .split(/(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ])/)
+          .split(/(?<=[.!?])\s+(?=[A-ZÃÃÃÃÃÃ])/)
           .reduce((chunks, sentence) => {
             const clean = sentence.trim();
             if (!clean) return chunks;
@@ -2366,7 +2221,7 @@ async function viewVehicle(id, options = {}) {
       <div class="detail-container">
         <div class="detail-gallery desktop-only">
           <div class="main-image" style="position:relative;">
-            <img src="${escapeHtml(mainImgUrl)}" id="detailMainImage" alt="Vehículo" fetchpriority="high" style="cursor:pointer;" onclick="openLightbox(window._detailImages, window._detailImages.indexOf(this.src) >= 0 ? window._detailImages.indexOf(this.src) : 0)">
+            <img src="${escapeHtml(mainImgUrl)}" id="detailMainImage" alt="VehÃ­culo" fetchpriority="high" style="cursor:pointer;" onclick="openLightbox(window._detailImages, window._detailImages.indexOf(this.src) >= 0 ? window._detailImages.indexOf(this.src) : 0)">
             ${vehicle.status === 'sold' ? '<div class="detail-sold-overlay"><span>VENDIDO</span></div>' : ''}
           </div>
           <div class="thumbnail-list" id="imageThumbnails">
@@ -2382,7 +2237,8 @@ async function viewVehicle(id, options = {}) {
           <h1>${escapeHtml(vehicle.title)}</h1>
           <p class="detail-subtitle">${escapeHtml(vehicle.brand)} ${escapeHtml(vehicle.model)}</p>
           <div class="detail-price-block">
-            ${formatPesos(vehicle.price, vehicle) ? `<div class="detail-price">${formatPesos(vehicle.price, vehicle)}</div><div class="detail-price-ars">USD ${formatNumber(vehicle.price)}</div>` : `<div class="detail-price">USD ${formatNumber(vehicle.price)}</div>`}
+            <div class="detail-price">USD ${formatNumber(vehicle.price)}</div>
+            ${formatPesos(vehicle.price, vehicle) ? `<div class="detail-price-ars">${formatPesos(vehicle.price, vehicle)}</div>` : ''}
             ${ownerLocationDisplay ? `
               <div class="detail-price-location">
                 <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
@@ -2392,7 +2248,7 @@ async function viewVehicle(id, options = {}) {
             ${vehicle.contact_phone && vehicle.status !== 'sold' ? `
               <a href="https://wa.me/${escapeHtml(ownerWhatsapp)}?text=${whatsappText}" target="_blank" rel="noopener" class="btn btn-primary" style="background:#25D366;border:none;width:100%;margin-top:0.75rem;">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="margin-right:0.4rem;"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                Contactar al dueño
+                Contactar al dueÃ±o
               </a>
             ` : ''}
             ${showDealershipLocationButton ? `
@@ -2404,23 +2260,23 @@ async function viewVehicle(id, options = {}) {
           </div>
           <div class="detail-specs">
             <div class="spec-card">
-              <div class="spec-head"><img class="spec-icon" src="/icons/spec-year.svg" alt="" loading="lazy"><div class="label">Año</div></div>
+              <div class="spec-head"><img class="spec-icon" src="/icons/spec-year.svg" alt="" loading="lazy"><div class="label">AÃ±o</div></div>
               <div class="value">${escapeHtml(String(vehicle.year))}</div>
             </div>
             <div class="spec-card">
               <div class="spec-head"><img class="spec-icon" src="/icons/spec-mileage.svg" alt="" loading="lazy"><div class="label">Kilometraje</div></div>
               <div class="value">${vehicle.mileage === 0 ? '<span class="badge-nuevo">NUEVO</span>' : formatNumber(vehicle.mileage) + ' km'}</div>
             </div>
-            ${vehicle.version ? `<div class="spec-card"><div class="spec-head"><img class="spec-icon" src="/icons/spec-version.svg" alt="" loading="lazy"><div class="label">Versión</div></div><div class="value">${escapeHtml(vehicle.version)}</div></div>` : ''}
+            ${vehicle.version ? `<div class="spec-card"><div class="spec-head"><img class="spec-icon" src="/icons/spec-version.svg" alt="" loading="lazy"><div class="label">VersiÃ³n</div></div><div class="value">${escapeHtml(vehicle.version)}</div></div>` : ''}
             <div class="spec-card">
               <div class="spec-head"><img class="spec-icon" src="/icons/spec-fuel.svg" alt="" loading="lazy"><div class="label">Combustible</div></div>
               <div class="value">${escapeHtml(vehicle.fuel || 'N/A')}</div>
             </div>
             <div class="spec-card">
-              <div class="spec-head"><img class="spec-icon" src="/icons/spec-transmission.svg" alt="" loading="lazy"><div class="label">Transmisión</div></div>
+              <div class="spec-head"><img class="spec-icon" src="/icons/spec-transmission.svg" alt="" loading="lazy"><div class="label">TransmisiÃ³n</div></div>
               <div class="value">${escapeHtml(vehicle.transmission || 'N/A')}</div>
             </div>
-            ${vehicle.drivetrain ? `<div class="spec-card"><div class="spec-head"><img class="spec-icon" src="/icons/spec-transmission.svg" alt="" loading="lazy"><div class="label">Tracción</div></div><div class="value">${escapeHtml(vehicle.drivetrain)}</div></div>` : ''}
+            ${vehicle.drivetrain ? `<div class="spec-card"><div class="spec-head"><img class="spec-icon" src="/icons/spec-transmission.svg" alt="" loading="lazy"><div class="label">TracciÃ³n</div></div><div class="value">${escapeHtml(vehicle.drivetrain)}</div></div>` : ''}
             ${vehicle.vehicle_type === 'moto' && vehicle.engine_cc ? `<div class="spec-card"><div class="spec-head"><img class="spec-icon" src="/icons/spec-transmission.svg" alt="" loading="lazy"><div class="label">Cilindrada</div></div><div class="value">${vehicle.engine_cc} cc</div></div>` : ''}
           </div>
         </div>
@@ -2429,7 +2285,7 @@ async function viewVehicle(id, options = {}) {
           ${vehicle.description ? `
             <div class="detail-description">
               <div class="detail-section-eyebrow">Historia del vehiculo</div>
-              <h4>Descripción</h4>
+              <h4>DescripciÃ³n</h4>
               <div class="detail-description-copy">${descriptionHtml}</div>
             </div>
           ` : ''}
@@ -2440,9 +2296,9 @@ async function viewVehicle(id, options = {}) {
             <div class="seller-info">
               <h4 onclick="viewProfile(${vehicle.seller_id})">${vehicle.seller_verified && vehicle.seller_profile?.dealership_name ? escapeHtml(vehicle.seller_profile.dealership_name) : (vehicle.seller_profile?.first_name && vehicle.seller_profile?.last_name ? escapeHtml(`${vehicle.seller_profile.first_name} ${vehicle.seller_profile.last_name}`) : escapeHtml(vehicle.seller_name))}</h4>
               ${vehicle.seller_verified ? `<div style="margin-bottom:0.5rem;">${verifiedImageBadge('verified-image-badge-detail')}</div>` : ''}
-              ${vehicle.seller_rating ? `<div class="rating">${'★'.repeat(Math.round(vehicle.seller_rating))}${'☆'.repeat(5-Math.round(vehicle.seller_rating))} <span>(${vehicle.seller_ratings_count} reseñas)</span></div>` : '<div class="rating"><span style="color:var(--text-secondary)">Sin reseñas aún</span></div>'}
+              ${vehicle.seller_rating ? `<div class="rating">${'â'.repeat(Math.round(vehicle.seller_rating))}${'â'.repeat(5-Math.round(vehicle.seller_rating))} <span>(${vehicle.seller_ratings_count} reseÃ±as)</span></div>` : '<div class="rating"><span style="color:var(--text-secondary)">Sin reseÃ±as aÃºn</span></div>'}
               <div class="seller-stats">
-                <span><strong>${vehicle.seller_vehicles_count}</strong> vehículos</span>
+                <span><strong>${vehicle.seller_vehicles_count}</strong> vehÃ­culos</span>
                 <span><strong id="followersCount">${vehicle.seller_followers_count || 0}</strong> seguidores</span>
               </div>
             </div>
@@ -2452,7 +2308,7 @@ async function viewVehicle(id, options = {}) {
                 ${vehicle.seller_verified && sellerMapsUrl ? `
                   <a href="${escapeHtml(sellerMapsUrl)}" target="_blank" rel="noopener" class="seller-contact-link location" title="${escapeHtml(sellerLocationDisplay || '')}">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-                    Ver ubicación concesionaria
+                    Ver ubicaciÃ³n concesionaria
                   </a>
                 ` : ''}
                 ${vehicle.seller_profile?.instagram ? `
@@ -2487,24 +2343,21 @@ async function viewVehicle(id, options = {}) {
 ${vehicle.accepts_trade && isLoggedIn && !isOwner && vehicle.status === 'active' ? `
             <div style="margin-top:1.5rem;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:var(--radius-md);padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
               <div>
-                <div style="font-weight:600;font-size:0.95rem;">🔄 Este vendedor acepta permutas</div>
-                <div style="font-size:0.82rem;color:var(--text-2);margin-top:2px;">Podés proponer tu vehículo a cambio</div>
+                <div style="font-weight:600;font-size:0.95rem;">ð Este vendedor acepta permutas</div>
+                <div style="font-size:0.82rem;color:var(--text-2);margin-top:2px;">PodÃ©s proponer tu vehÃ­culo a cambio</div>
               </div>
               <button class="btn btn-primary" style="white-space:nowrap;" onclick="openTradeModal(${vehicle.id})">Proponer permuta</button>
             </div>
           ` : ''}
-          ${vehicle.accepts_financing && vehicle.status !== 'sold' ? `
+          ${vehicle.accepts_financing && !isOwner && vehicle.status === 'active' ? `
             <div style="margin-top:0.75rem;background:rgba(59,130,246,0.07);border:1px solid rgba(59,130,246,0.22);border-radius:var(--radius-md);padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
-              <div class="financing-card-copy">
-                <div class="financing-card-title">
-                  ${financingUsesPrestito ? `<img src="/logoprestito.png" alt="Prestito" class="financing-prestito-logo" loading="lazy">` : ''}
-                  <span>${financingTitleText}</span>
-                </div>
-                <div style="font-size:0.82rem;color:var(--text-2);margin-top:2px;">${financingSubtitleText}</div>
+              <div>
+                <div style="font-weight:600;font-size:0.95rem;">ð³ Este vendedor ofrece financiaciÃ³n</div>
+                <div style="font-size:0.82rem;color:var(--text-2);margin-top:2px;">PodÃ©s simular cuotas y consultar requisitos</div>
               </div>
-              <div class="financing-cta-buttons">
-                ${financingPrimaryCtaHtml}
-                ${financingSecondaryCtaHtml}
+              <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                <button class="btn btn-primary" style="white-space:nowrap;" onclick="openPrestitoQuoteModal(${vehicle.id}, ${Number(vehicle.year || 0)}, ${Number(vehicle.price || 0)}, ${Number(vehicle.price_original || 0)}, '${escapeHtml(vehicle.title).replace(/'/g, '&#39;')}')">Cotizar con PrÃ©stito</button>
+                ${isLoggedIn ? `<button class="btn btn-secondary" style="white-space:nowrap;" onclick="const qm=document.getElementById('quickMsgInput'); if(qm){qm.value='Â¿Ofreces financiaciÃ³n?'; qm.focus();}">Consultar por chat</button>` : ''}
               </div>
             </div>
           ` : ''}
@@ -2512,19 +2365,19 @@ ${vehicle.accepts_trade && isLoggedIn && !isOwner && vehicle.status === 'active'
           ${isLoggedIn && !isOwner && vehicle.status === 'active' ? `
             <div class="marketplace-chat-box" style="margin-top:1.5rem;background:var(--dark-2);padding:1.5rem;border-radius:var(--radius-lg);border:1px solid var(--border);" id="chatBoxContainer">
               <div id="existingConvBanner" style="display:none;text-align:center;">
-                <p style="margin-bottom:0.75rem;color:var(--text-secondary);">Ya consultaste sobre este vehículo</p>
+                <p style="margin-bottom:0.75rem;color:var(--text-secondary);">Ya consultaste sobre este vehÃ­culo</p>
                 <button class="btn btn-primary" id="goToChatBtn" style="width:100%;">Ir al chat</button>
               </div>
               <div id="newMessageBox">
                 <h4 style="margin-bottom:1rem;font-size:1.1rem;">Preguntar al vendedor</h4>
                 <div class="quick-messages" style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
-                  <button class="btn btn-ghost btn-sm" onclick="document.getElementById('quickMsgInput').value = '¿Sigue disponible?'">¿Sigue disponible?</button>
-                  <button class="btn btn-ghost btn-sm" onclick="document.getElementById('quickMsgInput').value = '¿Cuál es el precio final?'">¿Precio final?</button>
-                  <button class="btn btn-ghost btn-sm" onclick="document.getElementById('quickMsgInput').value = '¿Aceptas permutas?'">¿Permutas?</button>
-                  ${vehicle.accepts_financing ? `<button class="btn btn-ghost btn-sm" onclick="document.getElementById('quickMsgInput').value = '¿Ofreces financiación?'">¿Financiación?</button>` : ''}
+                  <button class="btn btn-ghost btn-sm" onclick="document.getElementById('quickMsgInput').value = 'Â¿Sigue disponible?'">Â¿Sigue disponible?</button>
+                  <button class="btn btn-ghost btn-sm" onclick="document.getElementById('quickMsgInput').value = 'Â¿CuÃ¡l es el precio final?'">Â¿Precio final?</button>
+                  <button class="btn btn-ghost btn-sm" onclick="document.getElementById('quickMsgInput').value = 'Â¿Aceptas permutas?'">Â¿Permutas?</button>
+                  ${vehicle.accepts_financing ? `<button class="btn btn-ghost btn-sm" onclick="document.getElementById('quickMsgInput').value = 'Â¿Ofreces financiaciÃ³n?'">Â¿FinanciaciÃ³n?</button>` : ''}
                 </div>
                 <div class="chat-input-row" style="display:flex;gap:0.5rem;">
-                  <input type="text" id="quickMsgInput" placeholder="Envía un mensaje..." style="flex:1;">
+                  <input type="text" id="quickMsgInput" placeholder="EnvÃ­a un mensaje..." style="flex:1;">
                   <button class="btn btn-primary" onclick="handleQuickMessage(${vehicle.id})">Enviar</button>
                 </div>
               </div>
@@ -2539,8 +2392,8 @@ ${vehicle.accepts_trade && isLoggedIn && !isOwner && vehicle.status === 'active'
                 <button class="btn btn-ghost" onclick="configureInstagramFromAdmin(event)">Config Instagram</button>
               ` : ''}
               ${isLoggedIn && (vehicle.status !== 'sold' || isFavorite) ? `<button id="detailFavBtn" class="btn ${isFavorite ? 'btn-primary' : 'btn-secondary'}" onclick="toggleFavorite(${vehicle.id}, event)"><svg width="18" height="18" viewBox="0 0 24 24" fill="${isFavorite ? 'currentColor' : 'none'}" stroke="currentColor" style="margin-right:0.5rem;"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>${isFavorite ? 'Quitar de favoritos' : 'Guardar en favoritos'}</button>` : ''}
-              ${isLoggedIn && !isOwner ? `<button class="btn btn-ghost" onclick="openReportModal(${vehicle.id})" style="color:var(--text-3);">Reportar esta publicación</button>` : ''}
-              ${!isLoggedIn ? `<button class="btn btn-primary" style="width:100%" onclick="showSection('login')">Iniciar sesión para mejorar la experiencia</button>` : ''}
+              ${isLoggedIn && !isOwner ? `<button class="btn btn-ghost" onclick="openReportModal(${vehicle.id})" style="color:var(--text-3);">Reportar esta publicaciÃ³n</button>` : ''}
+              ${!isLoggedIn ? `<button class="btn btn-primary" style="width:100%" onclick="showSection('login')">Iniciar sesiÃ³n para contactar, ofrecer permutas o consultar financiaciÃ³n</button>` : ''}
             </div>
           </div>
           ${isAdminView ? `
@@ -2566,7 +2419,7 @@ ${vehicle.accepts_trade && isLoggedIn && !isOwner && vehicle.status === 'active'
       </div>
       </div>
       <div class="similar-vehicles-section" id="similarVehiclesSection">
-        <h3 class="similar-title">Vehículos similares</h3>
+        <h3 class="similar-title">VehÃ­culos similares</h3>
         <div class="similar-vehicles-grid" id="similarVehiclesGrid">
           <div class="similar-loading">Cargando...</div>
         </div>
@@ -2719,7 +2572,7 @@ function renderEditImagePreviews() {
       <button class="preview-remove" type="button" onclick="removeEditImage(${i})">&times;</button>
       <div class="preview-controls">
         <button class="preview-move" type="button" onclick="moveEditImage(${i}, -1)" ${i === 0 ? 'disabled' : ''} title="Mover antes" aria-label="Mover foto antes">&#8593;</button>
-        <button class="preview-move" type="button" onclick="moveEditImage(${i}, 1)" ${i === editUploadedImages.length - 1 ? 'disabled' : ''} title="Mover después" aria-label="Mover foto después">&#8595;</button>
+        <button class="preview-move" type="button" onclick="moveEditImage(${i}, 1)" ${i === editUploadedImages.length - 1 ? 'disabled' : ''} title="Mover despuÃ©s" aria-label="Mover foto despuÃ©s">&#8595;</button>
         <button class="preview-cover ${i === 0 ? 'active' : ''}" type="button" onclick="setEditCoverImage(${i})">Portada</button>
       </div>
     </div>
@@ -2755,7 +2608,7 @@ function renderImagePreviews() {
       <button class="preview-remove" onclick="removeImage(${i})">&times;</button>
       <div class="preview-controls">
         <button class="preview-move" onclick="moveImage(${i}, -1)" ${i === 0 ? 'disabled' : ''} title="Mover antes" aria-label="Mover foto antes">&#8593;</button>
-        <button class="preview-move" onclick="moveImage(${i}, 1)" ${i === uploadedImages.length - 1 ? 'disabled' : ''} title="Mover después" aria-label="Mover foto después">&#8595;</button>
+        <button class="preview-move" onclick="moveImage(${i}, 1)" ${i === uploadedImages.length - 1 ? 'disabled' : ''} title="Mover despuÃ©s" aria-label="Mover foto despuÃ©s">&#8595;</button>
         <button class="preview-cover ${i === 0 ? 'active' : ''}" onclick="setCoverImage(${i})">Portada</button>
       </div>
     </div>
@@ -2785,66 +2638,46 @@ function removeImage(index) {
 async function handlePublish(e) {
   e.preventDefault();
   const btn = document.getElementById('publishBtn');
-
-  const province = document.getElementById('publishProvince').value;
-  const city = document.getElementById('publishCity').value;
-  const title = document.getElementById('publishTitle').value.trim();
-  const brand = document.getElementById('publishBrand').value;
-  const model = document.getElementById('publishModel').value;
-  const year = document.getElementById('publishYear').value;
-  const price = getPriceInUSD('publish');
-  const fuel = document.getElementById('publishFuel').value;
-  const transmission = document.getElementById('publishTransmission').value;
-  const description = document.getElementById('publishDescription').value.trim();
-
-  const missing = [];
-  if (!title) missing.push('título');
-  if (!brand) missing.push('marca');
-  if (!model) missing.push('modelo');
-  if (!year) missing.push('año');
-  if (!price || isNaN(price) || price <= 0) missing.push('precio');
-  if ((document.getElementById('publishCurrency')?.value || 'USD') === 'ARS' && !dolarRate?.venta) missing.push('cotizacion del dolar');
-  if (!fuel) missing.push('combustible');
-  if (!transmission) missing.push('transmisión');
-  if (!province || !city) missing.push('ubicación');
-  if (!description) missing.push('descripción');
-  if (!uploadedImages.length) {
-    showToast('Agregá al menos una foto del vehículo', 'error');
-    const uploadArea = document.getElementById('imageUploadArea');
-    if (uploadArea) {
-      uploadArea.classList.add('upload-error-shake');
-      setTimeout(() => uploadArea.classList.remove('upload-error-shake'), 700);
-      document.getElementById('publishStepPhotos')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-    return;
-  }
-
-  if (missing.length) {
-    showToast(`Completá: ${missing.join(', ')}`, 'error');
-    return;
-  }
-
-  // Show preview modal before publishing
-  openPublishPreviewModal();
-}
-
-async function _doPublish() {
-  const btn = document.getElementById('publishBtn');
-  const confirmBtn = document.getElementById('publishPreviewConfirmBtn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Publicando...'; }
-  if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.textContent = 'Publicando...'; }
+  btn.disabled = true;
+  btn.textContent = 'Publicando...';
   try {
     const province = document.getElementById('publishProvince').value;
     const city = document.getElementById('publishCity').value;
+    const title = document.getElementById('publishTitle').value.trim();
+    const brand = document.getElementById('publishBrand').value;
+    const model = document.getElementById('publishModel').value;
+    const year = document.getElementById('publishYear').value;
+    const price = getPriceInUSD('publish');
+    const fuel = document.getElementById('publishFuel').value;
+    const transmission = document.getElementById('publishTransmission').value;
+    const description = document.getElementById('publishDescription').value.trim();
     const publishVehicleType = document.getElementById('publishVehicleType')?.value || 'auto';
     const publishBodyType = document.getElementById('publishBodyType')?.value || '';
 
+    const missing = [];
+    if (!title) missing.push('tÃ­tulo');
+    if (!brand) missing.push('marca');
+    if (!model) missing.push('modelo');
+    if (!year) missing.push('aÃ±o');
+    if (!price || isNaN(price) || price <= 0) missing.push('precio');
+    if ((document.getElementById('publishCurrency')?.value || 'USD') === 'ARS' && !dolarRate?.venta) missing.push('cotizacion del dolar');
+    if (!fuel) missing.push('combustible');
+    if (!transmission) missing.push('transmisiÃ³n');
+    if (!province || !city) missing.push('ubicaciÃ³n');
+    if (!description) missing.push('descripciÃ³n');
+    if (!uploadedImages.length) missing.push('al menos una foto');
+
+    if (missing.length) {
+      showToast(`CompletÃ¡: ${missing.join(', ')}`, 'error');
+      btn.disabled = false;
+      btn.textContent = 'Publicar VehÃ­culo';
+      return;
+    }
     const urls = await uploadImages();
     const publishCurrency = document.getElementById('publishCurrency')?.value || 'USD';
     const publishRawPrice = parseFloat(document.getElementById('publishPrice').value) || null;
     const publishPriceUSD = getPriceInUSD('publish');
     const publishFrozenArs = publishCurrency === 'ARS' ? publishRawPrice : (dolarRate?.venta ? Math.round(publishPriceUSD * dolarRate.venta) : null);
-    const acceptsFinancing = document.getElementById('publishAcceptsFinancing')?.checked || false;
     const data = {
       title: document.getElementById('publishTitle').value,
       brand: document.getElementById('publishBrand').value,
@@ -2852,7 +2685,7 @@ async function _doPublish() {
       version: document.getElementById('publishVersion')?.value || '',
       year: document.getElementById('publishYear').value,
       price: publishPriceUSD,
-      // Si se publicó en ARS, guardamos el monto ingresado para trazabilidad histórica.
+      // Si se publicÃ³ en ARS, guardamos el monto ingresado para trazabilidad histÃ³rica.
       price_original: publishFrozenArs,
       price_currency: publishCurrency,
       transmission: document.getElementById('publishTransmission').value,
@@ -2862,10 +2695,7 @@ async function _doPublish() {
       province: province,
       description: document.getElementById('publishDescription').value,
       accepts_trade: document.getElementById('publishAcceptsTrade').checked,
-      accepts_financing: acceptsFinancing,
-      financing_provider: acceptsFinancing
-        ? (document.getElementById('publishFinancingProvider')?.value || 'prestito')
-        : null,
+      accepts_financing: document.getElementById('publishAcceptsFinancing')?.checked || false,
       vehicle_type: publishVehicleType,
       body_type: publishVehicleType === 'auto' ? (publishBodyType || null) : null,
       drivetrain: normalizedDrivetrainValue(document.getElementById('publishDrivetrain')?.value) || null,
@@ -2874,18 +2704,15 @@ async function _doPublish() {
       contact_address: document.getElementById('publishContactAddress')?.value?.trim() || null,
       images: urls
     };
-    const createdVehicle = await request('/vehicles', { method: 'POST', body: JSON.stringify(data) });
-    if (acceptsFinancing && createdVehicle && !Object.prototype.hasOwnProperty.call(createdVehicle, 'financing_provider')) {
-      showToast('No se guardo el tipo de financiacion. Ejecuta la migracion add-financing-provider-to-vehicles.sql', 'error');
-    }
-    showToast('¡Vehículo publicado!', 'success');
+    await request('/vehicles', { method: 'POST', body: JSON.stringify(data) });
+    showToast('Â¡VehÃ­culo publicado!', 'success');
     resetPublishForm();
     showSection('my-vehicles');
   } catch (err) { showToast(err.message, 'error'); }
   finally {
     // BUG-09: always re-enable the button, even on error
-    if (btn) { btn.disabled = false; btn.textContent = 'Vista previa y Publicar'; }
-    if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = '✓ Confirmar y Publicar'; }
+    btn.disabled = false;
+    btn.textContent = 'Publicar VehÃ­culo';
   }
 }
 
@@ -2908,14 +2735,14 @@ async function loadMyVehicles(page = 1) {
       const stats = await request('/stats').catch(() => null);
       const dashboard = document.getElementById('statsDashboard');
       if (dashboard) dashboard.innerHTML = stats ? `
-      <div class="stat-card"><div class="icon"><svg viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99z"/></svg></div><div class="stat-meta"><div class="number">${stats.vehicles_count}</div><div class="label">Vehículos</div></div></div>
+      <div class="stat-card"><div class="icon"><svg viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99z"/></svg></div><div class="stat-meta"><div class="number">${stats.vehicles_count}</div><div class="label">VehÃ­culos</div></div></div>
       <div class="stat-card"><div class="icon"><svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z"/></svg></div><div class="stat-meta"><div class="number">${stats.total_views}</div><div class="label">Vistas totales</div></div></div>
       <div class="stat-card"><div class="icon"><svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg></div><div class="stat-meta"><div class="number">${stats.conversations_count}</div><div class="label">Conversaciones</div></div></div>
       <div class="stat-card"><div class="icon"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></div><div class="stat-meta"><div class="number">${stats.favorites_count}</div><div class="label">Favoritos</div></div></div>
     ` : '';
 
       if (!vehicles?.length) {
-        container.innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg><h3>Sin publicaciones</h3><p>Publica tu primer vehículo</p></div>';
+        container.innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg><h3>Sin publicaciones</h3><p>Publica tu primer vehÃ­culo</p></div>';
         if (moreWrap) moreWrap.style.display = 'none';
         return;
       }
@@ -2931,7 +2758,8 @@ async function loadMyVehicles(page = 1) {
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
           <p class="vehicle-brand">${escapeHtml(v.brand)} ${escapeHtml(v.model)}</p>
           <div class="vehicle-price-block">
-            ${formatPesos(v.price, v) ? `<p class="vehicle-price">${formatPesos(v.price, v)}</p><p class="vehicle-price-ars">USD ${formatNumber(v.price)}</p>` : `<p class="vehicle-price">USD ${formatNumber(v.price)}</p>`}
+            <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
+            ${formatPesos(v.price, v) ? `<p class="vehicle-price-ars">${formatPesos(v.price, v)}</p>` : ''}
           </div>
           <div class="vehicle-mini-stats">
             <span title="Vistas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>${(statsMap[String(v.id)]?.view_count || v.view_count || 0)}</span>
@@ -2939,14 +2767,8 @@ async function loadMyVehicles(page = 1) {
             <span title="Consultas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>${(statsMap[String(v.id)]?.messages_count || 0)}</span>
           </div>
           <div class="my-vehicle-actions">
-            <select class="my-vehicle-status-select" onclick="event.stopPropagation()" onchange="changeVehicleStatus(${v.id}, this.value, this)">
-              <option value="active" ${v.status === 'active' ? 'selected' : ''}>Activo</option>
-              <option value="reserved" ${v.status === 'reserved' ? 'selected' : ''}>Reservado</option>
-              <option value="sold" ${v.status === 'sold' ? 'selected' : ''}>Vendido</option>
-              <option value="paused" ${v.status === 'paused' ? 'selected' : ''}>Pausado</option>
-            </select>
-            <button class="btn btn-secondary" onclick="openEditModal(${v.id}, event)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path></svg>Editar</button>
-            <button class="btn btn-danger" onclick="deleteVehicle(${v.id}, event)">Eliminar</button>
+            <button class="btn btn-secondary" style="flex:1;" onclick="openEditModal(${v.id}, event)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path></svg>Editar</button>
+            <button class="btn btn-danger" style="flex:1;" onclick="deleteVehicle(${v.id}, event)">Eliminar</button>
           </div>
         </div>
       </div>
@@ -2961,7 +2783,7 @@ async function loadMyVehicles(page = 1) {
     if (moreWrap && moreBtn) {
       moreWrap.style.display = myVehiclesHasMore ? 'block' : 'none';
       moreBtn.disabled = false;
-      moreBtn.textContent = 'Cargar más';
+      moreBtn.textContent = 'Cargar mÃ¡s';
       moreBtn.onclick = () => {
         moreBtn.disabled = true;
         moreBtn.textContent = 'Cargando...';
@@ -2970,27 +2792,9 @@ async function loadMyVehicles(page = 1) {
     }
   } catch (err) { showToast(err.message, 'error'); }
 }
-async function changeVehicleStatus(id, status, selectEl) {
-  const prev = selectEl.dataset.prev || selectEl.value;
-  selectEl.dataset.prev = status;
-  try {
-    await request(`/vehicles/${id}`, { method: 'PUT', body: JSON.stringify({ status }) });
-    showToast(`Estado actualizado: ${status === 'sold' ? 'Vendido' : status === 'reserved' ? 'Reservado' : status === 'paused' ? 'Pausado' : 'Activo'}`, 'success');
-    // Actualizar badge visible en la tarjeta
-    const badge = selectEl.closest('.vehicle-card')?.querySelector('.vehicle-badge');
-    if (badge) {
-      badge.className = `vehicle-badge${status === 'sold' ? ' badge-sold' : ''}`;
-      badge.textContent = status === 'active' ? 'Activo' : status === 'sold' ? 'VENDIDO' : status === 'paused' ? 'Pausado' : 'Reservado';
-    }
-  } catch (err) {
-    selectEl.value = prev;
-    showToast(err.message || 'Error al actualizar', 'error');
-  }
-}
-
 function deleteVehicle(id, e) {
   e.stopPropagation();
-  showConfirmModal('Eliminar vehículo', 'Esta acción no se puede deshacer. Se eliminarán todas las imágenes, conversaciones y favoritos asociados.', 'Eliminar', async () => {
+  showConfirmModal('Eliminar vehÃ­culo', 'Esta acciÃ³n no se puede deshacer. Se eliminarÃ¡n todas las imÃ¡genes, conversaciones y favoritos asociados.', 'Eliminar', async () => {
     try { await request(`/vehicles/${id}`, { method: 'DELETE' }); showToast('Eliminado', 'success'); loadMyVehicles(); } catch (err) { showToast(err.message, 'error'); }
   });
 }
@@ -3001,7 +2805,7 @@ async function openEditModal(id, e) {
     const v = await request(`/vehicles/${id}`);
     const canEdit = !!currentUser && (String(currentUser.id) === String(v.user_id) || !!currentUser.profile?.is_admin);
     if (!canEdit) {
-      showToast('No tenés permisos para editar esta publicación', 'error');
+      showToast('No tenÃ©s permisos para editar esta publicaciÃ³n', 'error');
       return;
     }
     editUploadedImages = (v.vehicle_images?.length ? v.vehicle_images : (v.image_url ? [{ url: v.image_url }] : []))
@@ -3077,13 +2881,6 @@ async function openEditModal(id, e) {
     document.getElementById('editAcceptsTrade').checked = !!v.accepts_trade;
     const editFinancingEl = document.getElementById('editAcceptsFinancing');
     if (editFinancingEl) editFinancingEl.checked = !!v.accepts_financing;
-    const editFinancingProviderEl = document.getElementById('editFinancingProvider');
-    if (editFinancingProviderEl) {
-      editFinancingProviderEl.value = String(v.financing_provider || 'prestito').toLowerCase() === 'propia'
-        ? 'propia'
-        : 'prestito';
-    }
-    toggleFinancingProviderField('edit');
     const editCCEl = document.getElementById('editEngineCC');
     if (editCCEl) editCCEl.value = v.engine_cc || '';
     toggleEngineCCField('edit');
@@ -3127,7 +2924,7 @@ async function handleEditVehicle(e) {
     const province = document.getElementById('editProvince').value;
     const city = document.getElementById('editCity').value;
     if (!province || !city) {
-      showToast('Seleccioná la provincia y la ciudad', 'error');
+      showToast('SeleccionÃ¡ la provincia y la ciudad', 'error');
       btn.disabled = false;
       btn.textContent = 'Guardar cambios';
       return;
@@ -3144,7 +2941,6 @@ async function handleEditVehicle(e) {
     const editVersion = document.getElementById('editVersion').value;
     const editVehicleType = document.getElementById('editVehicleTypeTop')?.value || 'auto';
     const editBodyType = document.getElementById('editBodyType')?.value || '';
-    const editAcceptsFinancing = document.getElementById('editAcceptsFinancing')?.checked || false;
     const editCurrency = document.getElementById('editCurrency')?.value || 'USD';
     const editRawPrice = parseFloat(document.getElementById('editPrice').value) || null;
     const editPriceUSD = getPriceInUSD('edit');
@@ -3157,7 +2953,7 @@ async function handleEditVehicle(e) {
     }
     const editImageUrls = await uploadEditImages();
     const autoTitle = `${editBrand} ${editModel} ${editVersion} ${editYear}`.replace(/\s+/g, ' ').trim();
-    const updatedVehicle = await request(`/vehicles/${id}`, {
+    await request(`/vehicles/${id}`, {
       method: 'PUT',
       body: JSON.stringify({
         title: autoTitle,
@@ -3176,10 +2972,7 @@ async function handleEditVehicle(e) {
         status: document.getElementById('editStatus').value,
         description: document.getElementById('editDescription').value,
         accepts_trade: document.getElementById('editAcceptsTrade').checked,
-        accepts_financing: editAcceptsFinancing,
-        financing_provider: editAcceptsFinancing
-          ? (document.getElementById('editFinancingProvider')?.value || 'prestito')
-          : null,
+        accepts_financing: document.getElementById('editAcceptsFinancing')?.checked || false,
         vehicle_type: editVehicleType,
         body_type: editVehicleType === 'auto' ? (editBodyType || null) : null,
         drivetrain: normalizedDrivetrainValue(document.getElementById('editDrivetrain')?.value) || null,
@@ -3189,10 +2982,7 @@ async function handleEditVehicle(e) {
         images: editImageUrls
       })
     });
-    if (editAcceptsFinancing && updatedVehicle && !Object.prototype.hasOwnProperty.call(updatedVehicle, 'financing_provider')) {
-      showToast('No se guardo el tipo de financiacion. Ejecuta la migracion add-financing-provider-to-vehicles.sql', 'error');
-    }
-    showToast('¡Publicación actualizada!', 'success');
+    showToast('Â¡PublicaciÃ³n actualizada!', 'success');
     closeEditModal();
     if (String(currentVehicleId) === String(id)) {
       viewVehicle(Number(id));
@@ -3208,7 +2998,7 @@ async function loadFavorites() {
   try {
     const vehicles = await request('/favorites');
     const container = document.getElementById('favoritesList');
-    if (!vehicles?.length) { container.innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg><h3>Sin favoritos</h3><p>Agrega vehículos a tus favoritos</p></div>'; return; }
+    if (!vehicles?.length) { container.innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg><h3>Sin favoritos</h3><p>Agrega vehÃ­culos a tus favoritos</p></div>'; return; }
     container.innerHTML = vehicles.map(v => `
       <div class="vehicle-card" onclick="viewVehicle(${v.id})">
         <div class="vehicle-image-container">
@@ -3220,7 +3010,8 @@ async function loadFavorites() {
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
           <p class="vehicle-brand">${escapeHtml(v.brand)} ${escapeHtml(v.model)}</p>
           <div class="vehicle-price-block">
-            ${formatPesos(v.price, v) ? `<p class="vehicle-price">${formatPesos(v.price, v)}</p><p class="vehicle-price-ars">USD ${formatNumber(v.price)}</p>` : `<p class="vehicle-price">USD ${formatNumber(v.price)}</p>`}
+            <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
+            ${formatPesos(v.price, v) ? `<p class="vehicle-price-ars">${formatPesos(v.price, v)}</p>` : ''}
           </div>
           <button class="btn btn-ghost btn-sm" style="margin-top:0.5rem;color:var(--text-3);width:100%;" onclick="toggleFavorite(${v.id}, event);this.closest('.vehicle-card').remove()">Eliminar de favoritos</button>
         </div>
@@ -3232,7 +3023,7 @@ async function loadFavorites() {
 
 async function toggleFavorite(id, e) {
   if (e) e.stopPropagation();
-  if (!localStorage.getItem('token')) { showToast('Inicia sesión para agregar favoritos', 'error'); return; }
+  if (!localStorage.getItem('token')) { showToast('Inicia sesiÃ³n para agregar favoritos', 'error'); return; }
   try {
     const res = await request(`/favorites/${id}`, { method: 'POST' });
     showToast(res.favorited ? 'Agregado a favoritos' : 'Eliminado de favoritos', 'success');
@@ -3285,9 +3076,9 @@ async function loadConversations(page = 1) {
     if (page === 1 && !conversations?.length) {
       container.innerHTML = `<div class="empty-state" style="padding: 2rem; text-align: center;">
   <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.3; margin-bottom: 1rem;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-  <h3 style="margin-bottom: 0.5rem; font-size: 1rem;">Sin conversaciones aún</h3>
-  <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">Cuando contactes a un vendedor, el chat aparecerá aquí.</p>
-  <button class="btn btn-primary" style="font-size: 0.85rem; padding: 0.5rem 1.25rem;" onclick="showSection('vehicles')">Explorar vehículos</button>
+  <h3 style="margin-bottom: 0.5rem; font-size: 1rem;">Sin conversaciones aÃºn</h3>
+  <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">Cuando contactes a un vendedor, el chat aparecerÃ¡ aquÃ­.</p>
+  <button class="btn btn-primary" style="font-size: 0.85rem; padding: 0.5rem 1.25rem;" onclick="showSection('vehicles')">Explorar vehÃ­culos</button>
 </div>`;
       renderEmptyChat(); return;
     }
@@ -3297,7 +3088,7 @@ async function loadConversations(page = 1) {
         <div class="conversation-info">
           <div class="conversation-name">${escapeHtml(c.other_user?.username || 'Usuario')}</div>
           <div class="conversation-vehicle">${escapeHtml(c.vehicle?.title || '')}</div>
-          <div class="conversation-preview">${(() => { const text = c.last_message?.startsWith('__TRADE_CARD__') ? 'Propuesta de permuta' : (c.last_message || ''); const prefix = c.last_message_sender_id === currentUser?.id ? 'Tú: ' : ''; return escapeHtml(prefix + text); })()}</div>
+          <div class="conversation-preview">${(() => { const text = c.last_message?.startsWith('__TRADE_CARD__') ? 'Propuesta de permuta' : (c.last_message || ''); const prefix = c.last_message_sender_id === currentUser?.id ? 'TÃº: ' : ''; return escapeHtml(prefix + text); })()}</div>
         </div>
         <div class="conversation-meta" style="display:flex;flex-direction:column;align-items:flex-end;">
           <span class="conversation-time">${formatRelTime(c.updated_at)}</span>
@@ -3308,7 +3099,7 @@ async function loadConversations(page = 1) {
     if (page === 1) container.innerHTML = html; else { const old = container.querySelector('.load-more-btn'); if (old) old.remove(); container.insertAdjacentHTML('beforeend', html); }
     conversationsPage = page;
     if (total > page * 100) {
-      container.insertAdjacentHTML('beforeend', `<button class="btn btn-ghost btn-sm load-more-btn" style="width:100%;margin-top:0.5rem;" onclick="loadConversations(${page + 1})">Cargar más</button>`);
+      container.insertAdjacentHTML('beforeend', `<button class="btn btn-ghost btn-sm load-more-btn" style="width:100%;margin-top:0.5rem;" onclick="loadConversations(${page + 1})">Cargar mÃ¡s</button>`);
     }
     if (page === 1) { if (currentConversationId) loadChatFull(currentConversationId); else renderEmptyChat(); }
   } catch (err) {
@@ -3379,17 +3170,17 @@ async function loadChatFull(convId) {
         </div>
 
         ${vehicle ? `
-        <div class="chat-vehicle-ref-inline" onclick="viewVehicle(${vehicle.id})" title="Ver publicación">
+        <div class="chat-vehicle-ref-inline" onclick="viewVehicle(${vehicle.id})" title="Ver publicaciÃ³n">
           <img src="${escapeHtml(vehicleImg)}" onerror="this.src=PLACEHOLDER_IMG" alt="" loading="lazy">
           <div class="chat-vehicle-ref-inline-info">
             <div class="chat-vehicle-ref-title">${escapeHtml(vehicle.title || (vehicle.brand + ' ' + vehicle.model))}</div>
             <div class="chat-vehicle-ref-price">$${formatNumber(vehicle.price)}</div>
           </div>
-          <span class="chat-vehicle-ref-arrow">›</span>
+          <span class="chat-vehicle-ref-arrow">âº</span>
         </div>
         ` : ''}
 
-        ${conv.buyer_id === currentUser?.id ? `<button class="chat-header-btn" onclick="openRateModal(${convId}, ${otherUser?.id}, ${vehicle?.id || 'null'})" title="Calificar">★</button>` : ''}
+        ${conv.buyer_id === currentUser?.id ? `<button class="chat-header-btn" onclick="openRateModal(${convId}, ${otherUser?.id}, ${vehicle?.id || 'null'})" title="Calificar">â</button>` : ''}
       </div>
 
       <div class="chat-messages-container" id="chatMessagesContainer"></div>
@@ -3491,19 +3282,19 @@ function appendMessageToDOM(message, readAt) {
       const offerId = v.offer_id || null;
       html += `
         <div class="trade-card" data-offer-id="${offerId || ''}" onclick="event.target.closest('button') || viewVehicle(${v.id})">
-          <div class="trade-card-badge">🔄 Propuesta de permuta</div>
+          <div class="trade-card-badge">ð Propuesta de permuta</div>
           <div class="trade-card-img">
             <img src="${escapeHtml(v.image) || PLACEHOLDER_IMG}" onerror="this.src=PLACEHOLDER_IMG" alt="${escapeHtml(v.title)}" loading="lazy">
           </div>
           <div class="trade-card-body">
             <div class="trade-card-title">${escapeHtml(v.title)}</div>
-            <div class="trade-card-sub">${escapeHtml(v.brand)} ${escapeHtml(v.model)} · ${escapeHtml(String(v.year))}</div>
+            <div class="trade-card-sub">${escapeHtml(v.brand)} ${escapeHtml(v.model)} Â· ${escapeHtml(String(v.year))}</div>
             <div class="trade-card-price">$${formatNumber(v.price)}</div>
             ${v.city ? `<div class="trade-card-location"> ${escapeHtml(v.city)}${v.province ? ', ' + escapeHtml(v.province.replace(/\s*\(.*?\)/g,'').trim()) : ''}</div>` : ''}
             ${isOwner && offerId ? `
             <div class="trade-card-actions" id="trade-actions-${offerId}">
-              <button class="btn btn-primary btn-sm" style="margin-right:0.4rem;" onclick="respondToTradeInChat(${offerId}, 'accepted')">✅ Aceptar</button>
-              <button class="btn btn-danger btn-sm" onclick="respondToTradeInChat(${offerId}, 'rejected')">❌ Rechazar</button>
+              <button class="btn btn-primary btn-sm" style="margin-right:0.4rem;" onclick="respondToTradeInChat(${offerId}, 'accepted')">â Aceptar</button>
+              <button class="btn btn-danger btn-sm" onclick="respondToTradeInChat(${offerId}, 'rejected')">â Rechazar</button>
             </div>` : ''}
           </div>
         </div>`;
@@ -3542,10 +3333,10 @@ function updateOnlineStatus(otherUser) {
   const el = document.getElementById('chatOnlineStatus');
   if (!el) return;
   if (otherUser?.is_online) {
-    el.textContent = 'En línea';
+    el.textContent = 'En lÃ­nea';
     el.style.color = 'var(--success)';
   } else if (otherUser?.last_seen) {
-    el.textContent = 'Últ. vez: ' + formatRelTime(otherUser.last_seen);
+    el.textContent = 'Ãlt. vez: ' + formatRelTime(otherUser.last_seen);
     el.style.color = 'var(--text-secondary)';
   } else {
     el.textContent = 'Desconectado';
@@ -3581,7 +3372,7 @@ async function sendMessage() {
     const activeItem = document.querySelector(`.conversation-item.active`);
     if (activeItem) {
       const preview = activeItem.querySelector('.conversation-preview');
-      if (preview) preview.textContent = 'Tú: ' + content;
+      if (preview) preview.textContent = 'TÃº: ' + content;
       const timeEl = activeItem.querySelector('.conversation-time');
       if (timeEl) timeEl.textContent = 'Ahora';
       // Move to top of list
@@ -3607,14 +3398,14 @@ function closeMobileChat() {
 }
 
 function renderEmptyChat() {
-  document.getElementById('chatView').innerHTML = '<div class="chat-empty"><svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg><p>Selecciona una conversación</p></div>';
+  document.getElementById('chatView').innerHTML = '<div class="chat-empty"><svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg><p>Selecciona una conversaciÃ³n</p></div>';
 }
 
 function scrollChat() { setTimeout(() => { const c = document.getElementById('chatMessagesContainer'); if (c) c.scrollTop = c.scrollHeight; }, 100); }
 let chatPollTimeout = null;
 let chatNoMessageStreak = 0;
 
-// ─── WebSocket ───────────────────────────────────────────────────────────────
+// âââ WebSocket âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 function wsSend(msg) {
   if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
@@ -3700,7 +3491,7 @@ function handleWsEvent(msg) {
   if (type === 'new_message') {
     const { conversationId, message } = payload;
     if (String(conversationId) !== String(currentConversationId)) {
-      // Mensaje en otra conversación — actualizar lista si está visible
+      // Mensaje en otra conversaciÃ³n â actualizar lista si estÃ¡ visible
       refreshConversationBadge(conversationId);
       return;
     }
@@ -3712,7 +3503,7 @@ function handleWsEvent(msg) {
     appendMessageToDOM(message, message.read_at);
     lastMessageId = message.id;
     if (isAtBottom) scrollChat();
-    // Si es mensaje entrante, marcar como leído con debounce
+    // Si es mensaje entrante, marcar como leÃ­do con debounce
     if (String(message.sender_id) !== String(currentUser?.id)) {
       scheduleReadReceipt(conversationId);
       refreshConversationItem(conversationId, message);
@@ -3733,7 +3524,7 @@ function handleWsEvent(msg) {
         timeEl.dataset.receipted = '1';
         const span = document.createElement('span');
         span.className = 'read-receipt';
-        span.textContent = ` · Visto ${formatTime(readAt)}`;
+        span.textContent = ` Â· Visto ${formatTime(readAt)}`;
         span.style.cssText = 'opacity:0.7;font-size:0.75em;';
         timeEl.appendChild(span);
       }
@@ -3760,13 +3551,13 @@ function handleWsEvent(msg) {
     if (!currentChatOtherUserId || String(userId) !== String(currentChatOtherUserId)) return;
     const statusEl = document.getElementById('chatOnlineStatus');
     if (!statusEl) return;
-    statusEl.textContent = isOnline ? 'En línea' : 'Desconectado';
+    statusEl.textContent = isOnline ? 'En lÃ­nea' : 'Desconectado';
     statusEl.style.color = isOnline ? 'var(--success, #22c55e)' : 'var(--text-muted)';
     return;
   }
 
   if (type === 'unread_count_update') {
-    // Re-fetch el count real en lugar de usar delta (más preciso)
+    // Re-fetch el count real en lugar de usar delta (mÃ¡s preciso)
     loadUnreadMessageCount && loadUnreadMessageCount();
     return;
   }
@@ -3779,7 +3570,7 @@ function handleWsEvent(msg) {
       badge.textContent = current + 1;
       badge.style.display = 'inline';
     }
-    // Si la sección está abierta, recargar la lista
+    // Si la secciÃ³n estÃ¡ abierta, recargar la lista
     const notifSection = document.getElementById('notifications');
     if (notifSection && notifSection.style.display === 'block') {
       loadNotifications();
@@ -3801,7 +3592,7 @@ function refreshConversationBadge(_conversationId) {
 }
 
 function refreshConversationItem(conversationId, message) {
-  // Actualizar el preview del último mensaje en la lista de conversaciones
+  // Actualizar el preview del Ãºltimo mensaje en la lista de conversaciones
   const item = document.querySelector(`.conversation-item[data-conv-id="${conversationId}"]`);
   if (!item) return;
   const preview = item.querySelector('.conv-preview, .last-message, .message-preview');
@@ -3818,7 +3609,7 @@ function startFallbackPolling() {
 function showTypingIndicator(username) {
   const el = document.getElementById('typingIndicator');
   if (!el) return;
-  el.textContent = `${escapeHtml(username)} está escribiendo...`;
+  el.textContent = `${escapeHtml(username)} estÃ¡ escribiendo...`;
   el.style.display = 'block';
   clearTimeout(el._hideTimeout);
   el._hideTimeout = setTimeout(hideTypingIndicator, 5000);
@@ -3842,7 +3633,7 @@ function onChatInputTyping() {
   }, 2000);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 function schedulePoll() {
   clearTimeout(chatPollTimeout);
@@ -3906,11 +3697,10 @@ const NOTIF_ICONS = {
   new_vehicle:   `<svg viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99z"/></svg>`,
   rating:        `<svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>`,
   favorite_sold: `<svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`,
-  admin_contact_request: `<svg viewBox="0 0 24 24"><path d="M12 1l9 4v6c0 5.55-3.84 10.74-9 12-5.16-1.26-9-6.45-9-12V5l9-4zm-1 11l6-6-1.41-1.41L11 9.17 8.41 6.59 7 8l4 4z"/></svg>`,
 };
 function notifIcon(type) {
   const svg = NOTIF_ICONS[type] || `<svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>`;
-  const colors = { message:'#60a5fa', trade_offer:'#f59e0b', trade_accepted:'#22c55e', trade_rejected:'#ef4444', follow:'#a78bfa', new_vehicle:'#f59e0b', rating:'#facc15', favorite_sold:'#ef4444', admin_contact_request:'#38bdf8' };
+  const colors = { message:'#60a5fa', trade_offer:'#f59e0b', trade_accepted:'#22c55e', trade_rejected:'#ef4444', follow:'#a78bfa', new_vehicle:'#f59e0b', rating:'#facc15', favorite_sold:'#ef4444' };
   const bg = colors[type] || 'var(--text-3)';
   return `<div class="notification-icon" style="background:${bg}22;color:${bg};">${svg}</div>`;
 }
@@ -3947,7 +3737,7 @@ async function loadNotifications(offset = 0) {
       const btn = document.createElement('button');
       btn.className = 'btn btn-ghost btn-sm load-more-notif-btn';
       btn.style.cssText = 'width:100%;margin-top:0.5rem;';
-      btn.textContent = `Cargar más (${notificationsTotal - notificationsOffset} restantes)`;
+      btn.textContent = `Cargar mÃ¡s (${notificationsTotal - notificationsOffset} restantes)`;
       btn.onclick = () => loadNotifications(notificationsOffset);
       container.appendChild(btn);
     }
@@ -3957,7 +3747,7 @@ async function loadNotifications(offset = 0) {
       container.innerHTML = `
         <div class="empty-state" style="padding:1.5rem;text-align:center;">
           <h3 style="margin-bottom:0.5rem;font-size:1rem;">No pudimos cargar notificaciones</h3>
-          <p style="color:var(--text-2);font-size:0.9rem;margin-bottom:0.9rem;">Verifica tu conexión e intenta de nuevo.</p>
+          <p style="color:var(--text-2);font-size:0.9rem;margin-bottom:0.9rem;">Verifica tu conexiÃ³n e intenta de nuevo.</p>
           <button class="btn btn-secondary btn-sm" onclick="loadNotifications(0)">Reintentar</button>
         </div>
       `;
@@ -3993,16 +3783,11 @@ async function handleNotificationClick(link, id) {
     viewProfile(link.split('/').pop());
   } else if (link === 'trade-offers') {
     showSection('my-vehicles');
-  } else if (link === 'admin/contact-requests') {
-    if (currentUser?.profile?.is_admin) {
-      adminPreferredTab = 'contact-requests';
-      showSection('admin');
-    }
   }
 }
 
 async function markAllRead() {
-  try { await request('/notifications/read-all', { method: 'PUT' }); loadNotifications(); loadNotificationCount(); showToast('Notificaciones marcadas como leídas', 'success'); } catch (err) { showToast(err.message, 'error'); }
+  try { await request('/notifications/read-all', { method: 'PUT' }); loadNotifications(); loadNotificationCount(); showToast('Notificaciones marcadas como leÃ­das', 'success'); } catch (err) { showToast(err.message, 'error'); }
 }
 
 // PROFILE
@@ -4010,7 +3795,7 @@ async function viewProfile(id) {
   currentProfileId = id;
   const isOwn = currentUser && String(currentUser.id) === String(id);
   const profileForm = document.getElementById('profileForm');
-  if (profileForm) profileForm.innerHTML = ''; // Limpiar form de edición
+  if (profileForm) profileForm.innerHTML = ''; // Limpiar form de ediciÃ³n
   try {
     const profile = await request(`/profile/${id}`);
     const ratings = await request(`/ratings/${id}`);
@@ -4019,7 +3804,7 @@ async function viewProfile(id) {
       const fields = [
         { name: 'Nombre', done: !!profile.username },
         { name: 'Foto', done: !!profile.avatar_url },
-        { name: 'Teléfono', done: !!profile.phone },
+        { name: 'TelÃ©fono', done: !!profile.phone },
         { name: 'Ciudad', done: !!profile.city },
         { name: 'Bio', done: !!profile.bio }
       ];
@@ -4029,7 +3814,7 @@ async function viewProfile(id) {
         completenessHtml = `
         <div class="profile-completeness">
           <div class="profile-completeness-header">
-            <h4>Completá tu perfil</h4>
+            <h4>CompletÃ¡ tu perfil</h4>
             <span class="pct-badge">${pct}%</span>
           </div>
           <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
@@ -4051,8 +3836,8 @@ async function viewProfile(id) {
           <div style="display:flex;align-items:center;gap:0.75rem;">
             <svg viewBox="0 0 24 24" width="22" height="22" fill="#4ade80"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
             <div>
-              <div style="font-weight:700;color:#4ade80;">¡Perfil completo!</div>
-              <div style="font-size:0.82rem;color:var(--text-2);">Tu perfil tiene toda la información.</div>
+              <div style="font-weight:700;color:#4ade80;">Â¡Perfil completo!</div>
+              <div style="font-size:0.82rem;color:var(--text-2);">Tu perfil tiene toda la informaciÃ³n.</div>
             </div>
             <span class="pct-badge" style="margin-left:auto;">100%</span>
           </div>
@@ -4094,10 +3879,10 @@ async function viewProfile(id) {
         
         ${profile.rating ? `
           <div class="rating">
-            ${'★'.repeat(Math.round(profile.rating))}${'☆'.repeat(5-Math.round(profile.rating))} 
-            <span>(${profile.ratings_count} reseñas)</span>
+            ${'â'.repeat(Math.round(profile.rating))}${'â'.repeat(5-Math.round(profile.rating))} 
+            <span>(${profile.ratings_count} reseÃ±as)</span>
           </div>
-        ` : '<p style="color:var(--text-3); margin-top:0.5rem;">Sin reseñas aún</p>'}
+        ` : '<p style="color:var(--text-3); margin-top:0.5rem;">Sin reseÃ±as aÃºn</p>'}
         
         ${profileLocationDisplay ? `
           <div class="profile-location">
@@ -4111,7 +3896,7 @@ async function viewProfile(id) {
           ${profileMapsUrl ? `
             <a href="${escapeHtml(profileMapsUrl)}" target="_blank" rel="noopener" class="profile-action-btn location">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-              Ver ubicación
+              Ver ubicaciÃ³n
             </a>
           ` : ''}
           ${profile.instagram ? `
@@ -4142,7 +3927,7 @@ async function viewProfile(id) {
         <div class="profile-stats-grid">
           <div class="profile-stat-item">
             <span class="profile-stat-value">${profile.vehicles_count || 0}</span>
-            <span class="profile-stat-label">Vehículos</span>
+            <span class="profile-stat-label">VehÃ­culos</span>
           </div>
           <div class="profile-stat-item">
             <span class="profile-stat-value" id="followersCount">${profile.followers_count || 0}</span>
@@ -4180,7 +3965,8 @@ async function viewProfile(id) {
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
           ${v.city ? `<p class="vehicle-location"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> ${escapeHtml(v.city)}${v.province ? ', ' + escapeHtml(v.province.replace(/\s*\(.*?\)/g,'').trim()) : ''}</p>` : ''}
           <div class="vehicle-price-block">
-            ${formatPesos(v.price, v) ? `<p class="vehicle-price">${formatPesos(v.price, v)}</p><p class="vehicle-price-ars">USD ${formatNumber(v.price)}</p>` : `<p class="vehicle-price">USD ${formatNumber(v.price)}</p>`}
+            <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
+            ${formatPesos(v.price, v) ? `<p class="vehicle-price-ars">${formatPesos(v.price, v)}</p>` : ''}
           </div>
           ${buildVehicleMetaHtml(v)}
           ${isViewerAdmin && !isOwn ? `<button class="btn btn-sm btn-danger" style="margin-top:0.5rem;width:100%;" data-vid="${v.id}" data-title="${escapeHtml(v.title)}" onclick="event.stopPropagation(); adminDeleteVehicle(+this.dataset.vid, this.dataset.title)">Eliminar</button>` : ''}
@@ -4203,7 +3989,7 @@ async function viewProfile(id) {
       profileVehiclesHasMore = (page * 12) < total;
 
       if (page === 1 && !list.length) {
-        profileVehiclesList.innerHTML = '<p style="color:var(--text-secondary)">Sin vehículos publicados</p>';
+        profileVehiclesList.innerHTML = '<p style="color:var(--text-secondary)">Sin vehÃ­culos publicados</p>';
       } else if (list.length) {
         renderProfileVehicles(list, page > 1);
       }
@@ -4211,7 +3997,7 @@ async function viewProfile(id) {
       if (profileVehiclesMoreWrap && profileVehiclesMoreBtn) {
         profileVehiclesMoreWrap.style.display = profileVehiclesHasMore ? 'block' : 'none';
         profileVehiclesMoreBtn.disabled = false;
-        profileVehiclesMoreBtn.textContent = 'Cargar más publicaciones';
+        profileVehiclesMoreBtn.textContent = 'Cargar mÃ¡s publicaciones';
       }
     };
 
@@ -4225,8 +4011,8 @@ async function viewProfile(id) {
       };
     }
     document.getElementById('profileReviewsList').innerHTML = ratings?.length ? ratings.map(r => `
-      <div class="review-item"><div class="stars">${'★'.repeat(r.stars)}${'☆'.repeat(5-r.stars)}</div><div class="author">${escapeHtml(r.from_user?.username)} - ${formatRelTime(r.created_at)}</div>${r.review ? `<div class="text">${escapeHtml(r.review)}</div>` : ''}</div>
-    `).join('') : '<p style="color:var(--text-secondary)">Sin reseñas</p>';
+      <div class="review-item"><div class="stars">${'â'.repeat(r.stars)}${'â'.repeat(5-r.stars)}</div><div class="author">${escapeHtml(r.from_user?.username)} - ${formatRelTime(r.created_at)}</div>${r.review ? `<div class="text">${escapeHtml(r.review)}</div>` : ''}</div>
+    `).join('') : '<p style="color:var(--text-secondary)">Sin reseÃ±as</p>';
     showSection('profile');
   } catch (err) { showToast(err.message, 'error'); }
 }
@@ -4275,22 +4061,22 @@ async function editProfile(targetUserId = null) {
       </div>
       <div class="form-group"><label for="editUsername">Nombre de usuario</label><input type="text" id="editUsername" value="${escapeHtml(sourceUser.username || '')}" placeholder="tunombre" minlength="3"></div>
       <div class="form-group">
-        <label for="editPhone">Teléfono / WhatsApp</label>
+        <label for="editPhone">TelÃ©fono / WhatsApp</label>
         <input type="tel" id="editPhone" value="${escapeHtml(sourceProfile?.phone || '')}" placeholder="+54...">
         <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.5rem;">
           <input type="checkbox" id="editShowPhone" ${sourceProfile?.show_phone !== false ? 'checked' : ''} style="width:auto;margin:0;">
-          <label for="editShowPhone" style="margin:0;font-size:0.88rem;color:var(--text-secondary);cursor:pointer;">Mostrar botón de WhatsApp en perfil y publicaciones</label>
+          <label for="editShowPhone" style="margin:0;font-size:0.88rem;color:var(--text-secondary);cursor:pointer;">Mostrar botÃ³n de WhatsApp en perfil y publicaciones</label>
         </div>
       </div>
-      <div class="form-group"><label for="editProfileProvince">Provincia</label><select id="editProfileProvince" onchange="onEditProfileProvinceChange()"><option value="">Seleccioná una provincia</option>${AR_PROVINCES.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('')}</select></div>
-      <div class="form-group"><label for="editProfileCity">Ciudad</label><select id="editProfileCity"><option value="">Seleccioná una ciudad</option></select></div>
-      <div class="form-group"><label for="editBio">Bio</label><textarea id="editBio" rows="3" placeholder="Cuéntanos sobre ti...">${escapeHtml(sourceProfile?.bio || '')}</textarea></div>
+      <div class="form-group"><label for="editProfileProvince">Provincia</label><select id="editProfileProvince" onchange="onEditProfileProvinceChange()"><option value="">SeleccionÃ¡ una provincia</option>${AR_PROVINCES.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('')}</select></div>
+      <div class="form-group"><label for="editProfileCity">Ciudad</label><select id="editProfileCity"><option value="">SeleccionÃ¡ una ciudad</option></select></div>
+      <div class="form-group"><label for="editBio">Bio</label><textarea id="editBio" rows="3" placeholder="CuÃ©ntanos sobre ti...">${escapeHtml(sourceProfile?.bio || '')}</textarea></div>
       ${sourceProfile?.is_verified ? `
         <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);">
           <h4 style="font-size:0.95rem;margin-bottom:0.75rem;color:var(--primary);">Datos de concesionaria (verificado)</h4>
           <div class="form-group"><label>Nombre de la concesionaria</label><input type="text" id="editDealershipName" value="${escapeHtml(sourceProfile?.dealership_name || '')}" placeholder="Ej: Autos Premium SRL"></div>
-          <div class="form-group"><label>Dirección de la concesionaria</label><input type="text" id="editDealershipAddress" value="${escapeHtml(sourceProfile?.dealership_address || '')}" placeholder="Ej: Av. Libertador 1234, CABA"></div>
-          <div class="form-group"><label>Instagram</label><input type="text" id="editInstagram" value="${escapeHtml(sourceProfile?.instagram || '')}" placeholder="https://instagram.com/tuconcesionaria"><small style="color:var(--text-secondary);font-size:0.78rem;">Pegá el enlace completo de Instagram</small></div>
+          <div class="form-group"><label>DirecciÃ³n de la concesionaria</label><input type="text" id="editDealershipAddress" value="${escapeHtml(sourceProfile?.dealership_address || '')}" placeholder="Ej: Av. Libertador 1234, CABA"></div>
+          <div class="form-group"><label>Instagram</label><input type="text" id="editInstagram" value="${escapeHtml(sourceProfile?.instagram || '')}" placeholder="https://instagram.com/tuconcesionaria"><small style="color:var(--text-secondary);font-size:0.78rem;">PegÃ¡ el enlace completo de Instagram</small></div>
         </div>
       ` : ''}
       <div style="display:flex;gap:0.75rem;margin-top:1.25rem;">
@@ -4315,7 +4101,7 @@ function onEditProfileProvinceChange() {
   const cityEl = document.getElementById('editProfileCity');
   if (!cityEl) return;
   const cities = AR_CITIES.filter(c => c.prov === prov);
-  cityEl.innerHTML = '<option value="">Seleccioná una ciudad</option>' +
+  cityEl.innerHTML = '<option value="">SeleccionÃ¡ una ciudad</option>' +
     cities.map(c => `<option value="${escapeHtml(c.city)}">${escapeHtml(c.city)}</option>`).join('');
 }
 
@@ -4410,29 +4196,16 @@ async function saveProfile(e) {
 }
 
 // ADMIN
-let adminPreferredTab = null;
-
-function renderAdminStats(stats = {}) {
-  document.getElementById('adminStats').innerHTML = `
-    <div class="admin-stat"><div class="number">${stats.users || 0}</div><div class="label">Usuarios</div></div>
-    <div class="admin-stat"><div class="number">${stats.vehicles || 0}</div><div class="label">Vehículos</div></div>
-    <div class="admin-stat"><div class="number">${stats.active_vehicles || 0}</div><div class="label">Activos</div></div>
-    <div class="admin-stat"><div class="number">${stats.pending_reports || 0}</div><div class="label">Reportes pendientes</div></div>
-    <div class="admin-stat"><div class="number">${stats.pending_admin_contact_requests || 0}</div><div class="label">Consultas pendientes</div></div>
-  `;
-}
-
-async function refreshAdminStats() {
-  const stats = await request('/admin/stats');
-  renderAdminStats(stats || {});
-}
-
 async function loadAdmin() {
   try {
-    await refreshAdminStats();
-    const nextTab = adminPreferredTab || 'reports';
-    adminPreferredTab = null;
-    showAdminTab(nextTab);
+    const stats = await request('/admin/stats');
+    document.getElementById('adminStats').innerHTML = `
+      <div class="admin-stat"><div class="number">${stats.users || 0}</div><div class="label">Usuarios</div></div>
+      <div class="admin-stat"><div class="number">${stats.vehicles || 0}</div><div class="label">VehÃ­culos</div></div>
+      <div class="admin-stat"><div class="number">${stats.active_vehicles || 0}</div><div class="label">Activos</div></div>
+      <div class="admin-stat"><div class="number">${stats.pending_reports || 0}</div><div class="label">Reportes pendientes</div></div>
+    `;
+    showAdminTab('reports');
   } catch (err) { showToast(err.message, 'error'); }
 }
 
@@ -4440,7 +4213,6 @@ function showAdminTab(tab, el) {
   document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
   (el || document.querySelector(`.admin-tab[onclick*="'${tab}'"]`))?.classList.add('active');
   if (tab === 'reports') loadAdminReports();
-  else if (tab === 'contact-requests') loadAdminContactRequests();
   else if (tab === 'users') loadAdminUsers();
   else if (tab === 'vehicles') loadAdminVehicles(1);
 }
@@ -4450,7 +4222,7 @@ async function loadAdminReports() {
     const reports = await request('/admin/reports');
     document.getElementById('adminContent').innerHTML = reports?.length ? `
       <div class="table-responsive">
-        <table class="admin-table"><thead><tr><th>Fecha</th><th>Vehículo</th><th>Reportado por</th><th>Razón</th><th>Estado</th><th>Acción</th></tr></thead><tbody>
+        <table class="admin-table"><thead><tr><th>Fecha</th><th>VehÃ­culo</th><th>Reportado por</th><th>RazÃ³n</th><th>Estado</th><th>AcciÃ³n</th></tr></thead><tbody>
           ${reports.map(r => `
             <tr>
               <td>${formatRelTime(r.created_at)}</td>
@@ -4465,7 +4237,7 @@ async function loadAdminReports() {
                 ` : ''}
                 ${r.vehicle?.id ? `
                   <button class="btn btn-sm btn-secondary" onclick="openEditModal(${r.vehicle.id}, event)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path></svg>Editar pub.</button>
-                  <button class="btn btn-sm btn-danger" data-vid="${r.vehicle.id}" data-title="${escapeHtml(r.vehicle.title || '')}" onclick="adminDeleteVehicle(+this.dataset.vid, this.dataset.title)">🗑 Eliminar pub.</button>
+                  <button class="btn btn-sm btn-danger" data-vid="${r.vehicle.id}" data-title="${escapeHtml(r.vehicle.title || '')}" onclick="adminDeleteVehicle(+this.dataset.vid, this.dataset.title)">ð Eliminar pub.</button>
                 ` : ''}
               </td>
             </tr>
@@ -4476,79 +4248,17 @@ async function loadAdminReports() {
   } catch (err) { showToast(err.message, 'error'); }
 }
 
-async function loadAdminContactRequests() {
-  try {
-    const requests = await request('/admin/contact-requests');
-    document.getElementById('adminContent').innerHTML = requests?.length ? `
-      <div class="table-responsive">
-        <table class="admin-table">
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Motivo</th>
-              <th>Contacto</th>
-              <th>Usuario</th>
-              <th>Detalle</th>
-              <th>Estado</th>
-              <th>Acción</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${requests.map((item) => `
-              <tr>
-                <td>${formatRelTime(item.created_at)}</td>
-                <td>${escapeHtml(item.reason || '-')}</td>
-                <td style="max-width:220px;word-break:break-word;">${escapeHtml(item.contact || '-')}</td>
-                <td>${escapeHtml(item.requester?.username || item.requester?.email || 'Anónimo')}</td>
-                <td style="max-width:280px;word-break:break-word;">${escapeHtml(item.message || '-')}</td>
-                <td>
-                  <span style="font-size:0.75rem;padding:2px 7px;border-radius:5px;font-weight:600;
-                    background:${item.status === 'pending' ? 'rgba(245,158,11,0.12)' : item.status === 'resolved' ? 'rgba(34,197,94,0.12)' : item.status === 'dismissed' ? 'rgba(239,68,68,0.12)' : 'rgba(59,130,246,0.12)'};
-                    color:${item.status === 'pending' ? '#f59e0b' : item.status === 'resolved' ? '#22c55e' : item.status === 'dismissed' ? '#ef4444' : '#60a5fa'};"
-                  >${escapeHtml(item.status || 'pending')}</span>
-                </td>
-                <td style="display:flex;gap:0.35rem;flex-wrap:wrap;">
-                  ${item.status !== 'resolved' ? `<button class="btn btn-sm btn-secondary" onclick="updateAdminContactRequestStatus(${item.id}, 'resolved')">Resolver</button>` : ''}
-                  ${item.status !== 'reviewed' ? `<button class="btn btn-sm btn-ghost" onclick="updateAdminContactRequestStatus(${item.id}, 'reviewed')">Revisar</button>` : ''}
-                  ${item.status !== 'dismissed' ? `<button class="btn btn-sm btn-danger" onclick="updateAdminContactRequestStatus(${item.id}, 'dismissed')">Descartar</button>` : ''}
-                  ${item.status !== 'pending' ? `<button class="btn btn-sm btn-ghost" onclick="updateAdminContactRequestStatus(${item.id}, 'pending')">Reabrir</button>` : ''}
-                </td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-    ` : '<p>Sin consultas al administrador</p>';
-  } catch (err) {
-    showToast(err.message || 'No se pudieron cargar las consultas', 'error');
-  }
-}
-
-async function updateAdminContactRequestStatus(id, status) {
-  try {
-    await request(`/admin/contact-requests/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify({ status })
-    });
-    showToast('Consulta actualizada', 'success');
-    loadAdminContactRequests();
-    refreshAdminStats().catch(() => {});
-  } catch (err) {
-    showToast(err.message || 'No se pudo actualizar la consulta', 'error');
-  }
-}
-
 async function adminDeleteVehicle(id, title) {
   showConfirmModal(
-    '¿Eliminar publicación?',
-    `Se eliminará permanentemente "${title}" y todas sus imágenes y conversaciones. Esta acción no se puede deshacer.`,
+    'Â¿Eliminar publicaciÃ³n?',
+    `Se eliminarÃ¡ permanentemente "${title}" y todas sus imÃ¡genes y conversaciones. Esta acciÃ³n no se puede deshacer.`,
     'Eliminar',
     async () => {
       try {
         const result = await request(`/vehicles/${id}`, { method: 'DELETE' });
-        showToast('Publicación eliminada', 'success');
+        showToast('PublicaciÃ³n eliminada', 'success');
         if (result?.instagram_cleanup?.failed > 0) {
-          showToast('La publicación web se eliminó, pero no se pudo borrar en Instagram (revisar permisos/token).', 'warning');
+          showToast('La publicaciÃ³n web se eliminÃ³, pero no se pudo borrar en Instagram (revisar permisos/token).', 'warning');
         }
         // Recargar la vista actual
         const profileSection = document.getElementById('profile');
@@ -4557,7 +4267,7 @@ async function adminDeleteVehicle(id, title) {
         } else {
           // Estamos en admin
           const activeTab = document.querySelector('.admin-tab.active');
-          if (activeTab?.textContent?.includes('Vehículos')) loadAdminVehicles(adminVehiclesPage);
+          if (activeTab?.textContent?.includes('VehÃ­culos')) loadAdminVehicles(adminVehiclesPage);
           else loadAdminReports();
         }
       } catch (err) { showToast(err.message, 'error'); }
@@ -4574,18 +4284,18 @@ async function loadAdminVehicles(page = 1) {
     const pages = Math.ceil(total / 20);
     document.getElementById('adminContent').innerHTML = `
       <div style="display:flex;gap:0.75rem;margin-bottom:1rem;align-items:center;flex-wrap:wrap;">
-        <input type="text" id="adminVehicleSearch" placeholder="Buscar por título o marca..."
+        <input type="text" id="adminVehicleSearch" placeholder="Buscar por tÃ­tulo o marca..."
           value="${escapeHtml(searchVal)}"
           style="flex:1;min-width:200px;padding:0.45rem 0.8rem;background:var(--dark-3);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--text);font-size:0.85rem;"
           oninput="debounceAdmin(() => loadAdminVehicles(1))"
           onkeydown="if(event.key==='Enter') loadAdminVehicles(1)">
-        <button class="btn btn-sm btn-secondary" onclick="loadAdminVehicles(1)">🔍 Buscar</button>
+        <button class="btn btn-sm btn-secondary" onclick="loadAdminVehicles(1)">ð Buscar</button>
         <span style="color:var(--text-3);font-size:0.8rem;">${total} publicaciones totales</span>
       </div>
       ${vehicles?.length ? `
         <div class="table-responsive">
           <table class="admin-table">
-            <thead><tr><th>Título</th><th>Vendedor</th><th>Precio</th><th>Estado</th><th>Vistas</th><th>Fecha</th><th>Acción</th></tr></thead>
+            <thead><tr><th>TÃ­tulo</th><th>Vendedor</th><th>Precio</th><th>Estado</th><th>Vistas</th><th>Fecha</th><th>AcciÃ³n</th></tr></thead>
             <tbody>
               ${vehicles.map(v => `
                 <tr>
@@ -4634,7 +4344,7 @@ async function loadAdminUsers() {
     document.getElementById('adminContent').innerHTML = users?.length ? `
       <div class="table-responsive">
         <table class="admin-table">
-          <thead><tr><th>Usuario</th><th>Email</th><th>Registro</th><th>Vehículos</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <thead><tr><th>Usuario</th><th>Email</th><th>Registro</th><th>VehÃ­culos</th><th>Estado</th><th>Acciones</th></tr></thead>
           <tbody>
             ${users.map(u => {
               const isBanned = u.profiles?.[0]?.is_banned;
@@ -4642,7 +4352,7 @@ async function loadAdminUsers() {
               const isVerified = u.profiles?.[0]?.is_verified;
               return `
                 <tr id="user-row-${u.id}">
-                  <td style="font-weight:600;">${escapeHtml(u.username)}${isAdm ? ' <span style="font-size:0.7rem;background:rgba(245,158,11,0.15);color:var(--primary);padding:1px 6px;border-radius:4px;font-weight:700;">ADMIN</span>' : ''}${isVerified ? ' ✓' : ''}</td>
+                  <td style="font-weight:600;">${escapeHtml(u.username)}${isAdm ? ' <span style="font-size:0.7rem;background:rgba(245,158,11,0.15);color:var(--primary);padding:1px 6px;border-radius:4px;font-weight:700;">ADMIN</span>' : ''}${isVerified ? ' â' : ''}</td>
                   <td style="color:var(--text-2);font-size:0.85rem;">${escapeHtml(u.email)}</td>
                   <td style="color:var(--text-3);font-size:0.82rem;">${formatRelTime(u.created_at)}</td>
                   <td style="text-align:center;">${u.vehicle_count || 0}</td>
@@ -4662,7 +4372,7 @@ async function loadAdminUsers() {
                     </button>
                     ${!isAdm ? `<button class="btn btn-sm btn-ghost" onclick="toggleAdmin('${u.id}', true)">Hacer admin</button>` : `<button class="btn btn-sm btn-ghost" onclick="toggleAdmin('${u.id}', false)">Quitar admin</button>`}
                     <button class="btn btn-sm" style="${isVerified ? 'background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.3);' : 'background:rgba(99,102,241,0.1);color:#a5b4fc;border:1px solid rgba(99,102,241,0.25);'}" onclick="toggleVerify('${u.id}')">
-                      ${isVerified ? '✓ Verificado' : 'Verificar'}
+                      ${isVerified ? 'â Verificado' : 'Verificar'}
                     </button>
                   </td>
                 </tr>`;
@@ -4687,7 +4397,7 @@ async function toggleFollow(id) {
       btn.className = `profile-action-btn ${res.following ? 'btn-secondary' : 'btn-primary'}`;
       btn.style.removeProperty('min-width');
     }
-    showToast(res.following ? 'Ahora seguís a este vendedor' : 'Dejaste de seguir', 'success');
+    showToast(res.following ? 'Ahora seguÃ­s a este vendedor' : 'Dejaste de seguir', 'success');
   } catch (err) {
     if (btn) btn.disabled = false;
     showToast(err.message, 'error');
@@ -4701,19 +4411,19 @@ async function openTradeModal(vehicleId) {
   if (!currentUser) return showSection('login');
   tradeTargetVehicleId = vehicleId;
   const select = document.getElementById('tradeOfferedVehicle');
-  select.innerHTML = '<option value="">Cargando tus vehículos...</option>';
+  select.innerHTML = '<option value="">Cargando tus vehÃ­culos...</option>';
   document.getElementById('tradeMessage').value = '';
   openAccessibleModal('tradeModal', { initialFocusSelector: '#tradeOfferedVehicle' });
   try {
     const vehicles = await request('/my-vehicles');
     const active = (vehicles || []).filter(v => v.status === 'active');
     if (!active.length) {
-      select.innerHTML = '<option value="">No tenés vehículos activos para ofrecer</option>';
+      select.innerHTML = '<option value="">No tenÃ©s vehÃ­culos activos para ofrecer</option>';
     } else {
-      select.innerHTML = '<option value="">Seleccioná un vehículo</option>' +
-        active.map(v => `<option value="${v.id}">${escapeHtml(v.brand)} ${escapeHtml(v.model)} ${v.year} — $${formatNumber(v.price)}</option>`).join('');
+      select.innerHTML = '<option value="">SeleccionÃ¡ un vehÃ­culo</option>' +
+        active.map(v => `<option value="${v.id}">${escapeHtml(v.brand)} ${escapeHtml(v.model)} ${v.year} â $${formatNumber(v.price)}</option>`).join('');
     }
-  } catch { select.innerHTML = '<option value="">Error al cargar vehículos</option>'; }
+  } catch { select.innerHTML = '<option value="">Error al cargar vehÃ­culos</option>'; }
 }
 
 function closeTradeModal() {
@@ -4724,13 +4434,13 @@ function closeTradeModal() {
 async function submitTradeOffer() {
   const offered = document.getElementById('tradeOfferedVehicle').value;
   const message = document.getElementById('tradeMessage').value;
-  if (!offered) return showToast('Seleccioná un vehículo para ofrecer', 'error');
+  if (!offered) return showToast('SeleccionÃ¡ un vehÃ­culo para ofrecer', 'error');
   // BUG-13: disable button immediately to prevent double submit
   const submitBtn = document.querySelector('#tradeModal button[onclick*="submitTradeOffer"], #tradeModal .btn-primary');
   if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Enviando...'; }
   try {
     await request(`/vehicles/${tradeTargetVehicleId}/trade-offer`, { method: 'POST', body: JSON.stringify({ offered_vehicle_id: offered, message }) });
-    showToast('¡Propuesta enviada! Mirá el chat con el vendedor.', 'success');
+    showToast('Â¡Propuesta enviada! MirÃ¡ el chat con el vendedor.', 'success');
     closeTradeModal();
     // Ir al chat para que el comprador vea la card enviada
     const conversations = await request('/conversations');
@@ -4759,7 +4469,7 @@ async function loadTradeOffers() {
     const pending = received.filter(o => o.status === 'pending').length;
     countEl.textContent = pending > 0 ? pending + ' pendiente' + (pending > 1 ? 's' : '') : '';
 
-    const statusLabel = s => ({ pending: '⏳ Pendiente', accepted: '✅ Aceptada', rejected: '❌ Rechazada' }[s] || s);
+    const statusLabel = s => ({ pending: 'â³ Pendiente', accepted: 'â Aceptada', rejected: 'â Rechazada' }[s] || s);
     const statusColor = s => ({ pending: 'var(--primary)', accepted: '#22c55e', rejected: '#ef4444' }[s]);
 
     const renderOffer = (o, isReceived) => `
@@ -4767,9 +4477,9 @@ async function loadTradeOffers() {
         <div style="flex:1;min-width:0;">
           <div style="font-size:0.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
             ${escapeHtml(o.offered_vehicle?.brand || '')} ${escapeHtml(o.offered_vehicle?.model || '')} ${o.offered_vehicle?.year || ''}
-            <span style="color:var(--text-2);font-weight:400;"> → ${escapeHtml(o.target_vehicle?.brand || '')} ${escapeHtml(o.target_vehicle?.model || '')} ${o.target_vehicle?.year || ''}</span>
+            <span style="color:var(--text-2);font-weight:400;"> â ${escapeHtml(o.target_vehicle?.brand || '')} ${escapeHtml(o.target_vehicle?.model || '')} ${o.target_vehicle?.year || ''}</span>
           </div>
-          <div style="font-size:0.75rem;color:var(--text-3);">${isReceived ? 'De: ' + escapeHtml(o.proposer?.username || '') : 'Para: ' + escapeHtml(o.owner?.username || '')} · ${formatRelTime(o.created_at)}</div>
+          <div style="font-size:0.75rem;color:var(--text-3);">${isReceived ? 'De: ' + escapeHtml(o.proposer?.username || '') : 'Para: ' + escapeHtml(o.owner?.username || '')} Â· ${formatRelTime(o.created_at)}</div>
         </div>
         <div style="display:flex;align-items:center;gap:0.4rem;flex-shrink:0;">
           <span style="font-size:0.75rem;font-weight:700;color:${statusColor(o.status)};">${statusLabel(o.status)}</span>
@@ -4799,8 +4509,8 @@ async function loadTradeOffers() {
             const h=document.getElementById('${histId}');
             const open=h.style.display!=='none';
             h.style.display=open?'none':'block';
-            this.textContent=open?'Ver historial (${history.length}) ▾':'Ocultar historial ▴';
-          ">Ver historial (${history.length}) ▾</button>`;
+            this.textContent=open?'Ver historial (${history.length}) â¾':'Ocultar historial â´';
+          ">Ver historial (${history.length}) â¾</button>`;
       }
       container.innerHTML = html;
     }
@@ -4813,7 +4523,7 @@ async function loadTradeOffers() {
 async function respondToTrade(id, status) {
   try {
     const res = await request(`/trade-offers/${id}`, { method: 'PUT', body: JSON.stringify({ status }) });
-    showToast(status === 'accepted' ? '¡Permuta aceptada! Se abrió el chat.' : 'Permuta rechazada', status === 'accepted' ? 'success' : 'error');
+    showToast(status === 'accepted' ? 'Â¡Permuta aceptada! Se abriÃ³ el chat.' : 'Permuta rechazada', status === 'accepted' ? 'success' : 'error');
     if (status === 'accepted' && res.conversation_id) {
       currentConversationId = res.conversation_id;
       showSection('messages');
@@ -4830,14 +4540,14 @@ async function respondToTradeInChat(offerId, status) {
     await request(`/trade-offers/${offerId}`, { method: 'PUT', body: JSON.stringify({ status }) });
     if (actionsEl) {
       actionsEl.innerHTML = status === 'accepted'
-        ? '<span style="color:#22c55e;font-weight:600;">✅ Permuta aceptada</span>'
-        : '<span style="color:#ef4444;font-weight:600;">❌ Permuta rechazada</span>';
+        ? '<span style="color:#22c55e;font-weight:600;">â Permuta aceptada</span>'
+        : '<span style="color:#ef4444;font-weight:600;">â Permuta rechazada</span>';
     }
     showToast(status === 'accepted' ? 'Permuta aceptada' : 'Permuta rechazada', status === 'accepted' ? 'success' : 'info');
   } catch (err) {
     showToast(err.message, 'error');
     const actionsEl = document.getElementById(`trade-actions-${offerId}`);
-    if (actionsEl) actionsEl.innerHTML = `<button class="btn btn-primary btn-sm" style="margin-right:0.4rem;" onclick="respondToTradeInChat(${offerId}, 'accepted')">✅ Aceptar</button><button class="btn btn-danger btn-sm" onclick="respondToTradeInChat(${offerId}, 'rejected')">❌ Rechazar</button>`;
+    if (actionsEl) actionsEl.innerHTML = `<button class="btn btn-primary btn-sm" style="margin-right:0.4rem;" onclick="respondToTradeInChat(${offerId}, 'accepted')">â Aceptar</button><button class="btn btn-danger btn-sm" onclick="respondToTradeInChat(${offerId}, 'rejected')">â Rechazar</button>`;
   }
 }
 
@@ -4880,11 +4590,11 @@ async function updateTradeCardStatuses() {
       }
 
       if (matchedOffer.status === 'accepted') {
-        actionsEl.innerHTML = '<span style="color:#22c55e;font-weight:600;">✅ Permuta aceptada</span>';
+        actionsEl.innerHTML = '<span style="color:#22c55e;font-weight:600;">â Permuta aceptada</span>';
       } else if (matchedOffer.status === 'rejected') {
-        actionsEl.innerHTML = '<span style="color:#ef4444;font-weight:600;">❌ Permuta rechazada</span>';
+        actionsEl.innerHTML = '<span style="color:#ef4444;font-weight:600;">â Permuta rechazada</span>';
       } else if (matchedOffer.status === 'pending') {
-        actionsEl.innerHTML = `<button class="btn btn-primary btn-sm" style="margin-right:0.4rem;" onclick="respondToTradeInChat(${realOfferId}, 'accepted')">✅ Aceptar</button><button class="btn btn-danger btn-sm" onclick="respondToTradeInChat(${realOfferId}, 'rejected')">❌ Rechazar</button>`;
+        actionsEl.innerHTML = `<button class="btn btn-primary btn-sm" style="margin-right:0.4rem;" onclick="respondToTradeInChat(${realOfferId}, 'accepted')">â Aceptar</button><button class="btn btn-danger btn-sm" onclick="respondToTradeInChat(${realOfferId}, 'rejected')">â Rechazar</button>`;
       }
     });
   } catch {}
@@ -4971,17 +4681,17 @@ async function calculatePrestitoQuote() {
   const modelYear = parseInt(yearEl.value, 10);
   const amount = parsePrestitoAmountInput();
   if (!Number.isFinite(modelYear) || modelYear < 2000) {
-    showToast('Ingresá un año de modelo válido', 'error');
+    showToast('IngresÃ¡ un aÃ±o de modelo vÃ¡lido', 'error');
     return;
   }
   if (!Number.isFinite(amount) || amount <= 0) {
-    showToast('Ingresá un importe válido', 'error');
+    showToast('IngresÃ¡ un importe vÃ¡lido', 'error');
     return;
   }
 
   const maxFinancingAmount = Number(prestitoVehicleContext?.maxFinancingAmount || 0);
   if (maxFinancingAmount > 0 && amount > maxFinancingAmount) {
-    showToast(`El importe no puede superar el 50% del vehículo ($${formatNumber(maxFinancingAmount)})`, 'warning');
+    showToast(`El importe no puede superar el 50% del vehÃ­culo ($${formatNumber(maxFinancingAmount)})`, 'warning');
     return;
   }
 
@@ -4990,7 +4700,7 @@ async function calculatePrestitoQuote() {
   if (!range.eligible) {
     tableWrap.style.display = 'none';
     rowsEl.innerHTML = '';
-    infoEl.textContent = 'Préstito financia autos con antigüedad de hasta 15 años.';
+    infoEl.textContent = 'PrÃ©stito financia autos con antigÃ¼edad de hasta 15 aÃ±os.';
     return;
   }
 
@@ -5017,7 +4727,7 @@ async function calculatePrestitoQuote() {
   `).join('');
 
   const tasaAnual = Math.round(Number(range.interest || 0) * 1000) / 10;
-  infoEl.textContent = `Modelo ${modelYear} (${range.age} años) · Hasta ${cuotas} cuotas · Tasa de referencia ${tasaAnual}% anual`;
+  infoEl.textContent = `Modelo ${modelYear} (${range.age} aÃ±os) Â· Hasta ${cuotas} cuotas Â· Tasa de referencia ${tasaAnual}% anual`;
   tableWrap.style.display = 'block';
 }
 
@@ -5046,8 +4756,8 @@ function openPrestitoQuoteModal(vehicleId, vehicleYear, vehiclePriceUsd, vehicle
   if (titleEl) {
     const safeTitle = String(vehicleTitle || '').trim();
     titleEl.textContent = safeTitle
-      ? `Simulá cuotas para ${safeTitle}`
-      : 'Simulá tus cuotas en pesos para este vehículo.';
+      ? `SimulÃ¡ cuotas para ${safeTitle}`
+      : 'SimulÃ¡ tus cuotas en pesos para este vehÃ­culo.';
   }
   if (yearEl) yearEl.value = String(prestitoVehicleContext.year);
   if (amountEl) amountEl.value = maxFinancingAmount > 0 ? formatNumber(maxFinancingAmount) : '';
@@ -5056,8 +4766,8 @@ function openPrestitoQuoteModal(vehicleId, vehicleYear, vehiclePriceUsd, vehicle
   if (tableWrap) tableWrap.style.display = 'none';
   if (infoEl) {
     infoEl.textContent = maxFinancingAmount > 0
-      ? `Monto máximo estimado (50%): $${formatNumber(maxFinancingAmount)}`
-      : 'Ingresá monto y año para calcular cuotas estimadas.';
+      ? `Monto mÃ¡ximo estimado (50%): $${formatNumber(maxFinancingAmount)}`
+      : 'IngresÃ¡ monto y aÃ±o para calcular cuotas estimadas.';
   }
 
   openAccessibleModal('prestitoModal', { initialFocusSelector: '#prestitoAmount' });
@@ -5076,25 +4786,25 @@ async function submitPrestitoLead() {
   const amount = parsePrestitoAmountInput();
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    showToast('Ingresá un email válido para enviar la solicitud', 'error');
+    showToast('IngresÃ¡ un email vÃ¡lido para enviar la solicitud', 'error');
     return;
   }
   if (!Number.isFinite(modelYear) || modelYear < 2000) {
-    showToast('Ingresá un año válido', 'error');
+    showToast('IngresÃ¡ un aÃ±o vÃ¡lido', 'error');
     return;
   }
   if (!Number.isFinite(amount) || amount <= 0) {
-    showToast('Ingresá un importe válido', 'error');
+    showToast('IngresÃ¡ un importe vÃ¡lido', 'error');
     return;
   }
 
   const maxFinancingAmount = Number(prestitoVehicleContext?.maxFinancingAmount || 0);
   if (maxFinancingAmount > 0 && amount > maxFinancingAmount) {
-    showToast(`El importe no puede superar el 50% del vehículo ($${formatNumber(maxFinancingAmount)})`, 'warning');
+    showToast(`El importe no puede superar el 50% del vehÃ­culo ($${formatNumber(maxFinancingAmount)})`, 'warning');
     return;
   }
 
-  const defaultLabel = btn?.textContent || 'Enviar a Préstito';
+  const defaultLabel = btn?.textContent || 'Enviar a PrÃ©stito';
   if (btn) {
     btn.disabled = true;
     btn.textContent = 'Enviando...';
@@ -5110,9 +4820,9 @@ async function submitPrestitoLead() {
         vehicle_id: prestitoVehicleContext?.vehicleId || null
       })
     });
-    showToast('Solicitud enviada a Préstito. Te van a contactar por email.', 'success');
+    showToast('Solicitud enviada a PrÃ©stito. Te van a contactar por email.', 'success');
   } catch (err) {
-    showToast(err.message || 'No se pudo enviar a Préstito', 'error');
+    showToast(err.message || 'No se pudo enviar a PrÃ©stito', 'error');
   } finally {
     if (btn) {
       btn.disabled = false;
@@ -5124,7 +4834,7 @@ async function submitPrestitoLead() {
 async function toggleVerify(id) {
   try {
     const res = await request(`/admin/users/${id}/verify`, { method: 'PUT' });
-    showToast(res.is_verified ? 'Vendedor verificado ✓' : 'Verificación removida', res.is_verified ? 'success' : 'error');
+    showToast(res.is_verified ? 'Vendedor verificado â' : 'VerificaciÃ³n removida', res.is_verified ? 'success' : 'error');
     loadAdminUsers();
   } catch (err) { showToast(err.message, 'error'); }
 }
@@ -5197,7 +4907,7 @@ async function submitRating() {
   if (!stars) { showToast('Selecciona estrellas', 'error'); return; }
   try {
     await request('/ratings', { method: 'POST', body: JSON.stringify({ to_user_id: rateRecipientId, vehicle_id: rateVehicleId ?? currentVehicleId, stars, review }) });
-    showToast('Calificación enviada', 'success');
+    showToast('CalificaciÃ³n enviada', 'success');
     closeRateModal();
   } catch (err) { showToast(err.message, 'error'); }
 }
@@ -5542,8 +5252,8 @@ async function publishVehicleToInstagram(vehicleId, event) {
   } catch (err) {
     const msg = err.message || 'No se pudo publicar en Instagram';
     showToast(msg, 'error');
-    if (currentUser?.profile?.is_admin && /Instagram no est[aá] configurado/i.test(msg)) {
-      const wantsConfigure = confirm('Falta configuración de Instagram. ¿Querés cargarla ahora?');
+    if (currentUser?.profile?.is_admin && /Instagram no est[aÃ¡] configurado/i.test(msg)) {
+      const wantsConfigure = confirm('Falta configuraciÃ³n de Instagram. Â¿QuerÃ©s cargarla ahora?');
       if (wantsConfigure) await configureInstagramFromAdmin();
     }
   } finally {
@@ -5646,32 +5356,32 @@ function shareVehicle(id, title, price) {
 // VEHICLE MAP
 const CITY_COORDS = {
   'Buenos Aires': [-34.6037, -58.3816],
-  'Córdoba': [-31.4201, -64.1888],
+  'CÃ³rdoba': [-31.4201, -64.1888],
   'Rosario': [-32.9442, -60.6505],
   'Mendoza': [-32.8908, -68.8272],
   'La Plata': [-34.9215, -57.9545],
   'Mar del Plata': [-38.0023, -57.5575],
-  'Tucumán': [-26.8241, -65.2226],
+  'TucumÃ¡n': [-26.8241, -65.2226],
   'Salta': [-24.7859, -65.4117],
   'Santa Fe': [-31.6333, -60.7],
-  'Bahía Blanca': [-38.7196, -62.2724],
+  'BahÃ­a Blanca': [-38.7196, -62.2724],
   'Chivilcoy': [-34.8984, -60.0197],
   'Chacabuco': [-34.6418, -60.4715],
   'Quilmes': [-34.7206, -58.2539],
-  'Lanús': [-34.7006, -58.3953],
+  'LanÃºs': [-34.7006, -58.3953],
   'Lomas de Zamora': [-34.7605, -58.4],
   'San Isidro': [-34.4725, -58.5231],
-  'Morón': [-34.6534, -58.6198],
+  'MorÃ³n': [-34.6534, -58.6198],
   'Tigre': [-34.4261, -58.5796],
   'Pilar': [-34.4588, -58.9142],
-  'Paraná': [-31.7333, -60.5333],
+  'ParanÃ¡': [-31.7333, -60.5333],
   'Resistencia': [-27.4515, -58.9867],
   'Corrientes': [-27.4806, -58.8341],
   'Posadas': [-27.3671, -55.8961],
-  'Neuquén': [-38.9516, -68.0591],
+  'NeuquÃ©n': [-38.9516, -68.0591],
   'San Carlos de Bariloche': [-41.1335, -71.3103],
   'Comodoro Rivadavia': [-45.8645, -67.4674],
-  'Río Gallegos': [-51.6230, -69.2168],
+  'RÃ­o Gallegos': [-51.6230, -69.2168],
   'Ushuaia': [-54.8019, -68.3030],
   'San Juan': [-31.5375, -68.5364],
   'San Luis': [-33.2960, -66.3356],
@@ -5698,7 +5408,7 @@ async function loadVehicleMap() {
     vehiclesMapInstance = null;
   }
 
-  el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-2);">Cargando vehículos...</div>';
+  el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-2);">Cargando vehÃ­culos...</div>';
 
   let vehicles = [];
   try {
@@ -5707,14 +5417,14 @@ async function loadVehicleMap() {
     const res = await request('/vehicles?limit=12&status=active');
     vehicles = res.vehicles || res || [];
   } catch {
-    el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-2);">Error al cargar los vehículos.</div>';
+    el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-2);">Error al cargar los vehÃ­culos.</div>';
     return;
   }
 
   el.innerHTML = '';
   vehiclesMapInstance = L.map('vehiclesMap', { zoomControl: true, scrollWheelZoom: false }).setView([-38, -63], 5);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    attribution: 'Â© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     maxZoom: 19
   }).addTo(vehiclesMapInstance);
 
@@ -5729,7 +5439,7 @@ async function loadVehicleMap() {
 
   const markerIcon = (count) => L.divIcon({
     className: '',
-    html: `<div style="background:#f59e0b;color:#000;border-radius:50%;width:${count > 1 ? 36 : 28}px;height:${count > 1 ? 36 : 28}px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:${count > 1 ? 13 : 11}px;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.4)">${count > 1 ? count : '🚗'}</div>`,
+    html: `<div style="background:#f59e0b;color:#000;border-radius:50%;width:${count > 1 ? 36 : 28}px;height:${count > 1 ? 36 : 28}px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:${count > 1 ? 13 : 11}px;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.4)">${count > 1 ? count : 'ð'}</div>`,
     iconSize: [count > 1 ? 36 : 28, count > 1 ? 36 : 28],
     iconAnchor: [count > 1 ? 18 : 14, count > 1 ? 18 : 14]
   });
@@ -5744,9 +5454,9 @@ async function loadVehicleMap() {
       popupHtml = `<strong>${escapeHtml(v.title)}</strong><br>$${formatNumber(v.price)}<br><a href="#" onclick="viewVehicle(${v.id});return false;" style="color:#f59e0b">Ver anuncio</a>`;
     } else {
       const list = cityVehicles.slice(0, 3).map(v =>
-        `<div style="margin-top:4px"><a href="#" onclick="viewVehicle(${v.id});return false;" style="color:#f59e0b">${escapeHtml(v.title)}</a> — $${formatNumber(v.price)}</div>`
+        `<div style="margin-top:4px"><a href="#" onclick="viewVehicle(${v.id});return false;" style="color:#f59e0b">${escapeHtml(v.title)}</a> â $${formatNumber(v.price)}</div>`
       ).join('');
-      popupHtml = `<strong>${count} vehículos en ${escapeHtml(city)}</strong>${list}${count > 3 ? `<div style="margin-top:4px;color:#888;">y ${count - 3} más...</div>` : ''}`;
+      popupHtml = `<strong>${count} vehÃ­culos en ${escapeHtml(city)}</strong>${list}${count > 3 ? `<div style="margin-top:4px;color:#888;">y ${count - 3} mÃ¡s...</div>` : ''}`;
     }
     L.marker(coords, { icon: markerIcon(count) })
       .addTo(vehiclesMapInstance)
@@ -5781,7 +5491,6 @@ function updateNav() {
   
   document.getElementById('navHome').style.display = 'flex';
   document.getElementById('navVehicles').style.display = 'flex';
-  document.getElementById('navSupport').style.display = 'flex';
   
   if (isLogged) {
     loadLucideIcons();
@@ -5852,19 +5561,18 @@ function updateEditModels() {
   const brand = document.getElementById('editBrand')?.value || '';
   const type = document.getElementById('editVehicleTypeTop')?.value || 'auto';
   const brandsObj = getBrandsForType(type);
-  const modelInput = document.getElementById('editModel');
-  const datalist = document.getElementById('editModelList');
-  if (!modelInput) return;
-  const prev = modelInput.value;
-  if (datalist) datalist.innerHTML = '';
-  if (brand && brandsObj[brand] && datalist) {
+  const modelSelect = document.getElementById('editModel');
+  if (!modelSelect) return;
+  const prev = modelSelect.value;
+  modelSelect.innerHTML = '<option value="">Seleccionar modelo</option>';
+  if (brand && brandsObj[brand]) {
     brandsObj[brand].forEach(m => {
       const o = document.createElement('option');
-      o.value = m;
-      datalist.appendChild(o);
+      o.value = m; o.textContent = m;
+      modelSelect.appendChild(o);
     });
   }
-  modelInput.value = prev || '';
+  modelSelect.value = prev || '';
   const editBodyTypeEl = document.getElementById('editBodyType');
   if (editBodyTypeEl) editBodyTypeEl.value = '';
   toggleBodyTypeField('edit');
@@ -5891,10 +5599,10 @@ function autoGenEditDescription() {
   const fuel  = document.getElementById('editFuel')?.value || '';
   const trans = document.getElementById('editTransmission')?.value || '';
   if (!brand && !model) return;
-  let desc = `Excelente ${brand} ${model}${year ? ' del año ' + year : ''}.`;
+  let desc = `Excelente ${brand} ${model}${year ? ' del aÃ±o ' + year : ''}.`;
   if (mileage) desc += ` Cuenta con ${mileage} km.`;
-  if (fuel || trans) desc += ` Motor ${fuel} y transmisión ${trans}.`;
-  desc += `\n\nEl vehículo se encuentra en óptimas condiciones, listo para transferir. Respondo consultas por el chat.`;
+  if (fuel || trans) desc += ` Motor ${fuel} y transmisiÃ³n ${trans}.`;
+  desc += `\n\nEl vehÃ­culo se encuentra en Ã³ptimas condiciones, listo para transferir. Respondo consultas por el chat.`;
   descField.value = desc.trim().replace(/\s+/g, ' ').replace(/\. \n/g, '.\n');
 }
 
@@ -5926,10 +5634,10 @@ function autoGenDescription() {
   if(!descField || descField.dataset.userEdited === "true") return;
   
   if (brand || model) {
-    let desc = `Excelente ${brand} ${model}${year ? ' del año ' + year : ''}.`;
+    let desc = `Excelente ${brand} ${model}${year ? ' del aÃ±o ' + year : ''}.`;
     if (mileage) desc += ` Cuenta con ${mileage} km.`;
-    if (fuel || trans) desc += ` Motor ${fuel} y transmisión ${trans}.`;
-    desc += `\n\nEl vehículo se encuentra en óptimas condiciones, listo para transferir. Respondo consultas por el chat.`;
+    if (fuel || trans) desc += ` Motor ${fuel} y transmisiÃ³n ${trans}.`;
+    desc += `\n\nEl vehÃ­culo se encuentra en Ã³ptimas condiciones, listo para transferir. Respondo consultas por el chat.`;
     descField.value = desc.trim().replace(/\s+/g, ' ').replace(/\. \n/g, '.\n');
   }
 }
@@ -5959,7 +5667,7 @@ async function checkAuth() {
 
 checkAuth().then(async () => {
   // Los links de email tienen prioridad de routing en el arranque.
-  // Si fueron procesados, no sobrescribir la sección con home/section/vehicle.
+  // Si fueron procesados, no sobrescribir la secciÃ³n con home/section/vehicle.
   const emailLinkHandled = await handleEmailLinks();
   if (emailLinkHandled) return;
 
@@ -6024,79 +5732,8 @@ function tryPublish() {
   if (currentUser) {
     showSection('publish');
   } else {
-    showToast('Debes iniciar sesión para publicar', 'warning');
+    showToast('Debes iniciar sesiÃ³n para publicar', 'warning');
     showSection('login');
-  }
-}
-
-function prefillSupportContact() {
-  const contactEl = document.getElementById('supportContact');
-  if (!contactEl) return;
-  if (String(contactEl.value || '').trim()) return;
-
-  const profilePhone = String(currentUser?.profile?.phone || '').trim();
-  const userEmail = String(currentUser?.email || '').trim();
-  const userUsername = String(currentUser?.username || '').trim();
-  if (profilePhone) {
-    contactEl.value = profilePhone;
-    return;
-  }
-  if (userEmail) {
-    contactEl.value = userEmail;
-    return;
-  }
-  if (userUsername) {
-    contactEl.value = `@${userUsername}`;
-  }
-}
-
-async function submitAdminContactRequest(event) {
-  event.preventDefault();
-  const reason = String(document.getElementById('supportReason')?.value || '').trim();
-  const contact = String(document.getElementById('supportContact')?.value || '').trim();
-  const message = String(document.getElementById('supportMessage')?.value || '').trim();
-  const captchaToken = getHCaptchaToken('supportCaptcha');
-
-  if (!reason) {
-    showToast('Seleccioná un motivo', 'error');
-    return;
-  }
-  if (contact.length < 5) {
-    showToast('Ingresá un contacto válido', 'error');
-    return;
-  }
-  if (!captchaToken) {
-    showToast('Completá el captcha para enviar el reclamo', 'error');
-    ensureHCaptchaForSection('support');
-    return;
-  }
-
-  const submitBtn = document.getElementById('supportSubmitBtn');
-  const defaultText = submitBtn?.textContent || 'Enviar a administración';
-  if (submitBtn) {
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Enviando...';
-  }
-
-  try {
-    await request('/admin/contact-requests', {
-      method: 'POST',
-      body: JSON.stringify({ reason, contact, message, captchaToken })
-    });
-    showToast('Consulta enviada. Te va a contactar el administrador.', 'success');
-    const messageEl = document.getElementById('supportMessage');
-    const reasonEl = document.getElementById('supportReason');
-    if (reasonEl) reasonEl.value = '';
-    if (messageEl) messageEl.value = '';
-    resetHCaptchaWidget('supportCaptcha');
-  } catch (err) {
-    showToast(err.message || 'No se pudo enviar la consulta', 'error');
-    resetHCaptchaWidget('supportCaptcha');
-  } finally {
-    if (submitBtn) {
-      submitBtn.disabled = false;
-      submitBtn.textContent = defaultText;
-    }
   }
 }
 
@@ -6118,7 +5755,7 @@ function autoFillTitle() {
   const preview = document.getElementById('publishTitlePreview');
   if (titleInput) titleInput.value = title;
   if (preview) {
-    preview.textContent = title || 'Completá marca, modelo y año para ver el título';
+    preview.textContent = title || 'CompletÃ¡ marca, modelo y aÃ±o para ver el tÃ­tulo';
     preview.style.color = title ? 'var(--text)' : 'var(--text-3)';
   }
 }
@@ -6126,219 +5763,10 @@ function autoFillTitle() {
 document.getElementById('publishBrand')?.addEventListener('change', autoFillTitle);
 document.getElementById('publishModel')?.addEventListener('change', autoFillTitle);
 document.getElementById('publishVersion')?.addEventListener('input', autoFillTitle);
-document.getElementById('publishYear')?.addEventListener('change', autoFillTitle);
+document.getElementById('publishYear')?.addEventListener('input', autoFillTitle);
 
-// ─── PUBLISH YEAR SELECT ─────────────────────────────────────────────────────
-function initPublishYearSelect() {
-  const sel = document.getElementById('publishYear');
-  if (!sel) return;
-  const currentYear = new Date().getFullYear();
-  // Only populate once or if already populated with wrong range
-  if (sel.options.length > 2) return;
-  sel.innerHTML = '<option value="">Seleccionar año</option>';
-  for (let y = currentYear; y >= 1990; y--) {
-    const opt = document.createElement('option');
-    opt.value = String(y);
-    opt.textContent = String(y);
-    sel.appendChild(opt);
-  }
-}
-
-// ─── FORCE AUTO-GENERATE DESCRIPTION ────────────────────────────────────────
-function forceAutoGenPublishDescription() {
-  const brand = document.getElementById('publishBrand')?.value || '';
-  const model = document.getElementById('publishModel')?.value || '';
-  const version = document.getElementById('publishVersion')?.value || '';
-  const year = document.getElementById('publishYear')?.value || '';
-  const fuel = document.getElementById('publishFuel')?.value || '';
-  const transmission = document.getElementById('publishTransmission')?.value || '';
-  const mileage = document.getElementById('publishMileage')?.value || '';
-  const vehicleType = document.getElementById('publishVehicleType')?.value || 'auto';
-  const bodyType = document.getElementById('publishBodyType')?.value || '';
-  const province = document.getElementById('publishProvince')?.value || '';
-  const city = document.getElementById('publishCity')?.value || '';
-  const acceptsTrade = document.getElementById('publishAcceptsTrade')?.checked || false;
-  const acceptsFinancing = document.getElementById('publishAcceptsFinancing')?.checked || false;
-
-  const parts = [];
-
-  const vehicleName = [brand, model, version].filter(Boolean).join(' ');
-  if (vehicleName) {
-    const yearStr = year ? ` ${year}` : '';
-    const typeLabels = { auto: 'Auto', utilitario: 'Utilitario', moto: 'Moto', cuatri: 'Cuatriciclo', camion: 'Camión' };
-    const typeLabel = typeLabels[vehicleType] || 'Vehículo';
-    const bodyLabel = bodyType ? ` ${bodyType}` : '';
-    parts.push(`${typeLabel}${bodyLabel} ${vehicleName}${yearStr} en excelente estado de conservación.`);
-  }
-
-  const techParts = [];
-  if (fuel) techParts.push(`motor a ${fuel}`);
-  if (transmission) techParts.push(`caja ${transmission.toLowerCase()}`);
-  if (techParts.length) parts.push(`Cuenta con ${techParts.join(' y ')}.`);
-
-  if (mileage) {
-    const km = parseInt(mileage, 10);
-    if (!isNaN(km)) {
-      if (km === 0) parts.push('Sin kilómetros, 0 km.');
-      else parts.push(`Kilometraje: ${km.toLocaleString('es-AR')} km.`);
-    }
-  }
-
-  const locationParts = [city, province].filter(Boolean);
-  if (locationParts.length) parts.push(`Ubicado en ${locationParts.join(', ')}.`);
-
-  const extras = [];
-  if (acceptsTrade) extras.push('se aceptan permutas');
-  if (acceptsFinancing) extras.push('se ofrece financiación');
-  if (extras.length) parts.push(`Consultas bienvenidas — ${extras.join(', ')}.`);
-
-  if (!parts.length) {
-    showToast('Completá al menos marca, modelo o año para generar la descripción', 'info');
-    return;
-  }
-
-  const textarea = document.getElementById('publishDescription');
-  if (textarea) {
-    textarea.value = parts.join(' ');
-    textarea.dispatchEvent(new Event('input'));
-    showToast('Descripción generada', 'success');
-  }
-}
-
-// ─── PUBLISH PREVIEW MODAL ───────────────────────────────────────────────────
-function openPublishPreviewModal() {
-  const brand = document.getElementById('publishBrand')?.value || '';
-  const model = document.getElementById('publishModel')?.value || '';
-  const version = document.getElementById('publishVersion')?.value || '';
-  const year = document.getElementById('publishYear')?.value || '';
-  const title = document.getElementById('publishTitle')?.value || [brand, model, version, year].filter(Boolean).join(' ');
-  const rawPrice = parseFloat(document.getElementById('publishPrice')?.value) || 0;
-  const currency = document.getElementById('publishCurrency')?.value || 'ARS';
-  const fuel = document.getElementById('publishFuel')?.value || '';
-  const transmission = document.getElementById('publishTransmission')?.value || '';
-  const mileage = document.getElementById('publishMileage')?.value || '';
-  const province = document.getElementById('publishProvince')?.value || '';
-  const city = document.getElementById('publishCity')?.value || '';
-  const description = document.getElementById('publishDescription')?.value || '';
-  const vehicleType = document.getElementById('publishVehicleType')?.value || '';
-  const bodyType = document.getElementById('publishBodyType')?.value || '';
-
-  const priceDisplay = rawPrice > 0
-    ? `${currency} ${rawPrice.toLocaleString('es-AR')}`
-    : '—';
-
-  const locationDisplay = [city, province].filter(Boolean).join(', ') || '—';
-
-  const firstImage = uploadedImages.length > 0 ? uploadedImages[0] : null;
-  const imgHtml = firstImage
-    ? `<img src="${firstImage.preview || ''}" alt="Preview" style="width:100%;max-height:220px;object-fit:cover;border-radius:var(--radius-md);margin-bottom:1rem;">`
-    : `<div style="width:100%;height:120px;background:var(--dark-3);border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;color:var(--text-3);margin-bottom:1rem;font-size:0.9rem;">Sin fotos añadidas</div>`;
-
-  const badges = [];
-  if (vehicleType) badges.push(vehicleType);
-  if (bodyType) badges.push(bodyType);
-  if (fuel) badges.push(fuel);
-  if (transmission) badges.push(transmission);
-
-  const badgesHtml = badges.length
-    ? `<div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.85rem;">${badges.map(b => `<span style="background:var(--dark-3);border:1px solid var(--border);border-radius:99px;padding:0.2rem 0.65rem;font-size:0.78rem;color:var(--text-2);">${escapeHtml(b)}</span>`).join('')}</div>`
-    : '';
-
-  const detailRows = [
-    year ? ['Año', escapeHtml(year)] : null,
-    brand ? ['Marca', escapeHtml(brand)] : null,
-    model ? ['Modelo', escapeHtml(model)] : null,
-    mileage ? ['Kilometraje', `${parseInt(mileage).toLocaleString('es-AR')} km`] : null,
-    locationDisplay !== '—' ? ['Ubicación', escapeHtml(locationDisplay)] : null,
-  ].filter(Boolean);
-
-  const rowsHtml = detailRows.map(([k, v]) =>
-    `<div style="display:flex;justify-content:space-between;padding:0.45rem 0;border-bottom:1px solid var(--border);font-size:0.88rem;">
-      <span style="color:var(--text-2);">${k}</span>
-      <span style="font-weight:500;">${v}</span>
-    </div>`
-  ).join('');
-
-  const descHtml = description
-    ? `<div style="margin-top:1rem;"><p style="font-size:0.85rem;color:var(--text-2);margin-bottom:0.4rem;">Descripción</p><p style="font-size:0.9rem;line-height:1.55;white-space:pre-wrap;">${escapeHtml(description)}</p></div>`
-    : '';
-
-  const photosCount = uploadedImages.length;
-  const photosNote = photosCount > 1
-    ? `<p style="font-size:0.78rem;color:var(--text-3);margin-top:0.5rem;">+ ${photosCount - 1} foto${photosCount - 1 > 1 ? 's' : ''} más</p>`
-    : '';
-
-  const content = `
-    ${imgHtml}
-    ${photosNote}
-    <h3 style="font-size:1.15rem;font-weight:700;margin-bottom:0.4rem;">${escapeHtml(title || 'Sin título')}</h3>
-    <p style="font-size:1.35rem;font-weight:800;color:var(--primary);margin-bottom:0.75rem;">${priceDisplay}</p>
-    ${badgesHtml}
-    ${rowsHtml}
-    ${descHtml}
-  `;
-
-  const contentEl = document.getElementById('publishPreviewContent');
-  if (contentEl) contentEl.innerHTML = content;
-
-  openAccessibleModal('publishPreviewModal');
-}
-
-function closePublishPreviewModal() {
-  closeAccessibleModal('publishPreviewModal');
-}
-
-async function confirmPublishFromPreview() {
-  closePublishPreviewModal();
-  await _doPublish();
-}
-
-// ─── PUBLISH STEPPER ─────────────────────────────────────────────────────────
-function scrollToPublishSection(anchorId) {
-  const el = document.getElementById(anchorId);
-  if (!el) return;
-  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-function initPublishStepperObserver() {
-  const anchors = [
-    { id: 'publishStepVehicle', step: 1 },
-    { id: 'publishStepPrice', step: 2 },
-    { id: 'publishStepPhotos', step: 3 },
-    { id: 'publishStepDescription', step: 4 },
-  ];
-
-  const setActiveStep = (stepNum) => {
-    document.querySelectorAll('#publishStepper .publish-step').forEach(el => {
-      const s = parseInt(el.dataset.step, 10);
-      el.classList.toggle('active', s === stepNum);
-      el.classList.toggle('completed', s < stepNum);
-    });
-    document.querySelectorAll('#publishStepper .step-connector').forEach((el, i) => {
-      el.classList.toggle('completed', i + 1 < stepNum);
-    });
-  };
-
-  const observers = [];
-  let currentVisibleStep = 1;
-
-  anchors.forEach(({ id, step }) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const obs = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          currentVisibleStep = step;
-          setActiveStep(step);
-        }
-      });
-    }, { rootMargin: '-20% 0px -60% 0px', threshold: 0 });
-    obs.observe(el);
-    observers.push(obs);
-  });
-
-  return observers;
-}
+const yearInput = document.getElementById('publishYear');
+if (yearInput) yearInput.max = new Date().getFullYear() + 1;
 
 // MOBILE ACCOUNT MENU
 function toggleMobileMenu() {
@@ -6407,7 +5835,7 @@ async function loadFollowingFeed(page = 1, reset = false) {
     const { vehicles = [], total = 0 } = await request(`/following-feed?page=${page}`);
     if (loadingEl) loadingEl.style.display = 'none';
     if (!vehicles.length && page === 1) {
-      container.innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg><h3>Tu feed está vacío</h3><p>Todavía no seguís a ningún vendedor. Explorá los perfiles y seguí a quienes te interesen para ver sus publicaciones acá.</p></div>';
+      container.innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg><h3>Tu feed estÃ¡ vacÃ­o</h3><p>TodavÃ­a no seguÃ­s a ningÃºn vendedor. ExplorÃ¡ los perfiles y seguÃ­ a quienes te interesen para ver sus publicaciones acÃ¡.</p></div>';
       followingFeedLoading = false;
       return;
     }
@@ -6421,16 +5849,17 @@ async function loadFollowingFeed(page = 1, reset = false) {
         </div>
         <div class="vehicle-info">
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
-          ${v.city ? `<p class="vehicle-location">📍 ${escapeHtml(v.city)}${v.province ? ', ' + escapeHtml(v.province.replace(/\s*\(.*?\)/g,'').trim()) : ''}</p>` : ''}
+          ${v.city ? `<p class="vehicle-location">ð ${escapeHtml(v.city)}${v.province ? ', ' + escapeHtml(v.province.replace(/\s*\(.*?\)/g,'').trim()) : ''}</p>` : ''}
           <div class="vehicle-price-block">
-            ${formatPesos(v.price, v) ? `<p class="vehicle-price">${formatPesos(v.price, v)}</p><p class="vehicle-price-ars">USD ${formatNumber(v.price)}</p>` : `<p class="vehicle-price">USD ${formatNumber(v.price)}</p>`}
+            <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
+            ${formatPesos(v.price, v) ? `<p class="vehicle-price-ars">${formatPesos(v.price, v)}</p>` : ''}
           </div>
           <div class="vehicle-card-footer">
             <div class="vehicle-seller">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" style="flex-shrink:0;"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
               <div class="vehicle-seller-info">
                 <div class="vehicle-seller-name-row">
-                <span>${escapeHtml(v.seller_verified && v.seller_dealership ? v.seller_dealership : (v.seller_first_name && v.seller_last_name ? `${v.seller_first_name} ${v.seller_last_name}` : (v.seller_name || 'Anónimo')))}</span>
+                <span>${escapeHtml(v.seller_verified && v.seller_dealership ? v.seller_dealership : (v.seller_first_name && v.seller_last_name ? `${v.seller_first_name} ${v.seller_last_name}` : (v.seller_name || 'AnÃ³nimo')))}</span>
                 ${v.seller_verified ? verifiedCheckIcon() : ''}
                 </div>
               </div>
@@ -6509,7 +5938,8 @@ async function loadHomeRecent() {
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
           ${v.city ? `<p class="vehicle-location"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> ${escapeHtml(v.city)}${v.province ? ', ' + escapeHtml(v.province.replace(/\s*\(.*?\)/g,'').trim()) : ''}</p>` : ''}
           <div class="vehicle-price-block">
-            ${formatPesos(v.price, v) ? `<p class="vehicle-price">${formatPesos(v.price, v)}</p><p class="vehicle-price-ars">USD ${formatNumber(v.price)}</p>` : `<p class="vehicle-price">USD ${formatNumber(v.price)}</p>`}
+            <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
+            ${formatPesos(v.price, v) ? `<p class="vehicle-price-ars">${formatPesos(v.price, v)}</p>` : ''}
           </div>
           ${buildVehicleMetaHtml(v)}
           <div class="vehicle-card-footer">
@@ -6517,7 +5947,7 @@ async function loadHomeRecent() {
               <div class="avatar-tiny">${(v.seller_verified ? v.seller_dealership : (v.seller_first_name || v.seller_name))?.charAt(0)?.toUpperCase()}</div>
               <div class="vehicle-seller-info">
                 <div class="vehicle-seller-name-row">
-                <span>${escapeHtml(v.seller_verified && v.seller_dealership ? v.seller_dealership : (v.seller_first_name && v.seller_last_name ? `${v.seller_first_name} ${v.seller_last_name}` : (v.seller_name || 'Anónimo')))}</span>
+                <span>${escapeHtml(v.seller_verified && v.seller_dealership ? v.seller_dealership : (v.seller_first_name && v.seller_last_name ? `${v.seller_first_name} ${v.seller_last_name}` : (v.seller_name || 'AnÃ³nimo')))}</span>
                 ${v.seller_verified ? verifiedCheckIcon() : ''}
                 </div>
               </div>
@@ -6536,7 +5966,7 @@ async function loadHomeRecent() {
     container.innerHTML = `
       <div class="home-recent-empty">
         <h4>No pudimos cargar los destacados</h4>
-        <p>Probá nuevamente en unos segundos.</p>
+        <p>ProbÃ¡ nuevamente en unos segundos.</p>
         <div class="home-recent-empty-actions">
           <button class="btn btn-secondary btn-sm" onclick="loadHomeRecent()">Reintentar</button>
         </div>
@@ -6559,8 +5989,8 @@ async function loadPublicStats() {
     const data = await request('/stats/public');
     const ve = document.getElementById('statVehicles');
     const us = document.getElementById('statUsers');
-    if (ve) ve.textContent = data.active_vehicles?.toLocaleString('es-AR') || '—';
-    if (us) us.textContent = data.total_users?.toLocaleString('es-AR') || '—';
+    if (ve) ve.textContent = data.active_vehicles?.toLocaleString('es-AR') || 'â';
+    if (us) us.textContent = data.total_users?.toLocaleString('es-AR') || 'â';
     publicStatsLoadedAt = Date.now();
   } catch { /* silencioso */ }
 }
@@ -6596,7 +6026,7 @@ async function loadSimilarVehicles(vehicleId) {
           <p class="similar-card-title">${escapeHtml(v.title)}</p>
           <p class="similar-card-price">USD ${formatNumber(v.price)}</p>
           ${formatPesos(v.price, v) ? `<p class="similar-card-ars">${formatPesos(v.price, v)}</p>` : ''}
-          <p class="similar-card-meta">${v.year} · ${formatNumber(v.mileage)} km · ${escapeHtml(v.city || '')}</p>
+          <p class="similar-card-meta">${v.year} Â· ${formatNumber(v.mileage)} km Â· ${escapeHtml(v.city || '')}</p>
         </div>
       </div>
     `).join('');
@@ -6604,6 +6034,7 @@ async function loadSimilarVehicles(vehicleId) {
     document.getElementById('similarVehiclesSection')?.remove();
   }
 }
+
 
 
 
