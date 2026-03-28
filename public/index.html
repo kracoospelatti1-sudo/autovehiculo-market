@@ -525,6 +525,14 @@
         </div>
         <div class="filters-grid">
           <div class="form-group">
+            <label for="filterVehicleType">Tipo de Vehículo</label>
+            <select id="filterVehicleType" onchange="initBrandFilters(); updateVehicleTypeOptions('filter'); applyFilters()">
+              <option value="">Todos los tipos</option>
+              <option value="auto">Autos</option>
+              <option value="moto">Motos</option>
+            </select>
+          </div>
+          <div class="form-group">
             <label for="filterBrand">Marca</label>
             <select id="filterBrand" onchange="updateFilterModels(); applyFilters()">
               <option value="">Todas las marcas</option>
@@ -559,14 +567,6 @@
               <option value="2010">Desde 2010</option>
               <option value="2005">Desde 2005</option>
               <option value="2000">Desde 2000</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="filterVehicleType">Tipo de Vehículo</label>
-            <select id="filterVehicleType" onchange="initBrandFilters(); updateVehicleTypeOptions('filter'); applyFilters()">
-              <option value="">Todos los tipos</option>
-              <option value="auto">Autos</option>
-              <option value="moto">Motos</option>
             </select>
           </div>
           <div class="form-group">
@@ -1398,7 +1398,7 @@
       if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
     };
   </script>
-  <script src="app.js?v=75" defer></script>
+  <script src="app.js?v=76" defer></script>
   <script>
     // AdSense: cargar únicamente tras interacción real para mejorar score mobile inicial
     (function () {
