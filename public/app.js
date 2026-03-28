@@ -2268,7 +2268,7 @@ async function updatePublishVersions() {
   sel.disabled = !year;
   if (!brand || !model || !year) return;
   try {
-    const data = await request(`/api/deruedas-versions?brand=${encodeURIComponent(brand)}&model=${encodeURIComponent(model)}&year=${encodeURIComponent(year)}&type=${type}`);
+    const data = await request(`/deruedas-versions?brand=${encodeURIComponent(brand)}&model=${encodeURIComponent(model)}&year=${encodeURIComponent(year)}&type=${type}`);
     populateSelect(sel, data.versions || [], 'Seleccionar versión');
   } catch {
     populateSelect(sel, versionsData[brand]?.[model] || [], 'Seleccionar versión');
@@ -3072,7 +3072,7 @@ async function openEditModal(id, e) {
     const _savedVersion = v.version || '';
     if (v.brand && v.model && v.year) {
       const _type = v.vehicle_type || 'auto';
-      request(`/api/deruedas-versions?brand=${encodeURIComponent(v.brand)}&model=${encodeURIComponent(v.model)}&year=${encodeURIComponent(v.year)}&type=${_type}`)
+      request(`/deruedas-versions?brand=${encodeURIComponent(v.brand)}&model=${encodeURIComponent(v.model)}&year=${encodeURIComponent(v.year)}&type=${_type}`)
         .then(data => {
           const sel = document.getElementById('editVersion');
           if (!sel) return;
@@ -5931,7 +5931,7 @@ function updateEditVersions() {
   populateSelect(sel, [], 'Seleccionar versión');
   sel.disabled = !year;
   if (!brand || !model || !year) return;
-  request(`/api/deruedas-versions?brand=${encodeURIComponent(brand)}&model=${encodeURIComponent(model)}&year=${encodeURIComponent(year)}&type=${type}`)
+  request(`/deruedas-versions?brand=${encodeURIComponent(brand)}&model=${encodeURIComponent(model)}&year=${encodeURIComponent(year)}&type=${type}`)
     .then(data => { populateSelect(sel, data.versions || [], 'Seleccionar versión'); sel.disabled = false; })
     .catch(() => { populateSelect(sel, versionsData[brand]?.[model] || [], 'Seleccionar versión'); sel.disabled = false; });
 }
