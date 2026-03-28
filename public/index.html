@@ -695,8 +695,13 @@
             </div>
             <div class="form-group">
               <label>Modelo *</label>
-              <input type="text" id="publishModel" list="publishModelList" placeholder="Seleccionar o escribir modelo" onchange="toggleDrivetrainField('publish')" autocomplete="off">
+              <input type="text" id="publishModel" list="publishModelList" placeholder="Seleccionar o escribir modelo" onchange="updatePublishVersions(); toggleDrivetrainField('publish')" autocomplete="off">
               <datalist id="publishModelList"></datalist>
+            </div>
+            <div class="form-group">
+              <label>Versión</label>
+              <input type="text" id="publishVersion" list="publishVersionList" placeholder="Seleccionar o escribir versión" autocomplete="off">
+              <datalist id="publishVersionList"></datalist>
             </div>
           </div>
           <div class="form-row" id="publishBodyTypeGroup">
@@ -1031,8 +1036,13 @@
             </div>
             <div class="form-group">
               <label>Modelo *</label>
-              <input type="text" id="editModel" list="editModelList" placeholder="Seleccionar o escribir modelo" required onchange="updateEditTitle(); autoGenEditDescription(); toggleDrivetrainField('edit')" autocomplete="off">
+              <input type="text" id="editModel" list="editModelList" placeholder="Seleccionar o escribir modelo" required onchange="updateEditVersions(); updateEditTitle(); autoGenEditDescription(); toggleDrivetrainField('edit')" autocomplete="off">
               <datalist id="editModelList"></datalist>
+            </div>
+            <div class="form-group">
+              <label>Versión</label>
+              <input type="text" id="editVersion" list="editVersionList" placeholder="Seleccionar o escribir versión" autocomplete="off">
+              <datalist id="editVersionList"></datalist>
             </div>
           </div>
           <div class="form-row" id="editBodyTypeGroup">
@@ -1459,7 +1469,7 @@
       if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
     };
   </script>
-  <script src="app.js?v=86" defer></script>
+  <script src="app.js?v=87" defer></script>
   <script>
     // AdSense: cargar únicamente tras interacción real para mejorar score mobile inicial
     (function () {

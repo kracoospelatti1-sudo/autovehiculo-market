@@ -367,6 +367,7 @@ let motoBrands = {};
 let utilitarioBrands = {};
 let cuatriBrands = {};
 let camionBrands = {};
+let versionsData = {};
 
 fetch('/brands-data.json?v=3').then(r => r.json()).then(d => {
   carBrands = d.carBrands || {};
@@ -374,9 +375,10 @@ fetch('/brands-data.json?v=3').then(r => r.json()).then(d => {
   utilitarioBrands = d.utilitarioBrands || {};
   cuatriBrands = d.cuatriBrands || {};
   camionBrands = d.camionBrands || {};
-  // Re-populate brand selects now that data is loaded
   if (typeof initBrandFilters === 'function') initBrandFilters();
 }).catch(() => {});
+
+fetch('/versions-data.json?v=1').then(r => r.json()).then(d => { versionsData = d; }).catch(() => {});
 
 function getBrandsForType(type) {
   if (type === 'moto') return motoBrands;
@@ -2244,11 +2246,28 @@ function updatePublishModels() {
   const type = document.getElementById('publishVehicleType')?.value || 'auto';
   const brands = getBrandsForType(type);
   if (brand && brands[brand] && datalist) brands[brand].forEach(m => { const o = document.createElement('option'); o.value = m; datalist.appendChild(o); });
+  const publishVersionEl = document.getElementById('publishVersion');
+  if (publishVersionEl) publishVersionEl.value = '';
+  const publishVersionList = document.getElementById('publishVersionList');
+  if (publishVersionList) publishVersionList.innerHTML = '';
   const publishBodyTypeEl = document.getElementById('publishBodyType');
   if (publishBodyTypeEl) publishBodyTypeEl.value = '';
   toggleBodyTypeField('publish');
   toggleDrivetrainField('publish');
 }
+
+function updatePublishVersions() {
+  const brand = document.getElementById('publishBrand')?.value || '';
+  const model = document.getElementById('publishModel')?.value || '';
+  const datalist = document.getElementById('publishVersionList');
+  const input = document.getElementById('publishVersion');
+  if (!datalist) return;
+  datalist.innerHTML = '';
+  if (input) input.value = '';
+  const versions = versionsData[brand]?.[model] || [];
+  versions.forEach(v => { const o = document.createElement('option'); o.value = v; datalist.appendChild(o); });
+}
+
 // VEHICLE DETAIL
 async function viewVehicle(id, options = {}) {
   const previousSection = currentSectionId;
@@ -5869,6 +5888,16 @@ function updateEditModels() {
   if (editBodyTypeEl) editBodyTypeEl.value = '';
   toggleBodyTypeField('edit');
   toggleDrivetrainField('edit');
+}
+
+function updateEditVersions() {
+  const brand = document.getElementById('editBrand')?.value || '';
+  const model = document.getElementById('editModel')?.value || '';
+  const datalist = document.getElementById('editVersionList');
+  if (!datalist) return;
+  datalist.innerHTML = '';
+  const versions = versionsData[brand]?.[model] || [];
+  versions.forEach(v => { const o = document.createElement('option'); o.value = v; datalist.appendChild(o); });
 }
 
 function updateEditTitle() {
