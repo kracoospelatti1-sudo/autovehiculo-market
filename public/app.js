@@ -2917,8 +2917,14 @@ async function loadMyVehicles(page = 1) {
             <span title="Consultas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>${(statsMap[String(v.id)]?.messages_count || 0)}</span>
           </div>
           <div class="my-vehicle-actions">
-            <button class="btn btn-secondary" style="flex:1;" onclick="openEditModal(${v.id}, event)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path></svg>Editar</button>
-            <button class="btn btn-danger" style="flex:1;" onclick="deleteVehicle(${v.id}, event)">Eliminar</button>
+            <select class="my-vehicle-status-select" onclick="event.stopPropagation()" onchange="changeVehicleStatus(${v.id}, this.value, this)">
+              <option value="active" ${v.status === 'active' ? 'selected' : ''}>Activo</option>
+              <option value="reserved" ${v.status === 'reserved' ? 'selected' : ''}>Reservado</option>
+              <option value="sold" ${v.status === 'sold' ? 'selected' : ''}>Vendido</option>
+              <option value="paused" ${v.status === 'paused' ? 'selected' : ''}>Pausado</option>
+            </select>
+            <button class="btn btn-secondary" onclick="openEditModal(${v.id}, event)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path></svg>Editar</button>
+            <button class="btn btn-danger" onclick="deleteVehicle(${v.id}, event)">Eliminar</button>
           </div>
         </div>
       </div>
@@ -2942,6 +2948,24 @@ async function loadMyVehicles(page = 1) {
     }
   } catch (err) { showToast(err.message, 'error'); }
 }
+async function changeVehicleStatus(id, status, selectEl) {
+  const prev = selectEl.dataset.prev || selectEl.value;
+  selectEl.dataset.prev = status;
+  try {
+    await request(`/vehicles/${id}`, { method: 'PUT', body: JSON.stringify({ status }) });
+    showToast(`Estado actualizado: ${status === 'sold' ? 'Vendido' : status === 'reserved' ? 'Reservado' : status === 'paused' ? 'Pausado' : 'Activo'}`, 'success');
+    // Actualizar badge visible en la tarjeta
+    const badge = selectEl.closest('.vehicle-card')?.querySelector('.vehicle-badge');
+    if (badge) {
+      badge.className = `vehicle-badge${status === 'sold' ? ' badge-sold' : ''}`;
+      badge.textContent = status === 'active' ? 'Activo' : status === 'sold' ? 'VENDIDO' : status === 'paused' ? 'Pausado' : 'Reservado';
+    }
+  } catch (err) {
+    selectEl.value = prev;
+    showToast(err.message || 'Error al actualizar', 'error');
+  }
+}
+
 function deleteVehicle(id, e) {
   e.stopPropagation();
   showConfirmModal('Eliminar vehículo', 'Esta acción no se puede deshacer. Se eliminarán todas las imágenes, conversaciones y favoritos asociados.', 'Eliminar', async () => {
