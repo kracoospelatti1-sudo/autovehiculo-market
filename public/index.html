@@ -53,8 +53,8 @@
   <!-- Fuentes: no-render-blocking -->
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=optional" onload="this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=optional"></noscript>
-  <link rel="preload" as="style" href="styles.css?v=59" onload="this.rel='stylesheet'" fetchpriority="high">
-  <noscript><link rel="stylesheet" href="styles.css?v=59"></noscript>
+  <link rel="preload" as="style" href="styles.css?v=60" onload="this.rel='stylesheet'" fetchpriority="high">
+  <noscript><link rel="stylesheet" href="styles.css?v=60"></noscript>
   <!-- JSON-LD: WebSite + Organization -->
   <script type="application/ld+json">
   {
@@ -516,34 +516,63 @@
         </button>
       </div>
       <div class="filters-panel" id="filtersPanel" aria-hidden="true">
-        <div class="form-row" style="margin-bottom:0.75rem;">
-          <div class="form-group">
-            <label for="filterVehicleType">Tipo</label>
-            <select id="filterVehicleType"
-              onchange="initBrandFilters(); updateVehicleTypeOptions('filter'); applyFilters()">
-              <option value="">Todos</option>
-              <option value="auto">Autos</option>
-              <option value="moto">Motos</option>
-            </select>
+        <div class="filters-panel-header">
+          <div>
+            <h3 class="filters-panel-title">Refina tu búsqueda</h3>
+            <p class="filters-panel-subtitle">Selecciona los filtros que necesites</p>
           </div>
+          <button class="btn btn-ghost btn-sm" onclick="clearFilters()">Limpiar filtros</button>
         </div>
-        <div class="form-row" style="margin-bottom:0.75rem;">
+        <div class="filters-grid">
           <div class="form-group">
             <label for="filterBrand">Marca</label>
             <select id="filterBrand" onchange="updateFilterModels(); applyFilters()">
-              <option value="">Todas</option>
+              <option value="">Todas las marcas</option>
             </select>
           </div>
           <div class="form-group">
             <label for="filterModel">Modelo</label>
             <select id="filterModel" onchange="applyFilters()">
-              <option value="">Todos</option>
+              <option value="">Todos los modelos</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="filterMaxMileage">Kilómetros</label>
+            <select id="filterMaxMileage" onchange="applyFilters()">
+              <option value="">Todos los kilómetros</option>
+              <option value="10000">Hasta 10.000 km</option>
+              <option value="30000">Hasta 30.000 km</option>
+              <option value="50000">Hasta 50.000 km</option>
+              <option value="100000">Hasta 100.000 km</option>
+              <option value="150000">Hasta 150.000 km</option>
+              <option value="200000">Hasta 200.000 km</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="filterMinYear">Año</label>
+            <select id="filterMinYear" onchange="applyFilters()">
+              <option value="">Todos los años</option>
+              <option value="2023">Desde 2023</option>
+              <option value="2020">Desde 2020</option>
+              <option value="2018">Desde 2018</option>
+              <option value="2015">Desde 2015</option>
+              <option value="2010">Desde 2010</option>
+              <option value="2005">Desde 2005</option>
+              <option value="2000">Desde 2000</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="filterVehicleType">Tipo de Vehículo</label>
+            <select id="filterVehicleType" onchange="initBrandFilters(); updateVehicleTypeOptions('filter'); applyFilters()">
+              <option value="">Todos los tipos</option>
+              <option value="auto">Autos</option>
+              <option value="moto">Motos</option>
             </select>
           </div>
           <div class="form-group">
             <label for="filterTransmission">Transmisión</label>
             <select id="filterTransmission" onchange="applyFilters()">
-              <option value="">Todas</option>
+              <option value="">Todas las transmisiones</option>
               <option value="Manual">Manual</option>
               <option value="Automático">Automático</option>
               <option value="Automático CVT">Automático CVT</option>
@@ -553,7 +582,7 @@
           <div class="form-group">
             <label for="filterFuel">Combustible</label>
             <select id="filterFuel" onchange="applyFilters()">
-              <option value="">Todos</option>
+              <option value="">Todos los combustibles</option>
               <option value="Nafta">Nafta</option>
               <option value="Diesel">Diesel</option>
               <option value="Eléctrico">Eléctrico</option>
@@ -561,30 +590,22 @@
               <option value="GNC">GNC</option>
             </select>
           </div>
-        </div>
-        <div class="form-row" style="margin-bottom:0.75rem;">
           <div class="form-group">
-            <label for="filterMaxPrice">Precio máximo (USD)</label>
-            <input type="number" id="filterMaxPrice" placeholder="Sin límite" oninput="applyFilters()">
+            <label for="filterMaxPrice">Rango de Precio</label>
+            <select id="filterMaxPrice" onchange="applyFilters()">
+              <option value="">Todos los precios</option>
+              <option value="5000">Hasta USD 5.000</option>
+              <option value="10000">Hasta USD 10.000</option>
+              <option value="15000">Hasta USD 15.000</option>
+              <option value="20000">Hasta USD 20.000</option>
+              <option value="30000">Hasta USD 30.000</option>
+              <option value="50000">Hasta USD 50.000</option>
+            </select>
           </div>
-          <div class="form-group">
-            <label for="filterMaxMileage">KM máximo</label>
-            <input type="number" id="filterMaxMileage" placeholder="Sin límite" oninput="applyFilters()">
-          </div>
-          <div class="form-group">
-            <label for="filterMinYear">Año mínimo</label>
-            <input type="number" id="filterMinYear" placeholder="2000" onchange="applyFilters()" min="1900" max="2030">
-          </div>
-          <div class="form-group">
-            <label for="filterMaxYear">Año máximo</label>
-            <input type="number" id="filterMaxYear" placeholder="2026" onchange="applyFilters()" min="1900" max="2030">
-          </div>
-        </div>
-        <div class="form-row" style="margin-bottom:0.75rem;">
           <div class="form-group">
             <label for="filterProvince">Provincia</label>
             <select id="filterProvince" onchange="applyFilters()">
-              <option value="">Todas</option>
+              <option value="">Todas las provincias</option>
             </select>
           </div>
           <div class="form-group">
@@ -592,10 +613,7 @@
             <input type="text" id="filterCity" placeholder="Ej: Córdoba" oninput="applyFilters()">
           </div>
         </div>
-        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-          <button class="btn btn-primary btn-sm" id="filterApplyBtn" onclick="applyFiltersNow()" style="display:none;">Aplicar filtros</button>
-          <button class="btn btn-ghost btn-sm" onclick="clearFilters()">Limpiar filtros</button>
-        </div>
+        <button class="btn btn-primary btn-sm" id="filterApplyBtn" onclick="applyFiltersNow()" style="display:none;">Aplicar filtros</button>
       </div>
       <div class="results-header">
         <div class="results-title-group">
@@ -1380,7 +1398,7 @@
       if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
     };
   </script>
-  <script src="app.js?v=73" defer></script>
+  <script src="app.js?v=74" defer></script>
   <script>
     // AdSense: cargar únicamente tras interacción real para mejorar score mobile inicial
     (function () {

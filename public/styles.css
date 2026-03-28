@@ -3118,6 +3118,47 @@ select {
   display: block;
 }
 
+.filters-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+}
+
+.filters-panel-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-1);
+  margin-bottom: 0.2rem;
+}
+
+.filters-panel-subtitle {
+  font-size: 0.82rem;
+  color: var(--text-3);
+}
+
+.filters-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1rem;
+}
+
+@media (max-width: 1100px) {
+  .filters-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .filters-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.filters-panel .form-group {
+  margin-bottom: 0;
+}
+
 .filters-panel .form-group label {
   font-family: inherit;
   font-size: 0.82rem;
