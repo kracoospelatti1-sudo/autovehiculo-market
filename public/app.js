@@ -2235,15 +2235,20 @@ function updateFilterModels() {
   if (brand && brands[brand]) brands[brand].forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = m; modelSelect.appendChild(o); });
 }
 
+function getModelsForBrand(brand) {
+  const all = [carBrands, utilitarioBrands, motoBrands, cuatriBrands, camionBrands];
+  const merged = new Set();
+  all.forEach(b => { if (b[brand]) b[brand].forEach(m => merged.add(m)); });
+  return [...merged].sort((a, b) => a.localeCompare(b, 'es'));
+}
+
 function updatePublishModels() {
   const brand = document.getElementById('publishBrand').value;
   const modelInput = document.getElementById('publishModel');
   const datalist = document.getElementById('publishModelList');
   if (datalist) datalist.innerHTML = '';
   if (modelInput) modelInput.value = '';
-  const type = document.getElementById('publishVehicleType')?.value || 'auto';
-  const brands = getBrandsForType(type);
-  if (brand && brands[brand] && datalist) brands[brand].forEach(m => { const o = document.createElement('option'); o.value = m; datalist.appendChild(o); });
+  if (brand && datalist) getModelsForBrand(brand).forEach(m => { const o = document.createElement('option'); o.value = m; datalist.appendChild(o); });
   const publishBodyTypeEl = document.getElementById('publishBodyType');
   if (publishBodyTypeEl) publishBodyTypeEl.value = '';
   toggleBodyTypeField('publish');
@@ -5850,15 +5855,13 @@ function updateEditBrands() {
 
 function updateEditModels() {
   const brand = document.getElementById('editBrand')?.value || '';
-  const type = document.getElementById('editVehicleTypeTop')?.value || 'auto';
-  const brandsObj = getBrandsForType(type);
   const modelInput = document.getElementById('editModel');
   const datalist = document.getElementById('editModelList');
   if (!modelInput) return;
   const prev = modelInput.value;
   if (datalist) datalist.innerHTML = '';
-  if (brand && brandsObj[brand] && datalist) {
-    brandsObj[brand].forEach(m => {
+  if (brand && datalist) {
+    getModelsForBrand(brand).forEach(m => {
       const o = document.createElement('option');
       o.value = m;
       datalist.appendChild(o);
