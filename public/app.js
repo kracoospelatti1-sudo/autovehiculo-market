@@ -1488,8 +1488,8 @@ function resetPublishForm() {
   }
   const publishModelEl = document.getElementById('publishModel');
   if (publishModelEl) publishModelEl.value = '';
-  const publishModelList = document.getElementById('publishModelList');
-  if (publishModelList) publishModelList.innerHTML = '';
+  const publishModelSel = document.getElementById('publishModel');
+  if (publishModelSel) populateSelect(publishModelSel, [], 'Seleccionar modelo');
   const publishDrivetrainEl = document.getElementById('publishDrivetrain');
   if (publishDrivetrainEl) publishDrivetrainEl.value = '';
   const publishFinancingProviderEl = document.getElementById('publishFinancingProvider');
@@ -3067,8 +3067,35 @@ async function openEditModal(id, e) {
     const editDrivetrainEl = document.getElementById('editDrivetrain');
     if (editDrivetrainEl) editDrivetrainEl.value = normalizedDrivetrainValue(v.drivetrain);
     toggleDrivetrainField('edit');
-    document.getElementById('editYear').value = v.year || '';
-    document.getElementById('editVersion').value = v.version || '';
+    initYearSelect('editYear', v.year);
+    // load version: populate select for this brand+model+year then set saved value
+    const _savedVersion = v.version || '';
+    if (v.brand && v.model && v.year) {
+      const _type = v.vehicle_type || 'auto';
+      request(`/api/deruedas-versions?brand=${encodeURIComponent(v.brand)}&model=${encodeURIComponent(v.model)}&year=${encodeURIComponent(v.year)}&type=${_type}`)
+        .then(data => {
+          const sel = document.getElementById('editVersion');
+          if (!sel) return;
+          populateSelect(sel, data.versions || [], 'Seleccionar versión');
+          sel.disabled = false;
+          if (_savedVersion) {
+            if (![...sel.options].some(o => o.value === _savedVersion)) {
+              const opt = document.createElement('option'); opt.value = _savedVersion; opt.textContent = _savedVersion; sel.appendChild(opt);
+            }
+            sel.value = _savedVersion;
+          }
+        })
+        .catch(() => {
+          const sel = document.getElementById('editVersion');
+          if (!sel) return;
+          populateSelect(sel, versionsData[v.brand]?.[v.model] || [], 'Seleccionar versión');
+          sel.disabled = false;
+          if (_savedVersion) sel.value = _savedVersion;
+        });
+    } else {
+      const sel = document.getElementById('editVersion');
+      if (sel) { sel.disabled = true; }
+    }
     updateEditTitle();
     const editCurrencyEl = document.getElementById('editCurrency');
     const editPriceEl = document.getElementById('editPrice');
@@ -5855,6 +5882,7 @@ function markEditDescriptionEdited() {
 }
 
 function updateEditBrands() {
+  initYearSelect('editYear');
   const type = document.getElementById('editVehicleTypeTop')?.value || 'auto';
   const brandsObj = getBrandsForType(type);
   const select = document.getElementById('editBrand');
@@ -5879,19 +5907,14 @@ function updateEditModels() {
   const brand = document.getElementById('editBrand')?.value || '';
   const type = document.getElementById('editVehicleTypeTop')?.value || 'auto';
   const brandsObj = getBrandsForType(type);
-  const modelInput = document.getElementById('editModel');
-  const datalist = document.getElementById('editModelList');
-  if (!modelInput) return;
-  const prev = modelInput.value;
-  if (datalist) datalist.innerHTML = '';
-  if (brand && brandsObj[brand] && datalist) {
-    brandsObj[brand].forEach(m => {
-      const o = document.createElement('option');
-      o.value = m;
-      datalist.appendChild(o);
-    });
-  }
-  modelInput.value = prev || '';
+  const modelSel = document.getElementById('editModel');
+  if (!modelSel) return;
+  const prev = modelSel.value;
+  const models = (brand && brandsObj[brand]) ? brandsObj[brand] : [];
+  populateSelect(modelSel, models, 'Seleccionar modelo');
+  if (prev && models.includes(prev)) modelSel.value = prev;
+  const editVersionSel = document.getElementById('editVersion');
+  if (editVersionSel) { populateSelect(editVersionSel, [], 'Seleccionar versión'); editVersionSel.disabled = true; }
   const editBodyTypeEl = document.getElementById('editBodyType');
   if (editBodyTypeEl) editBodyTypeEl.value = '';
   toggleBodyTypeField('edit');
@@ -6171,12 +6194,10 @@ document.getElementById('publishVersion')?.addEventListener('input', autoFillTit
 document.getElementById('publishYear')?.addEventListener('change', autoFillTitle);
 
 // ─── PUBLISH YEAR SELECT ─────────────────────────────────────────────────────
-function initPublishYearSelect() {
-  const sel = document.getElementById('publishYear');
+function initYearSelect(selId, selectedYear) {
+  const sel = document.getElementById(selId);
   if (!sel) return;
   const currentYear = new Date().getFullYear();
-  // Only populate once or if already populated with wrong range
-  if (sel.options.length > 2) return;
   sel.innerHTML = '<option value="">Seleccionar año</option>';
   for (let y = currentYear; y >= 1990; y--) {
     const opt = document.createElement('option');
@@ -6184,7 +6205,10 @@ function initPublishYearSelect() {
     opt.textContent = String(y);
     sel.appendChild(opt);
   }
+  if (selectedYear) sel.value = String(selectedYear);
 }
+
+function initPublishYearSelect() { initYearSelect('publishYear'); }
 
 // ─── FORCE AUTO-GENERATE DESCRIPTION ────────────────────────────────────────
 function forceAutoGenPublishDescription() {

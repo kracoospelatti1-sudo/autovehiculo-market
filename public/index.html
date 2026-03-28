@@ -1040,9 +1040,17 @@
                 <option value="">Seleccionar modelo</option>
               </select>
             </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Año *</label>
+              <select id="editYear" required onchange="updateEditVersions(); updateEditTitle(); autoGenEditDescription()">
+                <option value="">Seleccionar año</option>
+              </select>
+            </div>
             <div class="form-group">
               <label>Versión</label>
-              <select id="editVersion">
+              <select id="editVersion" disabled>
                 <option value="">Seleccionar versión</option>
               </select>
             </div>
@@ -1070,16 +1078,6 @@
                 <option value="4x2">4x2</option>
                 <option value="4x4">4x4</option>
               </select>
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Año *</label>
-              <input type="number" id="editYear" required min="1950" max="2030" placeholder="Ej: 2022" oninput="updateEditVersions(); updateEditTitle(); autoGenEditDescription()">
-            </div>
-            <div class="form-group">
-              <label>Versión</label>
-              <input type="text" id="editVersion" placeholder="Ej: SE, LX, Titanium, GT..." oninput="updateEditTitle(); autoGenEditDescription()">
             </div>
           </div>
           <div class="form-row">
@@ -1471,7 +1469,7 @@
       if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
     };
   </script>
-  <script src="app.js?v=89" defer></script>
+  <script src="app.js?v=90" defer></script>
   <script>
     // AdSense: cargar únicamente tras interacción real para mejorar score mobile inicial
     (function () {
