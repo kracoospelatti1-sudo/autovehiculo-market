@@ -1755,7 +1755,6 @@ async function loadVehicles(page = 1, scrollToResults = false, options = {}) {
     if (vehicleTypeEl?.value) params.append('vehicle_type', vehicleTypeEl.value);
     params.append('page', targetPage);
     const { vehicles = [], total = 0 } = await request(`/vehicles?${params}`, { signal: vehicleSearchAbortController.signal }) || {};
-    document.getElementById('vehiclesCount').textContent = `${total} vehículo${total !== 1 ? 's' : ''} encontrado${total !== 1 ? 's' : ''}`;
     if (!vehicles?.length) {
       container.innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99z"/></svg><h3>No hay vehículos</h3><p>Sé el primero en publicar</p></div>';
       return;
