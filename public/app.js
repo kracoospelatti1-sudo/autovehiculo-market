@@ -372,7 +372,9 @@ fetch('/brands-data.json?v=2').then(r => r.json()).then(d => {
 }).catch(() => {});
 
 function getBrandsForType(type) {
-  return type === 'moto' ? motoBrands : carBrands;
+  if (type === 'moto') return motoBrands;
+  if (type === 'auto') return carBrands;
+  return { ...carBrands, ...motoBrands };
 }
 
 const TOP_CAR_BRANDS = ['Volkswagen','Toyota','Chevrolet','Ford','Renault','Fiat','Peugeot','Citroen','Honda','Hyundai','Jeep','Nissan','Kia','Mercedes-Benz','BMW','Audi','Mitsubishi','Mazda','Subaru','Suzuki'];
@@ -2157,7 +2159,7 @@ function initBrandFilters() {
     });
   }
   if (select) {
-    const filterType = document.getElementById('filterVehicleType')?.value || 'auto';
+    const filterType = document.getElementById('filterVehicleType')?.value ?? '';
     const filterBrandsObj = getBrandsForType(filterType);
     select.innerHTML = '<option value="">Todas</option>';
     sortedBrandKeys(filterBrandsObj, filterType).forEach(brand => {
