@@ -695,13 +695,23 @@
             </div>
             <div class="form-group">
               <label>Modelo *</label>
-              <input type="text" id="publishModel" list="publishModelList" placeholder="Seleccionar o escribir modelo" onchange="updatePublishVersions(); toggleDrivetrainField('publish')" autocomplete="off">
-              <datalist id="publishModelList"></datalist>
+              <select id="publishModel" required onchange="updatePublishVersions(); toggleDrivetrainField('publish')">
+                <option value="">Seleccionar modelo</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Año *</label>
+              <select id="publishYear" required onchange="updatePublishVersions()">
+                <option value="">Seleccionar año</option>
+              </select>
             </div>
             <div class="form-group">
               <label>Versión</label>
-              <input type="text" id="publishVersion" list="publishVersionList" placeholder="Seleccionar o escribir versión" autocomplete="off">
-              <datalist id="publishVersionList"></datalist>
+              <select id="publishVersion" disabled>
+                <option value="">Seleccionar versión</option>
+              </select>
             </div>
           </div>
           <div class="form-row" id="publishBodyTypeGroup">
@@ -729,18 +739,8 @@
               </select>
             </div>
           </div>
-          <div class="form-group">
-            <label>Versión</label>
-            <input type="text" id="publishVersion" placeholder="Ej: SE, LX, Titanium, GT...">
-          </div>
           <div id="publishStepPrice" class="publish-step-anchor"></div>
           <div class="form-row">
-            <div class="form-group">
-              <label>Año *</label>
-              <select id="publishYear" required onchange="updatePublishVersions()">
-                <option value="">Seleccionar año</option>
-              </select>
-            </div>
             <div class="form-group">
               <label>Precio *</label>
               <div class="price-input-row">
@@ -1036,13 +1036,15 @@
             </div>
             <div class="form-group">
               <label>Modelo *</label>
-              <input type="text" id="editModel" list="editModelList" placeholder="Seleccionar o escribir modelo" required onchange="updateEditVersions(); updateEditTitle(); autoGenEditDescription(); toggleDrivetrainField('edit')" autocomplete="off">
-              <datalist id="editModelList"></datalist>
+              <select id="editModel" required onchange="updateEditVersions(); updateEditTitle(); autoGenEditDescription(); toggleDrivetrainField('edit')">
+                <option value="">Seleccionar modelo</option>
+              </select>
             </div>
             <div class="form-group">
               <label>Versión</label>
-              <input type="text" id="editVersion" list="editVersionList" placeholder="Seleccionar o escribir versión" autocomplete="off">
-              <datalist id="editVersionList"></datalist>
+              <select id="editVersion">
+                <option value="">Seleccionar versión</option>
+              </select>
             </div>
           </div>
           <div class="form-row" id="editBodyTypeGroup">
@@ -1469,7 +1471,7 @@
       if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
     };
   </script>
-  <script src="app.js?v=88" defer></script>
+  <script src="app.js?v=89" defer></script>
   <script>
     // AdSense: cargar únicamente tras interacción real para mejorar score mobile inicial
     (function () {
