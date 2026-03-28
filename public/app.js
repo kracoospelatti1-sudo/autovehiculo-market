@@ -6297,7 +6297,10 @@ async function confirmPublishFromPreview() {
 function scrollToPublishSection(anchorId) {
   const el = document.getElementById(anchorId);
   if (!el) return;
-  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const navbar = document.querySelector('.navbar');
+  const offset = navbar ? navbar.getBoundingClientRect().height + 16 : 88;
+  const top = el.getBoundingClientRect().top + window.scrollY - offset;
+  window.scrollTo({ top, behavior: 'smooth' });
 }
 
 function initPublishStepperObserver() {
