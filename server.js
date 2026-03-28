@@ -1987,42 +1987,57 @@ app.get('/api/vehicles/:id/similar', optionalAuth, async (req, res) => {
 
     if (error || !vehicle) return res.json({ vehicles: [] });
 
-    // Buscar similares: mismo tipo, precio ±40%, misma provincia si es posible
-    const minPrice = Math.floor(vehicle.price * 0.6);
-    const maxPrice = Math.ceil(vehicle.price * 1.4);
+    const minPrice = Math.floor(vehicle.price * 0.7);
+    const maxPrice = Math.ceil(vehicle.price * 1.3);
+    const SELECT = 'id, title, brand, model, year, price, mileage, fuel, city, province, vehicle_type, engine_cc';
 
-    let query = supabase
-      .from('vehicles')
-      .select('id, title, brand, model, year, price, mileage, fuel, city, province, vehicle_type, engine_cc')
-      .eq('status', 'active')
+    // Ronda 1: mismo modelo + marca (precio ±30%)
+    const { data: byModel } = await supabase
+      .from('vehicles').select(SELECT)
+      .eq('status', 'active').neq('id', id)
+      .eq('brand', vehicle.brand).eq('model', vehicle.model)
+      .gte('price', minPrice).lte('price', maxPrice)
+      .order('created_at', { ascending: false }).limit(6);
+
+    // Ronda 2: misma marca, distinto modelo (precio ±30%)
+    const { data: byBrand } = await supabase
+      .from('vehicles').select(SELECT)
+      .eq('status', 'active').neq('id', id)
+      .eq('brand', vehicle.brand).neq('model', vehicle.model)
+      .gte('price', minPrice).lte('price', maxPrice)
+      .order('created_at', { ascending: false }).limit(6);
+
+    // Ronda 3: mismo tipo, precio ±30%, distinta marca (fallback)
+    const { data: byType } = await supabase
+      .from('vehicles').select(SELECT)
+      .eq('status', 'active').neq('id', id)
       .eq('vehicle_type', vehicle.vehicle_type || 'auto')
-      .neq('id', id)
-      .gte('price', minPrice)
-      .lte('price', maxPrice)
-      .order('created_at', { ascending: false })
-      .limit(8);
+      .neq('brand', vehicle.brand)
+      .gte('price', minPrice).lte('price', maxPrice)
+      .order('created_at', { ascending: false }).limit(6);
 
-    const { data: similar } = await query;
+    // Mezclar priorizando: mismo modelo > misma marca > mismo tipo
+    const seen = new Set();
+    let results = [];
+    for (const v of [...(byModel || []), ...(byBrand || []), ...(byType || [])]) {
+      if (!seen.has(v.id)) { seen.add(v.id); results.push(v); }
+      if (results.length >= 6) break;
+    }
 
-    // Obtener imagen principal de cada vehículo similar
-    let results = similar || [];
+    // Priorizar misma provincia dentro del resultado
+    const sameProvince = results.filter(v => v.province === vehicle.province);
+    const otherProvince = results.filter(v => v.province !== vehicle.province);
+    results = [...sameProvince, ...otherProvince].slice(0, 4);
+
+    // Obtener imagen principal
     if (results.length > 0) {
       const vehicleIds = results.map(v => v.id);
       const { data: images } = await supabase
-        .from('vehicle_images')
-        .select('vehicle_id, url')
-        .in('vehicle_id', vehicleIds)
-        .eq('is_primary', true);
-
+        .from('vehicle_images').select('vehicle_id, url')
+        .in('vehicle_id', vehicleIds).eq('is_primary', true);
       const imageMap = {};
       (images || []).forEach(img => { imageMap[img.vehicle_id] = img.url; });
-
       results = results.map(v => ({ ...v, image: imageMap[v.id] || null }));
-
-      // Priorizar misma provincia
-      const sameProvince = results.filter(v => v.province === vehicle.province);
-      const otherProvince = results.filter(v => v.province !== vehicle.province);
-      results = [...sameProvince, ...otherProvince].slice(0, 4);
     }
 
     res.json({ vehicles: results });
