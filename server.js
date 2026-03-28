@@ -4820,7 +4820,7 @@ app.get('/api/brands', (req, res) => {
 // PROXY: get versions from deruedas.com.ar by brand, model, year and type
 // ── deruedas.com.ar proxy helpers ────────────────────────────────────────────
 const _https = require('https');
-const TYPE_TO_SEG = { auto: 1, utilitario: 2, moto: 3, cuatri: 4, camion: 5 };
+const TYPE_TO_SEG = { auto: 4, utilitario: 1, moto: 2, cuatri: 3, camion: 5 };
 const DR_HEADERS = { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://www.deruedas.com.ar/publicar.asp', 'X-Requested-With': 'XMLHttpRequest' };
 
 function fetchDR(params) {
