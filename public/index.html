@@ -604,13 +604,15 @@
           </div>
           <div class="form-group">
             <label for="filterProvince">Provincia</label>
-            <select id="filterProvince" onchange="applyFilters()">
+            <select id="filterProvince" onchange="updateFilterCities(); applyFilters()">
               <option value="">Todas las provincias</option>
             </select>
           </div>
           <div class="form-group">
             <label for="filterCity">Ciudad</label>
-            <input type="text" id="filterCity" placeholder="Ej: Córdoba" oninput="applyFilters()">
+            <select id="filterCity" onchange="applyFilters()" disabled>
+              <option value="">Todas las ciudades</option>
+            </select>
           </div>
         </div>
         <button class="btn btn-primary btn-sm" id="filterApplyBtn" onclick="applyFiltersNow()" style="display:none;">Aplicar filtros</button>
@@ -1398,7 +1400,7 @@
       if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
     };
   </script>
-  <script src="app.js?v=76" defer></script>
+  <script src="app.js?v=77" defer></script>
   <script>
     // AdSense: cargar únicamente tras interacción real para mejorar score mobile inicial
     (function () {

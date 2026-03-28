@@ -1900,6 +1900,8 @@ function clearFilters() {
   });
   const filterModelEl = document.getElementById('filterModel');
   if (filterModelEl) filterModelEl.innerHTML = '<option value="">Todos</option>';
+  const filterCityEl = document.getElementById('filterCity');
+  if (filterCityEl) { filterCityEl.innerHTML = '<option value="">Todas las ciudades</option>'; filterCityEl.disabled = true; }
   filtersDirty = false;
   updateMobileFilterApplyButton();
   loadVehicles(1);
@@ -2189,6 +2191,25 @@ function initBrandFilters() {
     if (publishModel) publishModel.innerHTML = '<option value="">Seleccionar modelo</option>';
     initBrandPicker('publishBrand');
   }
+}
+
+function updateFilterCities() {
+  const provSelect = document.getElementById('filterProvince');
+  const citySelect = document.getElementById('filterCity');
+  if (!provSelect || !citySelect) return;
+  const prov = provSelect.value;
+  citySelect.innerHTML = '<option value="">Todas las ciudades</option>';
+  if (!prov) {
+    citySelect.disabled = true;
+    return;
+  }
+  AR_CITIES.filter(c => c.prov === prov).forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.city;
+    opt.textContent = c.city;
+    citySelect.appendChild(opt);
+  });
+  citySelect.disabled = false;
 }
 
 function updateFilterModels() {
