@@ -2344,8 +2344,7 @@ async function viewVehicle(id, options = {}) {
           <h1>${escapeHtml(vehicle.title)}</h1>
           <p class="detail-subtitle">${escapeHtml(vehicle.brand)} ${escapeHtml(vehicle.model)}</p>
           <div class="detail-price-block">
-            <div class="detail-price">USD ${formatNumber(vehicle.price)}</div>
-            ${formatPesos(vehicle.price, vehicle) ? `<div class="detail-price-ars">${formatPesos(vehicle.price, vehicle)}</div>` : ''}
+            ${formatPesos(vehicle.price, vehicle) ? `<div class="detail-price">${formatPesos(vehicle.price, vehicle)}</div><div class="detail-price-ars">USD ${formatNumber(vehicle.price)}</div>` : `<div class="detail-price">USD ${formatNumber(vehicle.price)}</div>`}
             ${ownerLocationDisplay ? `
               <div class="detail-price-location">
                 <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
