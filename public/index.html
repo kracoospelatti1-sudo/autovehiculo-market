@@ -602,20 +602,6 @@
           <i data-lucide="car"></i>
           <h2>Todos los Vehículos</h2>
         </div>
-        <div class="sort-controls">
-          <span id="vehiclesCount" class="count-badge"></span>
-          <div class="sort-wrapper">
-            <i data-lucide="arrow-down-narrow-wide"></i>
-            <select id="filterSort" onchange="applyFiltersNow()" class="sort-select">
-              <option value="">Más recientes</option>
-              <option value="oldest">Más antiguos</option>
-              <option value="price_asc">Precio: menor a mayor</option>
-              <option value="price_desc">Precio: mayor a menor</option>
-              <option value="year_desc">Año: más nuevos</option>
-              <option value="views">Más vistos</option>
-            </select>
-          </div>
-        </div>
       </div>
       <div id="vehiclesList" class="vehicles-grid"></div>
       <div id="vehiclesPagination" class="pagination" style="text-align:center;margin-top:2rem;"></div>
@@ -1394,7 +1380,7 @@
       if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
     };
   </script>
-  <script src="app.js?v=71" defer></script>
+  <script src="app.js?v=72" defer></script>
   <script>
     // AdSense: cargar únicamente tras interacción real para mejorar score mobile inicial
     (function () {
