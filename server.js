@@ -2081,7 +2081,7 @@ app.post('/api/vehicles', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: `Máximo ${MAX_VEHICLE_IMAGES} fotos por publicación` });
     }
 
-    const validTypes = ['auto', 'moto'];
+    const validTypes = ['auto', 'moto', 'utilitario', 'cuatri', 'camion'];
     const vehicleType = validTypes.includes(vehicle_type) ? vehicle_type : 'auto';
     const manualBodyType = canonicalBodyType(body_type || '');
     const inferredBodyType = vehicleType === 'auto' && !manualBodyType
@@ -2268,7 +2268,7 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
       }
     }
     if (vehicle_type !== undefined) {
-      const validTypes = ['auto', 'moto'];
+      const validTypes = ['auto', 'moto', 'utilitario', 'cuatri', 'camion'];
       if (!validTypes.includes(vehicle_type)) return res.status(400).json({ error: 'Tipo inválido' });
       updates.vehicle_type = vehicle_type;
       effectiveVehicleType = vehicle_type;
