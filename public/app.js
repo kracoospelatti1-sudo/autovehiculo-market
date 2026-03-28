@@ -1774,8 +1774,7 @@ async function loadVehicles(page = 1, scrollToResults = false, options = {}) {
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
           ${v.city ? `<p class="vehicle-location"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> ${escapeHtml(v.city)}${v.province ? ', ' + escapeHtml(v.province.replace(/\s*\(.*?\)/g,'').trim()) : ''}</p>` : ''}
           <div class="vehicle-price-block">
-            <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
-            ${formatPesos(v.price, v) ? `<p class="vehicle-price-ars">${formatPesos(v.price, v)}</p>` : ''}
+            ${formatPesos(v.price, v) ? `<p class="vehicle-price">${formatPesos(v.price, v)}</p><p class="vehicle-price-ars">USD ${formatNumber(v.price)}</p>` : `<p class="vehicle-price">USD ${formatNumber(v.price)}</p>`}
           </div>
           ${buildVehicleMetaHtml(v)}
           <div class="vehicle-card-footer">
@@ -2876,8 +2875,7 @@ async function loadMyVehicles(page = 1) {
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
           <p class="vehicle-brand">${escapeHtml(v.brand)} ${escapeHtml(v.model)}</p>
           <div class="vehicle-price-block">
-            <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
-            ${formatPesos(v.price, v) ? `<p class="vehicle-price-ars">${formatPesos(v.price, v)}</p>` : ''}
+            ${formatPesos(v.price, v) ? `<p class="vehicle-price">${formatPesos(v.price, v)}</p><p class="vehicle-price-ars">USD ${formatNumber(v.price)}</p>` : `<p class="vehicle-price">USD ${formatNumber(v.price)}</p>`}
           </div>
           <div class="vehicle-mini-stats">
             <span title="Vistas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>${(statsMap[String(v.id)]?.view_count || v.view_count || 0)}</span>
@@ -3142,8 +3140,7 @@ async function loadFavorites() {
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
           <p class="vehicle-brand">${escapeHtml(v.brand)} ${escapeHtml(v.model)}</p>
           <div class="vehicle-price-block">
-            <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
-            ${formatPesos(v.price, v) ? `<p class="vehicle-price-ars">${formatPesos(v.price, v)}</p>` : ''}
+            ${formatPesos(v.price, v) ? `<p class="vehicle-price">${formatPesos(v.price, v)}</p><p class="vehicle-price-ars">USD ${formatNumber(v.price)}</p>` : `<p class="vehicle-price">USD ${formatNumber(v.price)}</p>`}
           </div>
           <button class="btn btn-ghost btn-sm" style="margin-top:0.5rem;color:var(--text-3);width:100%;" onclick="toggleFavorite(${v.id}, event);this.closest('.vehicle-card').remove()">Eliminar de favoritos</button>
         </div>
@@ -4103,8 +4100,7 @@ async function viewProfile(id) {
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
           ${v.city ? `<p class="vehicle-location"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> ${escapeHtml(v.city)}${v.province ? ', ' + escapeHtml(v.province.replace(/\s*\(.*?\)/g,'').trim()) : ''}</p>` : ''}
           <div class="vehicle-price-block">
-            <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
-            ${formatPesos(v.price, v) ? `<p class="vehicle-price-ars">${formatPesos(v.price, v)}</p>` : ''}
+            ${formatPesos(v.price, v) ? `<p class="vehicle-price">${formatPesos(v.price, v)}</p><p class="vehicle-price-ars">USD ${formatNumber(v.price)}</p>` : `<p class="vehicle-price">USD ${formatNumber(v.price)}</p>`}
           </div>
           ${buildVehicleMetaHtml(v)}
           ${isViewerAdmin && !isOwn ? `<button class="btn btn-sm btn-danger" style="margin-top:0.5rem;width:100%;" data-vid="${v.id}" data-title="${escapeHtml(v.title)}" onclick="event.stopPropagation(); adminDeleteVehicle(+this.dataset.vid, this.dataset.title)">Eliminar</button>` : ''}
@@ -6137,8 +6133,7 @@ async function loadFollowingFeed(page = 1, reset = false) {
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
           ${v.city ? `<p class="vehicle-location">📍 ${escapeHtml(v.city)}${v.province ? ', ' + escapeHtml(v.province.replace(/\s*\(.*?\)/g,'').trim()) : ''}</p>` : ''}
           <div class="vehicle-price-block">
-            <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
-            ${formatPesos(v.price, v) ? `<p class="vehicle-price-ars">${formatPesos(v.price, v)}</p>` : ''}
+            ${formatPesos(v.price, v) ? `<p class="vehicle-price">${formatPesos(v.price, v)}</p><p class="vehicle-price-ars">USD ${formatNumber(v.price)}</p>` : `<p class="vehicle-price">USD ${formatNumber(v.price)}</p>`}
           </div>
           <div class="vehicle-card-footer">
             <div class="vehicle-seller">
@@ -6224,8 +6219,7 @@ async function loadHomeRecent() {
           <h3 class="vehicle-title">${escapeHtml(v.title)}</h3>
           ${v.city ? `<p class="vehicle-location"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> ${escapeHtml(v.city)}${v.province ? ', ' + escapeHtml(v.province.replace(/\s*\(.*?\)/g,'').trim()) : ''}</p>` : ''}
           <div class="vehicle-price-block">
-            <p class="vehicle-price">USD ${formatNumber(v.price)}</p>
-            ${formatPesos(v.price, v) ? `<p class="vehicle-price-ars">${formatPesos(v.price, v)}</p>` : ''}
+            ${formatPesos(v.price, v) ? `<p class="vehicle-price">${formatPesos(v.price, v)}</p><p class="vehicle-price-ars">USD ${formatNumber(v.price)}</p>` : `<p class="vehicle-price">USD ${formatNumber(v.price)}</p>`}
           </div>
           ${buildVehicleMetaHtml(v)}
           <div class="vehicle-card-footer">
