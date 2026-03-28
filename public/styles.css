@@ -3155,6 +3155,13 @@ select {
   }
 }
 
+.filters-panel-footer {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
 .filters-panel .form-group {
   margin-bottom: 0;
 }

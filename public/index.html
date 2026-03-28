@@ -53,8 +53,8 @@
   <!-- Fuentes: no-render-blocking -->
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=optional" onload="this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=optional"></noscript>
-  <link rel="preload" as="style" href="styles.css?v=60" onload="this.rel='stylesheet'" fetchpriority="high">
-  <noscript><link rel="stylesheet" href="styles.css?v=60"></noscript>
+  <link rel="preload" as="style" href="styles.css?v=61" onload="this.rel='stylesheet'" fetchpriority="high">
+  <noscript><link rel="stylesheet" href="styles.css?v=61"></noscript>
   <!-- JSON-LD: WebSite + Organization -->
   <script type="application/ld+json">
   {
@@ -521,7 +521,6 @@
             <h3 class="filters-panel-title">Refina tu búsqueda</h3>
             <p class="filters-panel-subtitle">Selecciona los filtros que necesites</p>
           </div>
-          <button class="btn btn-ghost btn-sm" onclick="clearFilters()">Limpiar filtros</button>
         </div>
         <div class="filters-grid">
           <div class="form-group">
@@ -615,7 +614,10 @@
             </select>
           </div>
         </div>
-        <button class="btn btn-primary btn-sm" id="filterApplyBtn" onclick="applyFiltersNow()" style="display:none;">Aplicar filtros</button>
+        <div class="filters-panel-footer">
+          <button class="btn btn-primary btn-sm" id="filterApplyBtn" onclick="applyFiltersNow()" style="display:none;">Aplicar filtros</button>
+          <button class="btn btn-ghost btn-sm" onclick="clearFilters()">Limpiar filtros</button>
+        </div>
       </div>
       <div class="results-header">
         <div class="results-title-group">
@@ -1400,7 +1402,7 @@
       if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
     };
   </script>
-  <script src="app.js?v=77" defer></script>
+  <script src="app.js?v=78" defer></script>
   <script>
     // AdSense: cargar únicamente tras interacción real para mejorar score mobile inicial
     (function () {
