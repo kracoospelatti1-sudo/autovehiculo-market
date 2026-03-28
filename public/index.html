@@ -53,8 +53,8 @@
   <!-- Fuentes: no-render-blocking -->
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=optional" onload="this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=optional"></noscript>
-  <link rel="preload" as="style" href="styles.css?v=64" onload="this.rel='stylesheet'" fetchpriority="high">
-  <noscript><link rel="stylesheet" href="styles.css?v=64"></noscript>
+  <link rel="preload" as="style" href="styles.css?v=65" onload="this.rel='stylesheet'" fetchpriority="high">
+  <noscript><link rel="stylesheet" href="styles.css?v=65"></noscript>
   <!-- JSON-LD: WebSite + Organization -->
   <script type="application/ld+json">
   {
@@ -708,10 +708,14 @@
               </select>
             </div>
             <div class="form-group">
-              <label>Versión</label>
+              <label style="display:flex;align-items:center;justify-content:space-between;">
+                Versión
+                <button type="button" class="btn-version-toggle" id="publishVersionToggle" onclick="toggleVersionInput('publish')">✏️ Escribir</button>
+              </label>
               <select id="publishVersion" disabled>
                 <option value="">Seleccionar versión</option>
               </select>
+              <input type="text" id="publishVersionManual" placeholder="Escribir versión manualmente" style="display:none;" autocomplete="off">
             </div>
           </div>
           <div class="form-row" id="publishBodyTypeGroup">
@@ -1049,10 +1053,14 @@
               </select>
             </div>
             <div class="form-group">
-              <label>Versión</label>
+              <label style="display:flex;align-items:center;justify-content:space-between;">
+                Versión
+                <button type="button" class="btn-version-toggle" id="editVersionToggle" onclick="toggleVersionInput('edit')">✏️ Escribir</button>
+              </label>
               <select id="editVersion" disabled>
                 <option value="">Seleccionar versión</option>
               </select>
+              <input type="text" id="editVersionManual" placeholder="Escribir versión manualmente" style="display:none;" autocomplete="off">
             </div>
           </div>
           <div class="form-row" id="editBodyTypeGroup">
@@ -1469,7 +1477,7 @@
       if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
     };
   </script>
-  <script src="app.js?v=91" defer></script>
+  <script src="app.js?v=92" defer></script>
   <script>
     // AdSense: cargar únicamente tras interacción real para mejorar score mobile inicial
     (function () {

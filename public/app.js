@@ -2257,6 +2257,33 @@ function updatePublishModels() {
   toggleDrivetrainField('publish');
 }
 
+function toggleVersionInput(prefix) {
+  const sel = document.getElementById(`${prefix}Version`);
+  const manual = document.getElementById(`${prefix}VersionManual`);
+  const btn = document.getElementById(`${prefix}VersionToggle`);
+  if (!sel || !manual || !btn) return;
+  const isManual = manual.style.display !== 'none';
+  if (isManual) {
+    // switch back to select
+    manual.style.display = 'none';
+    sel.style.display = '';
+    btn.textContent = '✏️ Escribir';
+    manual.value = '';
+  } else {
+    // switch to manual input — copy current select value
+    manual.value = sel.value || '';
+    sel.style.display = 'none';
+    manual.style.display = '';
+    btn.textContent = '☰ Lista';
+  }
+}
+
+function getVersionValue(prefix) {
+  const manual = document.getElementById(`${prefix}VersionManual`);
+  if (manual && manual.style.display !== 'none') return manual.value.trim();
+  return document.getElementById(`${prefix}Version`)?.value || '';
+}
+
 async function updatePublishVersions() {
   const brand = document.getElementById('publishBrand')?.value || '';
   const model = document.getElementById('publishModel')?.value || '';
@@ -2876,7 +2903,7 @@ async function _doPublish() {
       title: document.getElementById('publishTitle').value,
       brand: document.getElementById('publishBrand').value,
       model: document.getElementById('publishModel').value,
-      version: document.getElementById('publishVersion')?.value || '',
+      version: getVersionValue('publish'),
       year: document.getElementById('publishYear').value,
       price: publishPriceUSD,
       // Si se publicó en ARS, guardamos el monto ingresado para trazabilidad histórica.
@@ -3195,7 +3222,7 @@ async function handleEditVehicle(e) {
     const editBrand = document.getElementById('editBrand')?.value || '';
     const editModel = document.getElementById('editModel')?.value || '';
     const editYear  = document.getElementById('editYear')?.value || '';
-    const editVersion = document.getElementById('editVersion').value;
+    const editVersion = getVersionValue('edit');
     const editVehicleType = document.getElementById('editVehicleTypeTop')?.value || 'auto';
     const editBodyType = document.getElementById('editBodyType')?.value || '';
     const editAcceptsFinancing = document.getElementById('editAcceptsFinancing')?.checked || false;
@@ -5939,7 +5966,7 @@ function updateEditVersions() {
 function updateEditTitle() {
   const brand   = document.getElementById('editBrand')?.value || '';
   const model   = document.getElementById('editModel')?.value || '';
-  const version = document.getElementById('editVersion')?.value || '';
+  const version = getVersionValue('edit');
   const year    = document.getElementById('editYear')?.value || '';
   const title   = `${brand} ${model} ${version} ${year}`.replace(/\s+/g, ' ').trim();
   const el = document.getElementById('editTitle');
@@ -6176,7 +6203,7 @@ toggleDrivetrainField('edit');
 function autoFillTitle() {
   const brand = document.getElementById('publishBrand')?.value || '';
   const model = document.getElementById('publishModel')?.value || '';
-  const version = document.getElementById('publishVersion')?.value || '';
+  const version = getVersionValue('publish');
   const year = document.getElementById('publishYear')?.value || '';
   const title = `${brand} ${model} ${version} ${year}`.replace(/\s+/g, ' ').trim();
   const titleInput = document.getElementById('publishTitle');
@@ -6214,7 +6241,7 @@ function initPublishYearSelect() { initYearSelect('publishYear'); }
 function forceAutoGenPublishDescription() {
   const brand = document.getElementById('publishBrand')?.value || '';
   const model = document.getElementById('publishModel')?.value || '';
-  const version = document.getElementById('publishVersion')?.value || '';
+  const version = getVersionValue('publish');
   const year = document.getElementById('publishYear')?.value || '';
   const fuel = document.getElementById('publishFuel')?.value || '';
   const transmission = document.getElementById('publishTransmission')?.value || '';
@@ -6275,7 +6302,7 @@ function forceAutoGenPublishDescription() {
 function openPublishPreviewModal() {
   const brand = document.getElementById('publishBrand')?.value || '';
   const model = document.getElementById('publishModel')?.value || '';
-  const version = document.getElementById('publishVersion')?.value || '';
+  const version = getVersionValue('publish');
   const year = document.getElementById('publishYear')?.value || '';
   const title = document.getElementById('publishTitle')?.value || [brand, model, version, year].filter(Boolean).join(' ');
   const rawPrice = parseFloat(document.getElementById('publishPrice')?.value) || 0;

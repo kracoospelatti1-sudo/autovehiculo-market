@@ -6755,3 +6755,20 @@ html[data-vehicle-card-experiment="v2"] body.day-mode .vehicles-grid .vehicle-me
     font-size: 0.75rem;
   }
 }
+
+.btn-version-toggle {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-sm);
+  background: var(--dark-3);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+.btn-version-toggle:hover {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
