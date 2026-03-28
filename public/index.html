@@ -53,8 +53,8 @@
   <!-- Fuentes: no-render-blocking -->
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=optional" onload="this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=optional"></noscript>
-  <link rel="preload" as="style" href="styles.css?v=61" onload="this.rel='stylesheet'" fetchpriority="high">
-  <noscript><link rel="stylesheet" href="styles.css?v=61"></noscript>
+  <link rel="preload" as="style" href="styles.css?v=62" onload="this.rel='stylesheet'" fetchpriority="high">
+  <noscript><link rel="stylesheet" href="styles.css?v=62"></noscript>
   <!-- JSON-LD: WebSite + Organization -->
   <script type="application/ld+json">
   {
@@ -528,7 +528,10 @@
             <select id="filterVehicleType" onchange="initBrandFilters(); updateVehicleTypeOptions('filter'); applyFilters()">
               <option value="">Todos los tipos</option>
               <option value="auto">Autos</option>
+              <option value="utilitario">Utilitarios</option>
               <option value="moto">Motos</option>
+              <option value="cuatri">Cuatriciclos</option>
+              <option value="camion">Camiones</option>
             </select>
           </div>
           <div class="form-group">
@@ -652,7 +655,10 @@
             <select id="publishVehicleType" required
               onchange="toggleEngineCCField('publish'); toggleBodyTypeField('publish'); toggleDrivetrainField('publish'); updateVehicleTypeOptions('publish'); initBrandFilters()">
               <option value="auto">Auto / Camioneta / SUV</option>
+              <option value="utilitario">Utilitario</option>
               <option value="moto">Moto / Scooter</option>
+              <option value="cuatri">Cuatriciclo / ATV</option>
+              <option value="camion">Camión / Transporte</option>
             </select>
           </div>
           <div class="form-row">
@@ -664,9 +670,8 @@
             </div>
             <div class="form-group">
               <label>Modelo *</label>
-              <select id="publishModel" onchange="toggleDrivetrainField('publish')">
-                <option value="">Seleccionar modelo</option>
-              </select>
+              <input type="text" id="publishModel" list="publishModelList" placeholder="Seleccionar o escribir modelo" onchange="toggleDrivetrainField('publish')" autocomplete="off">
+              <datalist id="publishModelList"></datalist>
             </div>
           </div>
           <div class="form-row" id="publishBodyTypeGroup">
@@ -961,7 +966,10 @@
             <label>Tipo de vehículo</label>
             <select id="editVehicleTypeTop" onchange="toggleEngineCCField('edit'); toggleBodyTypeField('edit'); toggleDrivetrainField('edit'); updateEditBrands()">
               <option value="auto">Auto / Camioneta / SUV</option>
+              <option value="utilitario">Utilitario</option>
               <option value="moto">Moto / Scooter</option>
+              <option value="cuatri">Cuatriciclo / ATV</option>
+              <option value="camion">Camión / Transporte</option>
             </select>
           </div>
           <div class="form-row">
@@ -973,9 +981,8 @@
             </div>
             <div class="form-group">
               <label>Modelo *</label>
-              <select id="editModel" required onchange="updateEditTitle(); autoGenEditDescription(); toggleDrivetrainField('edit')">
-                <option value="">Seleccionar modelo</option>
-              </select>
+              <input type="text" id="editModel" list="editModelList" placeholder="Seleccionar o escribir modelo" required onchange="updateEditTitle(); autoGenEditDescription(); toggleDrivetrainField('edit')" autocomplete="off">
+              <datalist id="editModelList"></datalist>
             </div>
           </div>
           <div class="form-row" id="editBodyTypeGroup">
@@ -1402,7 +1409,7 @@
       if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
     };
   </script>
-  <script src="app.js?v=80" defer></script>
+  <script src="app.js?v=81" defer></script>
   <script>
     // AdSense: cargar únicamente tras interacción real para mejorar score mobile inicial
     (function () {

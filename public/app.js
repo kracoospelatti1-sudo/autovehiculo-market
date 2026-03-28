@@ -363,10 +363,16 @@ const API_URL = '/api';
 
 let carBrands = {};
 let motoBrands = {};
+let utilitarioBrands = {};
+let cuatriBrands = {};
+let camionBrands = {};
 
-fetch('/brands-data.json?v=2').then(r => r.json()).then(d => {
+fetch('/brands-data.json?v=3').then(r => r.json()).then(d => {
   carBrands = d.carBrands || {};
   motoBrands = d.motoBrands || {};
+  utilitarioBrands = d.utilitarioBrands || {};
+  cuatriBrands = d.cuatriBrands || {};
+  camionBrands = d.camionBrands || {};
   // Re-populate brand selects now that data is loaded
   if (typeof initBrandFilters === 'function') initBrandFilters();
 }).catch(() => {});
@@ -374,7 +380,10 @@ fetch('/brands-data.json?v=2').then(r => r.json()).then(d => {
 function getBrandsForType(type) {
   if (type === 'moto') return motoBrands;
   if (type === 'auto') return carBrands;
-  return { ...carBrands, ...motoBrands };
+  if (type === 'utilitario') return utilitarioBrands;
+  if (type === 'cuatri') return cuatriBrands;
+  if (type === 'camion') return camionBrands;
+  return { ...carBrands, ...utilitarioBrands, ...motoBrands, ...cuatriBrands, ...camionBrands };
 }
 
 const TOP_CAR_BRANDS = ['Volkswagen','Toyota','Chevrolet','Ford','Renault','Fiat','Peugeot','Citroen','Honda','Hyundai','Jeep','Nissan','Kia','Mercedes-Benz','BMW','Audi','Mitsubishi','Mazda','Subaru','Suzuki'];
@@ -1475,9 +1484,9 @@ function resetPublishForm() {
     syncBrandPickerTrigger('publishBrand');
   }
   const publishModelEl = document.getElementById('publishModel');
-  if (publishModelEl) {
-    publishModelEl.innerHTML = '<option value="">Seleccionar modelo</option>';
-  }
+  if (publishModelEl) publishModelEl.value = '';
+  const publishModelList = document.getElementById('publishModelList');
+  if (publishModelList) publishModelList.innerHTML = '';
   const publishDrivetrainEl = document.getElementById('publishDrivetrain');
   if (publishDrivetrainEl) publishDrivetrainEl.value = '';
   const publishFinancingProviderEl = document.getElementById('publishFinancingProvider');
@@ -2186,9 +2195,11 @@ function initBrandFilters() {
       opt.textContent = brand;
       publishBrand.appendChild(opt);
     });
-    // Reset model select when brands change
+    // Reset model input when brands change
     const publishModel = document.getElementById('publishModel');
-    if (publishModel) publishModel.innerHTML = '<option value="">Seleccionar modelo</option>';
+    if (publishModel) publishModel.value = '';
+    const publishModelList = document.getElementById('publishModelList');
+    if (publishModelList) publishModelList.innerHTML = '';
     initBrandPicker('publishBrand');
   }
 }
@@ -2223,11 +2234,13 @@ function updateFilterModels() {
 
 function updatePublishModels() {
   const brand = document.getElementById('publishBrand').value;
-  const modelSelect = document.getElementById('publishModel');
-  modelSelect.innerHTML = '<option value="">Seleccionar modelo</option>';
+  const modelInput = document.getElementById('publishModel');
+  const datalist = document.getElementById('publishModelList');
+  if (datalist) datalist.innerHTML = '';
+  if (modelInput) modelInput.value = '';
   const type = document.getElementById('publishVehicleType')?.value || 'auto';
   const brands = getBrandsForType(type);
-  if (brand && brands[brand]) brands[brand].forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = m; modelSelect.appendChild(o); });
+  if (brand && brands[brand] && datalist) brands[brand].forEach(m => { const o = document.createElement('option'); o.value = m; datalist.appendChild(o); });
   const publishBodyTypeEl = document.getElementById('publishBodyType');
   if (publishBodyTypeEl) publishBodyTypeEl.value = '';
   toggleBodyTypeField('publish');
@@ -5793,18 +5806,19 @@ function updateEditModels() {
   const brand = document.getElementById('editBrand')?.value || '';
   const type = document.getElementById('editVehicleTypeTop')?.value || 'auto';
   const brandsObj = getBrandsForType(type);
-  const modelSelect = document.getElementById('editModel');
-  if (!modelSelect) return;
-  const prev = modelSelect.value;
-  modelSelect.innerHTML = '<option value="">Seleccionar modelo</option>';
-  if (brand && brandsObj[brand]) {
+  const modelInput = document.getElementById('editModel');
+  const datalist = document.getElementById('editModelList');
+  if (!modelInput) return;
+  const prev = modelInput.value;
+  if (datalist) datalist.innerHTML = '';
+  if (brand && brandsObj[brand] && datalist) {
     brandsObj[brand].forEach(m => {
       const o = document.createElement('option');
-      o.value = m; o.textContent = m;
-      modelSelect.appendChild(o);
+      o.value = m;
+      datalist.appendChild(o);
     });
   }
-  modelSelect.value = prev || '';
+  modelInput.value = prev || '';
   const editBodyTypeEl = document.getElementById('editBodyType');
   if (editBodyTypeEl) editBodyTypeEl.value = '';
   toggleBodyTypeField('edit');
