@@ -737,7 +737,7 @@
           <div class="form-row">
             <div class="form-group">
               <label>Año *</label>
-              <select id="publishYear" required>
+              <select id="publishYear" required onchange="updatePublishVersions()">
                 <option value="">Seleccionar año</option>
               </select>
             </div>
@@ -1073,7 +1073,7 @@
           <div class="form-row">
             <div class="form-group">
               <label>Año *</label>
-              <input type="number" id="editYear" required min="1950" max="2030" placeholder="Ej: 2022" oninput="updateEditTitle(); autoGenEditDescription()">
+              <input type="number" id="editYear" required min="1950" max="2030" placeholder="Ej: 2022" oninput="updateEditVersions(); updateEditTitle(); autoGenEditDescription()">
             </div>
             <div class="form-group">
               <label>Versión</label>
@@ -1469,7 +1469,7 @@
       if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
     };
   </script>
-  <script src="app.js?v=87" defer></script>
+  <script src="app.js?v=88" defer></script>
   <script>
     // AdSense: cargar únicamente tras interacción real para mejorar score mobile inicial
     (function () {

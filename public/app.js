@@ -2256,16 +2256,27 @@ function updatePublishModels() {
   toggleDrivetrainField('publish');
 }
 
-function updatePublishVersions() {
+async function updatePublishVersions() {
   const brand = document.getElementById('publishBrand')?.value || '';
   const model = document.getElementById('publishModel')?.value || '';
+  const year  = document.getElementById('publishYear')?.value || '';
+  const type  = document.getElementById('publishVehicleType')?.value || 'auto';
   const datalist = document.getElementById('publishVersionList');
   const input = document.getElementById('publishVersion');
   if (!datalist) return;
   datalist.innerHTML = '';
   if (input) input.value = '';
-  const versions = versionsData[brand]?.[model] || [];
-  versions.forEach(v => { const o = document.createElement('option'); o.value = v; datalist.appendChild(o); });
+  if (!brand || !model) return;
+  if (year) {
+    try {
+      const data = await request(`/api/deruedas-versions?brand=${encodeURIComponent(brand)}&model=${encodeURIComponent(model)}&year=${encodeURIComponent(year)}&type=${type}`);
+      const versions = data.versions || [];
+      versions.forEach(v => { const o = document.createElement('option'); o.value = v; datalist.appendChild(o); });
+      return;
+    } catch {}
+  }
+  // fallback: static versions-data.json (no year filter)
+  (versionsData[brand]?.[model] || []).forEach(v => { const o = document.createElement('option'); o.value = v; datalist.appendChild(o); });
 }
 
 // VEHICLE DETAIL
@@ -5893,11 +5904,19 @@ function updateEditModels() {
 function updateEditVersions() {
   const brand = document.getElementById('editBrand')?.value || '';
   const model = document.getElementById('editModel')?.value || '';
+  const year  = document.getElementById('editYear')?.value || '';
+  const type  = document.getElementById('editVehicleTypeTop')?.value || 'auto';
   const datalist = document.getElementById('editVersionList');
   if (!datalist) return;
   datalist.innerHTML = '';
-  const versions = versionsData[brand]?.[model] || [];
-  versions.forEach(v => { const o = document.createElement('option'); o.value = v; datalist.appendChild(o); });
+  if (!brand || !model) return;
+  if (year) {
+    request(`/api/deruedas-versions?brand=${encodeURIComponent(brand)}&model=${encodeURIComponent(model)}&year=${encodeURIComponent(year)}&type=${type}`)
+      .then(data => { (data.versions || []).forEach(v => { const o = document.createElement('option'); o.value = v; datalist.appendChild(o); }); })
+      .catch(() => { (versionsData[brand]?.[model] || []).forEach(v => { const o = document.createElement('option'); o.value = v; datalist.appendChild(o); }); });
+    return;
+  }
+  (versionsData[brand]?.[model] || []).forEach(v => { const o = document.createElement('option'); o.value = v; datalist.appendChild(o); });
 }
 
 function updateEditTitle() {

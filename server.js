@@ -4817,6 +4817,49 @@ app.get('/api/brands', (req, res) => {
   res.json(brands.sort());
 });
 
+// PROXY: get versions from deruedas.com.ar by brand, model, year and type
+app.get('/api/deruedas-versions', async (req, res) => {
+  const { brand, model, year, type } = req.query;
+  if (!brand || !model || !year) return res.json({ versions: [] });
+
+  const typeToSegmento = { auto: 1, utilitario: 2, moto: 3, cuatri: 4, camion: 5 };
+  const segmento = typeToSegmento[type] || 1;
+
+  const https = require('https');
+  const params = new URLSearchParams({ campo: 'version', segmento, anio: year, marca: brand, modelo: model, version: 0, soloActivas: 0 });
+  const url = `https://www.deruedas.com.ar/mmv.asp?${params}`;
+
+  const fetchDR = (seg) => new Promise((resolve) => {
+    const p = new URLSearchParams({ campo: 'version', segmento: seg, anio: year, marca: brand, modelo: model, version: 0, soloActivas: 0 });
+    const options = { hostname: 'www.deruedas.com.ar', path: `/mmv.asp?${p}`, headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://www.deruedas.com.ar/publicar.asp', 'X-Requested-With': 'XMLHttpRequest' } };
+    https.get(options, (r) => {
+      let data = '';
+      r.on('data', c => data += c);
+      r.on('end', () => {
+        try {
+          const parsed = JSON.parse(data.replace(/'/g, '"'));
+          resolve(parsed.lista || []);
+        } catch { resolve([]); }
+      });
+    }).on('error', () => resolve([]));
+  });
+
+  try {
+    let versions = await fetchDR(segmento);
+    // fallback: if no results try segmento 1 (broader)
+    if (versions.length === 0 && segmento !== 1) versions = await fetchDR(1);
+    // parse "ID,Name" format → keep only the name part
+    const names = [...new Set(versions.map(v => {
+      const comma = v.indexOf(',');
+      return comma !== -1 ? v.slice(comma + 1).trim() : v.trim();
+    }))].sort();
+    res.set('Cache-Control', 'public, max-age=3600');
+    res.json({ versions: names });
+  } catch (err) {
+    res.json({ versions: [] });
+  }
+});
+
 // DIAGNOSTIC: check which FK tables reference a vehicle (temp endpoint)
 app.get('/api/admin/debug-vehicle/:id', authenticateToken, async (req, res) => {
   if (process.env.NODE_ENV === 'production') return res.status(404).json({ error: 'Not found' });
