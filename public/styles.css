@@ -3621,34 +3621,6 @@ select {
   z-index: 1100;
 }
 
-.publish-preview-open .modal-overlay {
-  background: rgba(4, 7, 14, 0.1);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
-
-#publishPreviewModal .modal-content {
-  background: linear-gradient(180deg, #1b2238 0%, #151b30 100%);
-  border-color: rgba(255, 255, 255, 0.12);
-  box-shadow: 0 24px 52px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.07);
-}
-
-#publishPreviewModal .modal-body {
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.publish-preview-loading {
-  min-height: 120px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-2);
-  font-size: 0.9rem;
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.02);
-}
-
 .star-rating {
   display: flex;
   gap: 0.5rem;

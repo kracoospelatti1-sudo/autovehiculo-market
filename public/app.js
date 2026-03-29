@@ -345,7 +345,6 @@ function closeTopAccessibleModal() {
   else if (top.id === 'prestitoModal') closePrestitoQuoteModal();
   else if (top.id === 'confirmModal') closeConfirmModal();
   else if (top.id === 'editProfileModal') closeEditProfileModal();
-  else if (top.id === 'publishPreviewModal') closePublishPreviewModal();
   else closeAccessibleModal(top.id);
   return true;
 }
@@ -5702,11 +5701,9 @@ function closeAllModals() {
   if (isVisibleElement(document.getElementById('prestitoModal'))) closePrestitoQuoteModal();
   if (isVisibleElement(document.getElementById('confirmModal'))) closeConfirmModal();
   if (isVisibleElement(document.getElementById('editProfileModal'))) closeEditProfileModal();
-  if (isVisibleElement(document.getElementById('publishPreviewModal'))) closePublishPreviewModal();
   modalStack = [];
   syncModalOverlay();
   closeLightbox();
-  document.body.classList.remove('publish-preview-open');
   confirmCallback = null;
 }
 
@@ -6710,100 +6707,6 @@ function forceAutoGenPublishDescription() {
     textarea.dispatchEvent(new Event('input'));
     showToast('Descripción generada', 'success');
   }
-}
-
-// ─── PUBLISH PREVIEW MODAL ───────────────────────────────────────────────────
-function setPublishPreviewOpenState(isOpen) {
-  document.body.classList.toggle('publish-preview-open', !!isOpen);
-}
-
-function openPublishPreviewModal() {
-  setPublishPreviewOpenState(true);
-  openAccessibleModal('publishPreviewModal');
-  const contentEl = document.getElementById('publishPreviewContent');
-  if (contentEl) contentEl.innerHTML = '<div class="publish-preview-loading">Preparando vista previa...</div>';
-  const brand = document.getElementById('publishBrand')?.value || '';
-  const model = document.getElementById('publishModel')?.value || '';
-  const version = getVersionValue('publish');
-  const year = document.getElementById('publishYear')?.value || '';
-  const title = document.getElementById('publishTitle')?.value || [brand, model, version, year].filter(Boolean).join(' ');
-  const rawPrice = parseFloat(document.getElementById('publishPrice')?.value) || 0;
-  const currency = document.getElementById('publishCurrency')?.value || 'ARS';
-  const fuel = document.getElementById('publishFuel')?.value || '';
-  const transmission = document.getElementById('publishTransmission')?.value || '';
-  const mileage = document.getElementById('publishMileage')?.value || '';
-  const province = document.getElementById('publishProvince')?.value || '';
-  const city = document.getElementById('publishCity')?.value || '';
-  const description = document.getElementById('publishDescription')?.value || '';
-  const vehicleType = document.getElementById('publishVehicleType')?.value || '';
-  const bodyType = document.getElementById('publishBodyType')?.value || '';
-
-  const priceDisplay = rawPrice > 0
-    ? `${currency} ${rawPrice.toLocaleString('es-AR')}`
-    : '—';
-
-  const locationDisplay = [city, province].filter(Boolean).join(', ') || '—';
-
-  const firstImage = uploadedImages.length > 0 ? uploadedImages[0] : null;
-  const imgHtml = firstImage
-    ? `<img src="${firstImage.preview || ''}" alt="Preview" decoding="async" loading="eager" style="width:100%;max-height:220px;object-fit:cover;border-radius:var(--radius-md);margin-bottom:1rem;">`
-    : `<div style="width:100%;height:120px;background:var(--dark-3);border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;color:var(--text-3);margin-bottom:1rem;font-size:0.9rem;">Sin fotos añadidas</div>`;
-
-  const badges = [];
-  if (vehicleType) badges.push(vehicleType);
-  if (bodyType) badges.push(bodyType);
-  if (fuel) badges.push(fuel);
-  if (transmission) badges.push(transmission);
-
-  const badgesHtml = badges.length
-    ? `<div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.85rem;">${badges.map(b => `<span style="background:var(--dark-3);border:1px solid var(--border);border-radius:99px;padding:0.2rem 0.65rem;font-size:0.78rem;color:var(--text-2);">${escapeHtml(b)}</span>`).join('')}</div>`
-    : '';
-
-  const detailRows = [
-    year ? ['Año', escapeHtml(year)] : null,
-    brand ? ['Marca', escapeHtml(brand)] : null,
-    model ? ['Modelo', escapeHtml(model)] : null,
-    mileage ? ['Kilometraje', `${parseInt(mileage).toLocaleString('es-AR')} km`] : null,
-    locationDisplay !== '—' ? ['Ubicación', escapeHtml(locationDisplay)] : null,
-  ].filter(Boolean);
-
-  const rowsHtml = detailRows.map(([k, v]) =>
-    `<div style="display:flex;justify-content:space-between;padding:0.45rem 0;border-bottom:1px solid var(--border);font-size:0.88rem;">
-      <span style="color:var(--text-2);">${k}</span>
-      <span style="font-weight:500;">${v}</span>
-    </div>`
-  ).join('');
-
-  const descHtml = description
-    ? `<div style="margin-top:1rem;"><p style="font-size:0.85rem;color:var(--text-2);margin-bottom:0.4rem;">Descripción</p><p style="font-size:0.9rem;line-height:1.55;white-space:pre-wrap;">${escapeHtml(description)}</p></div>`
-    : '';
-
-  const photosCount = uploadedImages.length;
-  const photosNote = photosCount > 1
-    ? `<p style="font-size:0.78rem;color:var(--text-3);margin-top:0.5rem;">+ ${photosCount - 1} foto${photosCount - 1 > 1 ? 's' : ''} más</p>`
-    : '';
-
-  const content = `
-    ${imgHtml}
-    ${photosNote}
-    <h3 style="font-size:1.15rem;font-weight:700;margin-bottom:0.4rem;">${escapeHtml(title || 'Sin título')}</h3>
-    <p style="font-size:1.35rem;font-weight:800;color:var(--primary);margin-bottom:0.75rem;">${priceDisplay}</p>
-    ${badgesHtml}
-    ${rowsHtml}
-    ${descHtml}
-  `;
-
-  if (contentEl) contentEl.innerHTML = content;
-}
-
-function closePublishPreviewModal() {
-  setPublishPreviewOpenState(false);
-  closeAccessibleModal('publishPreviewModal');
-}
-
-async function confirmPublishFromPreview() {
-  closePublishPreviewModal();
-  await _doPublish();
 }
 
 // ─── PUBLISH STEPPER ─────────────────────────────────────────────────────────
