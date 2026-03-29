@@ -4841,13 +4841,48 @@ function parseDRNames(list) {
   return [...new Set(list.map(v => { const i = v.indexOf(','); return (i !== -1 ? v.slice(i + 1) : v).trim(); }))].sort();
 }
 
+// CarQuery make_id mapping (brand display name → CarQuery ID)
+const CQ_MAKE_IDS = {
+  'Acura': 'acura', 'Alfa Romeo': 'alfa-romeo', 'Audi': 'audi', 'BMW': 'bmw',
+  'Chery': 'chery', 'Chevrolet': 'chevrolet', 'Chrysler': 'chrysler',
+  'Citroen': 'citroen', 'Dacia': 'dacia', 'Daewoo': 'daewoo', 'Daihatsu': 'daihatsu',
+  'Dodge': 'dodge', 'Fiat': 'fiat', 'Ford': 'ford', 'Great Wall': 'great-wall',
+  'Honda': 'honda', 'Hyundai': 'hyundai', 'Isuzu': 'isuzu', 'Iveco': 'iveco',
+  'JAC': 'jac', 'Jaguar': 'jaguar', 'Jeep': 'jeep', 'KIA': 'kia',
+  'Land Rover': 'land-rover', 'Lexus': 'lexus', 'Lifan': 'lifan',
+  'Mahindra': 'mahindra', 'Mazda': 'mazda', 'Mercedes Benz': 'mercedes-benz',
+  'Mitsubishi': 'mitsubishi', 'Nissan': 'nissan', 'Peugeot': 'peugeot',
+  'RAM': 'ram', 'Renault': 'renault', 'Seat': 'seat', 'Subaru': 'subaru',
+  'Suzuki': 'suzuki', 'Toyota': 'toyota', 'Volkswagen': 'volkswagen', 'Volvo': 'volvo',
+};
+
+function fetchCQModels(brand) {
+  const makeId = CQ_MAKE_IDS[brand];
+  if (!makeId) return Promise.resolve([]);
+  return new Promise((resolve) => {
+    _https.get(
+      { hostname: 'www.carqueryapi.com', path: `/api/0.3/?cmd=getModels&make=${makeId}`, headers: { 'User-Agent': 'Mozilla/5.0' } },
+      (r) => {
+        let data = '';
+        r.on('data', c => data += c);
+        r.on('end', () => {
+          try { resolve(JSON.parse(data).Models?.map(m => m.model_name) || []); }
+          catch { resolve([]); }
+        });
+      }
+    ).on('error', () => resolve([]));
+  });
+}
+
 // GET /api/deruedas-brands?type=auto
 app.get('/api/deruedas-brands', async (req, res) => {
-  const segmento = TYPE_TO_SEG[req.query.type] || 1;
+  const type = req.query.type || 'auto';
+  const segmento = TYPE_TO_SEG[type] || 1;
   try {
-    // fetch without year to get all brands for this type
-    const lista = await fetchDR({ campo: 'marca', segmento, anio: 0 });
-    const brands = lista.map(b => b.trim()).filter(Boolean).sort();
+    // For auto: combine seg4 (auto) + seg1 (utilitario) — many Argentine car brands live in seg1
+    const segs = type === 'auto' ? [4, 1] : [segmento];
+    const results = await Promise.all(segs.map(seg => fetchDR({ campo: 'marca', segmento: seg, anio: 0 })));
+    const brands = [...new Set(results.flat().map(b => b.trim()).filter(Boolean))].sort();
     res.set('Cache-Control', 'public, max-age=3600');
     res.json({ brands });
   } catch { res.json({ brands: [] }); }
@@ -4859,14 +4894,21 @@ app.get('/api/deruedas-models', async (req, res) => {
   if (!brand) return res.json({ models: [] });
   const segmento = TYPE_TO_SEG[type] || 1;
   try {
-    const lista = await fetchDR({ campo: 'modelo', segmento, anio: year || 0, marca: brand });
-    // try all segmentos if empty
-    let models = parseDRNames(lista);
+    // For auto: combine seg4 + seg1 to cover all car/SUV models
+    const segs = type === 'auto' ? [4, 1] : [segmento];
+    const results = await Promise.all(segs.map(seg => fetchDR({ campo: 'modelo', segmento: seg, anio: year || 0, marca: brand })));
+    let models = parseDRNames(results.flat());
+    // Fallback 1: try all deruedas segments if still empty
     if (!models.length) {
       const all = await Promise.all(Object.values(TYPE_TO_SEG).map(seg =>
         fetchDR({ campo: 'modelo', segmento: seg, anio: year || 0, marca: brand })
       ));
       models = parseDRNames(all.flat());
+    }
+    // Fallback 2: CarQuery API when deruedas has no data for this brand
+    if (!models.length) {
+      const cqModels = await fetchCQModels(brand);
+      models = [...new Set(cqModels.map(m => m.trim()).filter(Boolean))].sort();
     }
     res.set('Cache-Control', 'public, max-age=3600');
     res.json({ models });
@@ -4879,8 +4921,13 @@ app.get('/api/deruedas-versions', async (req, res) => {
   if (!brand || !model || !year) return res.json({ versions: [] });
   const segmento = TYPE_TO_SEG[type] || 1;
   try {
-    let lista = await fetchDR({ campo: 'version', segmento, anio: year, marca: brand, modelo: model });
-    if (!lista.length && segmento !== 1) lista = await fetchDR({ campo: 'version', segmento: 1, anio: year, marca: brand, modelo: model });
+    // For auto: try seg4 then seg1
+    const segs = type === 'auto' ? [4, 1] : [segmento];
+    let lista = [];
+    for (const seg of segs) {
+      lista = await fetchDR({ campo: 'version', segmento: seg, anio: year, marca: brand, modelo: model });
+      if (lista.length) break;
+    }
     res.set('Cache-Control', 'public, max-age=3600');
     res.json({ versions: parseDRNames(lista) });
   } catch { res.json({ versions: [] }); }
