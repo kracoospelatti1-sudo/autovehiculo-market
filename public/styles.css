@@ -3622,7 +3622,7 @@ select {
 }
 
 .publish-preview-open .modal-overlay {
-  background: rgba(0, 0, 0, 0.34);
+  background: rgba(4, 7, 14, 0.1);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
