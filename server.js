@@ -35,7 +35,7 @@ const INSTAGRAM_ACCESS_TOKEN = process.env.INSTAGRAM_ACCESS_TOKEN || '';
 const INSTAGRAM_DEFAULT_HASHTAGS = (process.env.INSTAGRAM_DEFAULT_HASHTAGS || '#autoventa #autosusados #autos #argentina').trim();
 const INSTAGRAM_CONTAINER_READY_TIMEOUT_MS = Number.parseInt(process.env.INSTAGRAM_CONTAINER_READY_TIMEOUT_MS || '45000', 10);
 const INSTAGRAM_CONTAINER_READY_POLL_MS = Number.parseInt(process.env.INSTAGRAM_CONTAINER_READY_POLL_MS || '1500', 10);
-const INSTAGRAM_GRAPH_TIMEOUT_MS = Number.parseInt(process.env.INSTAGRAM_GRAPH_TIMEOUT_MS || '8000', 10);
+const INSTAGRAM_GRAPH_TIMEOUT_MS = Number.parseInt(process.env.INSTAGRAM_GRAPH_TIMEOUT_MS || '15000', 10);
 const FINANCING_PROVIDER_VALUES = new Set(['prestito', 'propia']);
 const ADMIN_CONTACT_REQUEST_STATUS_VALUES = new Set(['pending', 'reviewed', 'resolved', 'dismissed']);
 const IG_CONFIG_DB_KEYS = Object.freeze({
@@ -682,6 +682,18 @@ function buildInstagramCompatibleImageUrl(url = '') {
   return `${base}/storage/v1/render/image/public/${objectPath}?${qs.toString()}`;
 }
 
+function buildInstagramImageCandidates(url = '') {
+  const raw = String(url || '').trim();
+  if (!/^https?:\/\//i.test(raw)) return [];
+
+  const optimized = buildInstagramCompatibleImageUrl(raw);
+  const withoutQuery = raw.split('?')[0];
+
+  return [...new Set(
+    [optimized, raw, withoutQuery].filter((candidate) => /^https?:\/\//i.test(candidate))
+  )];
+}
+
 function buildInstagramCaption(vehicle, detailUrl, publisherName = '', hashtags = INSTAGRAM_DEFAULT_HASHTAGS) {
   const lines = [];
   const usd = Number(vehicle?.price || 0);
@@ -730,6 +742,78 @@ function extractInstagramGraphError(payload, statusCode = 500) {
   return `${base}${code}${subcode}`.trim();
 }
 
+function classifyInstagramPublishError(error, fallbackMessage = 'No se pudo publicar en Instagram') {
+  const raw = String(error?.message || fallbackMessage || '').trim() || fallbackMessage;
+  const msg = raw.toLowerCase();
+
+  if (msg.includes('instagram no esta configurado') || msg.includes('instagram no está configurado')) {
+    return { status: 503, message: raw };
+  }
+
+  if (
+    msg.includes('[code 190]')
+    || msg.includes('invalid oauth')
+    || msg.includes('session has expired')
+    || (msg.includes('access token') && (msg.includes('invalid') || msg.includes('expired')))
+  ) {
+    return {
+      status: 401,
+      message: 'Token de Instagram vencido o invalido. Volve a guardar el access token desde Admin.'
+    };
+  }
+
+  if (
+    msg.includes('instagram_content_publish')
+    || msg.includes('pages_read_engagement')
+    || msg.includes('pages_show_list')
+    || msg.includes('business_management')
+    || msg.includes('[code 10]')
+    || msg.includes('permission')
+    || msg.includes('permisos')
+  ) {
+    return {
+      status: 403,
+      message: 'Faltan permisos en Meta (instagram_content_publish/pages). Reautoriza la app y el token.'
+    };
+  }
+
+  if (
+    msg.includes('[code 4]')
+    || msg.includes('[code 17]')
+    || msg.includes('[code 613]')
+    || msg.includes('rate limit')
+    || msg.includes('too many calls')
+  ) {
+    return {
+      status: 429,
+      message: 'Meta rate-limito la publicacion. Espera unos segundos y volve a intentar.'
+    };
+  }
+
+  if (isInstagramMediaNotReadyError(error)) {
+    return {
+      status: 503,
+      message: 'Instagram todavia esta procesando las imagenes. Reintenta en unos segundos.'
+    };
+  }
+
+  if (isInstagramSkippableMediaError(error)) {
+    return {
+      status: 422,
+      message: 'Instagram no pudo procesar las imagenes. Usa fotos JPG/PNG publicas y volve a intentar.'
+    };
+  }
+
+  if (msg.includes('timeout') || msg.includes('time out') || msg.includes('tardo demasiado') || msg.includes('tardó demasiado')) {
+    return {
+      status: 504,
+      message: 'Instagram tardo demasiado en responder. Intentalo de nuevo en unos segundos.'
+    };
+  }
+
+  return { status: 502, message: raw };
+}
+
 async function instagramGraphRequest(endpointPath, { method = 'POST', params = {}, accessToken = '', graphApiVersion = '' } = {}) {
   const token = String(accessToken || INSTAGRAM_ACCESS_TOKEN || '').trim();
   const version = String(graphApiVersion || INSTAGRAM_GRAPH_API_VERSION || 'v23.0').trim();
@@ -764,7 +848,10 @@ async function instagramGraphRequest(endpointPath, { method = 'POST', params = {
   try { payload = await response.json(); } catch { payload = null; }
 
   if (!response.ok || payload?.error) {
-    throw new Error(extractInstagramGraphError(payload, response.status));
+    const graphErr = new Error(extractInstagramGraphError(payload, response.status));
+    graphErr.graphStatus = response.status;
+    graphErr.graphPayload = payload;
+    throw graphErr;
   }
   return payload || {};
 }
@@ -788,7 +875,16 @@ function isInstagramTransientError(error) {
     || message.includes('timeout')
     || message.includes('time out')
     || message.includes('please wait')
-    || message.includes('unknown error');
+    || message.includes('unknown error')
+    || message.includes('fetch failed')
+    || message.includes('econnreset')
+    || message.includes('enotfound')
+    || message.includes('service unavailable')
+    || message.includes('rate limit')
+    || message.includes('too many calls')
+    || message.includes('[code 4]')
+    || message.includes('[code 17]')
+    || message.includes('[code 613]');
 }
 
 function isInstagramSkippableMediaError(error) {
@@ -799,6 +895,8 @@ function isInstagramSkippableMediaError(error) {
     || message.includes('only photo or video can be accepted')
     || message.includes('error al descargar el contenido multimedia')
     || message.includes('could not retrieve media')
+    || message.includes('cannot be downloaded')
+    || message.includes('unable to fetch media')
     || message.includes('unsupported format')
     || message.includes('[code 36003]')
     || message.includes('[code 9004]');
@@ -856,31 +954,47 @@ async function createCarouselContainerWithRetry(igRequest, igBusinessId, childre
 }
 
 async function createInstagramImageContainerWithRetry(igRequest, igBusinessId, imageUrl, { isCarouselItem = false, caption = '' } = {}) {
+  const candidateUrls = Array.isArray(imageUrl)
+    ? imageUrl.map((u) => String(u || '').trim())
+    : [String(imageUrl || '').trim()];
+  const usableCandidateUrls = [...new Set(candidateUrls.filter((u) => /^https?:\/\//i.test(u)))];
+  if (usableCandidateUrls.length === 0) {
+    throw new Error('No hay una URL de imagen publica valida para Instagram');
+  }
+
   let lastError = null;
   for (let attempt = 1; attempt <= 2; attempt += 1) {
-    try {
-      const params = {
-        image_url: imageUrl
-      };
-      if (isCarouselItem) {
-        params.is_carousel_item = true;
-      } else if (caption) {
-        params.caption = caption;
+    for (let candidateIndex = 0; candidateIndex < usableCandidateUrls.length; candidateIndex += 1) {
+      const candidateUrl = usableCandidateUrls[candidateIndex];
+      try {
+        const params = {
+          image_url: candidateUrl
+        };
+        if (isCarouselItem) {
+          params.is_carousel_item = true;
+        } else if (caption) {
+          params.caption = caption;
+        }
+        const response = await igRequest(`/${igBusinessId}/media`, {
+          method: 'POST',
+          params
+        });
+        const containerId = String(response?.id || '').trim();
+        if (!containerId) throw new Error('Instagram no devolvio ID del contenedor de imagen');
+        return { ...response, id: containerId, used_image_url: candidateUrl };
+      } catch (err) {
+        lastError = err;
+        const hasMoreCandidates = candidateIndex < usableCandidateUrls.length - 1;
+        if (hasMoreCandidates && isInstagramSkippableMediaError(err)) {
+          continue;
+        }
+        if (!isInstagramMediaNotReadyError(err) && !isInstagramTransientError(err)) {
+          throw err;
+        }
+        break;
       }
-      const response = await igRequest(`/${igBusinessId}/media`, {
-        method: 'POST',
-        params
-      });
-      const containerId = String(response?.id || '').trim();
-      if (!containerId) throw new Error('Instagram no devolvio ID del contenedor de imagen');
-      return { ...response, id: containerId };
-    } catch (err) {
-      lastError = err;
-      if (!isInstagramMediaNotReadyError(err) && !isInstagramTransientError(err)) {
-        throw err;
-      }
-      await sleep(500 * attempt);
     }
+    await sleep(500 * attempt);
   }
   throw lastError || new Error('No se pudo crear el contenedor de imagen en Instagram');
 }
@@ -4310,10 +4424,18 @@ app.post('/api/admin/vehicles/:id/publish-instagram', authenticateToken, async (
     const publisherName = dealershipName || sellerUsername;
 
     // Instagram feed carousels allow up to 10 media items.
-    // Use IG-compatible rendered URLs when possible (4:5 crop).
-    const imageUrls = validUniqueUrls
-      .slice(0, 10)
-      .map((url) => buildInstagramCompatibleImageUrl(url));
+    // For each source image, try IG-compatible render URL first, then raw fallback URL.
+    const imageSources = validUniqueUrls.slice(0, 10);
+    const imageCandidates = imageSources.map((sourceUrl) => ({
+      sourceUrl,
+      candidates: buildInstagramImageCandidates(sourceUrl)
+    }));
+    const publishableImages = imageCandidates.filter((img) => img.candidates.length > 0);
+    if (publishableImages.length === 0) {
+      return res.status(400).json({ error: 'El vehiculo no tiene imagenes publicas validas para Instagram' });
+    }
+
+    let imagesPublishedCount = publishableImages.length;
     const detailUrl = `${getPublicAppBaseUrl(req)}/?vehicle=${vehicle.id}`;
     const caption = buildInstagramCaption(vehicle, detailUrl, publisherName, instagramConfig.defaultHashtags);
     const igBusinessId = instagramConfig.businessAccountId;
@@ -4333,7 +4455,7 @@ app.post('/api/admin/vehicles/:id/publish-instagram', authenticateToken, async (
         success: true,
         already_published: true,
         vehicle_id: vehicle.id,
-        images_published_count: imageUrls.length,
+        images_published_count: imagesPublishedCount,
         media_id: recentPost.media_id,
         permalink: recentPost.permalink || null,
         detail_url: detailUrl
@@ -4342,20 +4464,20 @@ app.post('/api/admin/vehicles/:id/publish-instagram', authenticateToken, async (
 
     publishStage = 'create-container';
     let creationId = null;
-    if (imageUrls.length === 1) {
+    if (publishableImages.length === 1) {
       const createMedia = await createInstagramImageContainerWithRetry(
         igRequest,
         igBusinessId,
-        imageUrls[0],
+        publishableImages[0].candidates,
         { isCarouselItem: false, caption }
       );
       creationId = createMedia?.id;
     } else {
       const settledChildren = await Promise.allSettled(
-        imageUrls.map((imageUrl) => createInstagramImageContainerWithRetry(
+        publishableImages.map((imageObj) => createInstagramImageContainerWithRetry(
           igRequest,
           igBusinessId,
-          imageUrl,
+          imageObj.candidates,
           { isCarouselItem: true }
         ))
       );
@@ -4364,12 +4486,12 @@ app.post('/api/admin/vehicles/:id/publish-instagram', authenticateToken, async (
       const validImageUrls = [];
       for (let i = 0; i < settledChildren.length; i += 1) {
         const result = settledChildren[i];
-        const sourceUrl = imageUrls[i];
+        const sourceUrl = publishableImages[i]?.sourceUrl;
         if (result.status === 'fulfilled') {
           const childId = String(result.value?.id || '').trim();
           if (childId) {
             validChildren.push(childId);
-            validImageUrls.push(sourceUrl);
+            validImageUrls.push(String(result.value?.used_image_url || sourceUrl || '').trim());
           }
           continue;
         }
@@ -4384,6 +4506,8 @@ app.post('/api/admin/vehicles/:id/publish-instagram', authenticateToken, async (
       if (validChildren.length === 0) {
         throw new Error('Ninguna imagen del vehículo cumple los requisitos de Instagram');
       }
+
+      imagesPublishedCount = validChildren.length;
 
       if (validChildren.length === 1) {
         publishStage = 'fallback-single-media';
@@ -4401,6 +4525,9 @@ app.post('/api/admin/vehicles/:id/publish-instagram', authenticateToken, async (
       }
     }
     if (!creationId) throw new Error('Instagram no devolvio el ID de creacion del post');
+
+    publishStage = 'wait-container-ready';
+    await waitForInstagramContainerReady(igRequest, creationId);
 
     publishStage = 'publish-media';
     const publishMedia = await publishInstagramCreationWithRetry(igRequest, igBusinessId, creationId);
@@ -4429,7 +4556,7 @@ app.post('/api/admin/vehicles/:id/publish-instagram', authenticateToken, async (
     res.json({
       success: true,
       vehicle_id: vehicle.id,
-      images_published_count: imageUrls.length,
+      images_published_count: imagesPublishedCount,
       media_id: mediaId,
       permalink,
       detail_url: detailUrl
@@ -4461,7 +4588,11 @@ app.post('/api/admin/vehicles/:id/publish-instagram', authenticateToken, async (
       console.warn('[/api/admin/vehicles/:id/publish-instagram][fallback]', fallbackErr.message);
     }
     if (!res.headersSent) {
-      res.status(502).json({ error: normalizedError });
+      const classified = classifyInstagramPublishError(error, normalizedError);
+      res.status(classified.status).json({
+        error: classified.message,
+        detail: normalizedError
+      });
     }
   }
 });
