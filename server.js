@@ -141,6 +141,11 @@ const escapeXml = (value = '') => String(value)
   .replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;')
   .replace(/'/g, '&apos;');
+const RESERVED_CHAT_PREFIXES = ['__TRADE_CARD__'];
+const hasReservedChatPrefix = (value = '') => {
+  const message = String(value || '').trimStart();
+  return RESERVED_CHAT_PREFIXES.some(prefix => message.startsWith(prefix));
+};
 const trimEllipsis = (value = '', max = 80) => {
   const v = String(value || '').trim();
   if (v.length <= max) return v;
@@ -168,7 +173,7 @@ function buildVehicleOgSvg({ title, price, city, province, year, fuel, transmiss
   const safeTitle = escapeXml(trimEllipsis(title || 'Vehiculo destacado', 78));
   const safeLocation = escapeXml([city, province].filter(Boolean).join(', ') || 'Argentina');
   const safeMeta = escapeXml([year, fuel, transmission].filter(Boolean).join(' • '));
-  const safePrice = escapeXml(`USD ${Number(price || 0).toLocaleString('es-AR')}`);
+  const safePrice = escapeXml(`ARS ${Number(price || 0).toLocaleString('es-AR')}`);
   const safeImage = escapeXml(imageUrl || 'https://autoventa.online/og-default.png');
 
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -223,7 +228,7 @@ app.get('/', async (req, res, next) => {
   try {
     const { data: vehicle } = await supabase
       .from('vehicles')
-      .select('id, title, brand, model, year, price, mileage, fuel, transmission, city, province, description, status, updated_at')
+      .select('id, title, brand, model, year, price, price_original, mileage, fuel, transmission, city, province, description, status, updated_at')
       .eq('id', vehicleId)
       .in('status', ['active', 'reserved'])
       .maybeSingle();
@@ -239,15 +244,16 @@ app.get('/', async (req, res, next) => {
     const imageUrl = primaryImageUrl;
     const imageType = inferImageMimeType(imageUrl);
     const twitterImageUrl = imageUrl;
-    const price = Number(vehicle.price || 0).toLocaleString('es-AR');
+    const priceArs = await resolveVehiclePriceArs(vehicle);
+    const priceArsLabel = formatArsPriceLabel(priceArs);
     const mileage = Number(vehicle.mileage || 0).toLocaleString('es-AR');
     const fuel = String(vehicle.fuel || '').trim();
     const city = String(vehicle.city || '').trim();
     const province = String(vehicle.province || '').trim();
     const location = [city, province].filter(Boolean).join(', ');
-    const title = `${vehicle.title} | USD ${price} | ${mileage} km`;
+    const title = `${vehicle.title} | ${priceArsLabel} | ${mileage} km`;
     const desc = `${vehicle.brand} ${vehicle.model} ${vehicle.year} - ${mileage} km${fuel ? ` - ${fuel}` : ''}${location ? ` - ${location}` : ''}. Ver publicacion en Autoventa.`;
-    const imageAlt = `${vehicle.title} - USD ${price} - ${mileage} km`;
+    const imageAlt = `${vehicle.title} - ${priceArsLabel} - ${mileage} km`;
     const url = `https://autoventa.online/?vehicle=${vehicle.id}`;
     const titleEsc = escapeHtml(title);
     const descEsc = escapeHtml(desc);
@@ -311,7 +317,7 @@ app.get('/og/vehicle/:id.svg', async (req, res) => {
 
     const { data: vehicle } = await supabase
       .from('vehicles')
-      .select('id, title, year, price, fuel, transmission, city, province, status')
+      .select('id, title, year, price, price_original, fuel, transmission, city, province, status')
       .eq('id', vid)
       .eq('status', 'active')
       .maybeSingle();
@@ -326,9 +332,10 @@ app.get('/og/vehicle/:id.svg', async (req, res) => {
       .limit(1);
 
     const imageUrl = imgs?.[0]?.url || 'https://autoventa.online/og-default.png';
+    const priceArs = await resolveVehiclePriceArs(vehicle);
     const svg = buildVehicleOgSvg({
       title: vehicle.title,
-      price: vehicle.price,
+      price: priceArs,
       city: vehicle.city,
       province: vehicle.province,
       year: vehicle.year,
@@ -408,6 +415,11 @@ const adminContactRequestLimiter = rateLimit({
   max: 8,
   message: { error: 'Demasiadas consultas enviadas. Intentá de nuevo en una hora.' }
 });
+const bodyTypeCacheSyncLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 30,
+  message: { error: 'Demasiadas sincronizaciones. Intenta nuevamente en unos minutos.' }
+});
 app.use('/api/', globalLimiter);
 app.use('/api/login', authLimiter);
 app.use('/api/register', authLimiter);
@@ -436,18 +448,26 @@ const optionalAuth = (req, res, next) => {
   });
 };
 
-const isAdmin = async (userId) => {
+const isAdmin = async (userId, fallbackIsAdmin = false) => {
+  if (!userId) return fallbackIsAdmin === true;
   try {
-    const { data } = await supabase.from('profiles').select('is_admin').eq('user_id', userId).maybeSingle();
+    const { data, error } = await supabase.from('profiles').select('is_admin').eq('user_id', userId).maybeSingle();
+    if (error) return fallbackIsAdmin === true;
     return data?.is_admin === true;
-  } catch { return false; }
+  } catch {
+    return fallbackIsAdmin === true;
+  }
 };
 
-const isBanned = async (userId) => {
+const isBanned = async (userId, fallbackIsBanned = false) => {
+  if (!userId) return fallbackIsBanned === true;
   try {
-    const { data } = await supabase.from('profiles').select('is_banned').eq('user_id', userId).maybeSingle();
+    const { data, error } = await supabase.from('profiles').select('is_banned').eq('user_id', userId).maybeSingle();
+    if (error) return fallbackIsBanned === true;
     return data?.is_banned === true;
-  } catch { return false; }
+  } catch {
+    return fallbackIsBanned === true;
+  }
 };
 
 function formatNumber(num) {
@@ -701,6 +721,23 @@ function buildInstagramImageCandidates(url = '') {
   return [...new Set(
     [optimized, raw, withoutQuery].filter((candidate) => /^https?:\/\//i.test(candidate))
   )];
+}
+
+async function resolveVehiclePriceArs(vehicle = {}) {
+  const fixedArs = Number(vehicle?.price_original || 0);
+  if (fixedArs > 0) return fixedArs;
+  const usd = Number(vehicle?.price || 0);
+  if (usd <= 0) return 0;
+  try {
+    const rate = await fetchDolarBlue();
+    const venta = Number(rate?.venta || 0);
+    if (venta > 0) return usd * venta;
+  } catch {}
+  return usd;
+}
+
+function formatArsPriceLabel(priceArs = 0) {
+  return `ARS ${Math.round(Number(priceArs || 0)).toLocaleString('es-AR')}`;
 }
 
 function buildInstagramCaption(vehicle, detailUrl, publisherName = '', hashtags = INSTAGRAM_DEFAULT_HASHTAGS) {
@@ -2180,7 +2217,7 @@ app.get('/api/vehicles/:id', optionalAuth, async (req, res) => {
 
     const requesterId = req.user?.id;
     const isOwner = requesterId && vehicle.user_id === requesterId;
-    const admin = requesterId ? (req.user.is_admin === true || (req.user.is_admin === undefined && await isAdmin(requesterId))) : false;
+    const admin = requesterId ? await isAdmin(requesterId, req.user?.is_admin === true) : false;
     if (!isOwner && !admin && !['active', 'sold', 'reserved'].includes(vehicle.status)) {
       return res.status(404).json({ error: 'Vehículo no encontrado' });
     }
@@ -2338,10 +2375,10 @@ app.get('/api/vehicles/:id/similar', optionalAuth, async (req, res) => {
 
 app.post('/api/vehicles', authenticateToken, async (req, res) => {
   try {
-    if (req.user.is_banned === true || (req.user.is_banned === undefined && await isBanned(req.user.id))) {
+    if (await isBanned(req.user.id, req.user.is_banned === true)) {
       return res.status(403).json({ error: 'Tu cuenta ha sido restringida. No podés publicar contenido.' });
     }
-    const admin = req.user.is_admin === true || await isAdmin(req.user.id);
+    const admin = await isAdmin(req.user.id, req.user.is_admin === true);
 
     let { title, brand, model, year, price, price_original, price_currency, mileage, fuel, transmission, description, city, province, images, accepts_trade, accepts_financing, financing_provider, vehicle_type, body_type, drivetrain, engine_cc, version, contact_phone, contact_address } = req.body;
     if (!admin && (contact_phone || contact_address)) {
@@ -2371,7 +2408,11 @@ app.post('/api/vehicles', authenticateToken, async (req, res) => {
     }
 
     const validTypes = ['auto', 'moto', 'utilitario', 'cuatri', 'camion'];
-    const vehicleType = validTypes.includes(vehicle_type) ? vehicle_type : 'auto';
+    const requestedVehicleType = String(vehicle_type || '').trim();
+    if (requestedVehicleType && !validTypes.includes(requestedVehicleType)) {
+      return res.status(400).json({ error: 'Tipo invalido' });
+    }
+    const vehicleType = requestedVehicleType || 'auto';
     const manualBodyType = canonicalBodyType(body_type || '');
     const inferredBodyType = vehicleType === 'auto' && !manualBodyType
       ? canonicalBodyType(await resolveBodyTypeForListing(brand, model))
@@ -2487,7 +2528,7 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Vehículo no encontrado' });
     }
 
-    const admin = req.user.is_admin === true || await isAdmin(req.user.id);
+    const admin = await isAdmin(req.user.id, req.user.is_admin === true);
     if (vehicle.user_id !== req.user.id && !admin) {
       return res.status(403).json({ error: 'No tienes permiso' });
     }
@@ -2558,7 +2599,7 @@ app.put('/api/vehicles/:id', authenticateToken, async (req, res) => {
     }
     if (vehicle_type !== undefined) {
       const validTypes = ['auto', 'moto', 'utilitario', 'cuatri', 'camion'];
-      if (!validTypes.includes(vehicle_type)) return res.status(400).json({ error: 'Tipo inválido' });
+      if (!validTypes.includes(vehicle_type)) return res.status(400).json({ error: 'Tipo invalido' });
       updates.vehicle_type = vehicle_type;
       effectiveVehicleType = vehicle_type;
     }
@@ -2682,7 +2723,7 @@ app.delete('/api/vehicles/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Vehículo no encontrado' });
     }
 
-    const admin = req.user.is_admin === true || (req.user.is_admin === undefined && await isAdmin(req.user.id));
+    const admin = await isAdmin(req.user.id, req.user.is_admin === true);
     if (vehicle.user_id !== req.user.id && !admin) {
       return res.status(403).json({ error: 'No tienes permiso' });
     }
@@ -3016,7 +3057,7 @@ app.put('/api/ping', authenticateToken, async (req, res) => {
 });
 
 app.delete('/api/admin/reports/:id', authenticateToken, async (req, res) => {
-  if (!(req.user.is_admin === true || (req.user.is_admin === undefined && await isAdmin(req.user.id)))) return res.status(403).json({ error: 'Acceso denegado' });
+  if (!(await isAdmin(req.user.id, req.user.is_admin === true))) return res.status(403).json({ error: 'Acceso denegado' });
   try {
     await supabase.from('reports').delete().eq('id', req.params.id);
     res.json({ success: true });
@@ -3024,7 +3065,7 @@ app.delete('/api/admin/reports/:id', authenticateToken, async (req, res) => {
 });
 
 app.put('/api/admin/users/:id/ban', authenticateToken, async (req, res) => {
-  if (!(req.user.is_admin === true || (req.user.is_admin === undefined && await isAdmin(req.user.id)))) return res.status(403).json({ error: 'Acceso denegado' });
+  if (!(await isAdmin(req.user.id, req.user.is_admin === true))) return res.status(403).json({ error: 'Acceso denegado' });
   try {
     const targetUser = req.params.id;
     const { data: targetProfile } = await supabase.from('profiles').select('is_admin, is_banned').eq('user_id', targetUser).maybeSingle();
@@ -3041,7 +3082,7 @@ app.put('/api/admin/users/:id/ban', authenticateToken, async (req, res) => {
 });
 
 app.put('/api/admin/users/:id/verify', authenticateToken, async (req, res) => {
-  if (!(req.user.is_admin === true || (req.user.is_admin === undefined && await isAdmin(req.user.id)))) return res.status(403).json({ error: 'Acceso denegado' });
+  if (!(await isAdmin(req.user.id, req.user.is_admin === true))) return res.status(403).json({ error: 'Acceso denegado' });
   try {
     const targetUser = req.params.id;
     const { data: profile } = await supabase.from('profiles').select('is_verified').eq('user_id', targetUser).maybeSingle();
@@ -3338,11 +3379,18 @@ app.get('/api/messages/unread-count', authenticateToken, async (req, res) => {
 
 app.post('/api/conversations', authenticateToken, async (req, res) => {
   try {
-    if (req.user.is_banned === true || (req.user.is_banned === undefined && await isBanned(req.user.id))) return res.status(403).json({ error: 'Tu cuenta está suspendida' });
+    if (await isBanned(req.user.id, req.user.is_banned === true)) return res.status(403).json({ error: 'Tu cuenta está suspendida' });
     const { vehicle_id, initial_message } = req.body;
+    const initialMessageText = String(initial_message || '');
     
-    if (!vehicle_id || !initial_message) {
+    if (!vehicle_id || !initialMessageText.trim()) {
       return res.status(400).json({ error: 'Datos requeridos' });
+    }
+    if (initialMessageText.trim().length > 5000) {
+      return res.status(400).json({ error: 'El mensaje no puede superar los 5000 caracteres' });
+    }
+    if (hasReservedChatPrefix(initialMessageText)) {
+      return res.status(400).json({ error: 'Prefijo de mensaje no permitido' });
     }
 
     const { data: vehicle, error: vehicleError } = await supabase
@@ -3374,7 +3422,7 @@ app.post('/api/conversations', authenticateToken, async (req, res) => {
       await supabase.from('messages').insert({
         conversation_id: existingConv.id,
         sender_id: req.user.id,
-        content: initial_message
+        content: initialMessageText
       });
       await supabase.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', existingConv.id);
       await pushNotif(vehicle.user_id, {
@@ -3401,7 +3449,7 @@ app.post('/api/conversations', authenticateToken, async (req, res) => {
     await supabase.from('messages').insert({
       conversation_id: newConv.id,
       sender_id: req.user.id,
-      content: initial_message
+      content: initialMessageText
     });
 
     await pushNotif(vehicle.user_id, {
@@ -3542,10 +3590,11 @@ app.get('/api/conversations/:id/messages', authenticateToken, async (req, res) =
 
 app.post('/api/conversations/:id/messages', authenticateToken, messageLimiter, async (req, res) => {
   try {
-    if (req.user.is_banned === true || (req.user.is_banned === undefined && await isBanned(req.user.id))) return res.status(403).json({ error: 'Tu cuenta está suspendida' });
-    const { content } = req.body;
-    if (!content || !content.trim()) return res.status(400).json({ error: 'Mensaje requerido' });
-    if (content.trim().length > 5000) return res.status(400).json({ error: 'El mensaje no puede superar los 5000 caracteres' });
+    if (await isBanned(req.user.id, req.user.is_banned === true)) return res.status(403).json({ error: 'Tu cuenta está suspendida' });
+    const contentText = String(req.body?.content || '');
+    if (!contentText.trim()) return res.status(400).json({ error: 'Mensaje requerido' });
+    if (contentText.trim().length > 5000) return res.status(400).json({ error: 'El mensaje no puede superar los 5000 caracteres' });
+    if (hasReservedChatPrefix(contentText)) return res.status(400).json({ error: 'Prefijo de mensaje no permitido' });
 
     const { data: conversation } = await supabase
       .from('conversations')
@@ -3566,7 +3615,7 @@ app.post('/api/conversations/:id/messages', authenticateToken, messageLimiter, a
       .insert({
         conversation_id: req.params.id,
         sender_id: req.user.id,
-        content
+        content: contentText
       })
       .select('*, users(username)')
       .single();
@@ -3577,7 +3626,7 @@ app.post('/api/conversations/:id/messages', authenticateToken, messageLimiter, a
 
     // Obtener username del remitente para la notificación
     const { data: senderUser } = await supabase.from('users').select('username').eq('id', req.user.id).single();
-    const preview = content.length > 60 ? content.slice(0, 60) + '…' : content;
+    const preview = contentText.length > 60 ? contentText.slice(0, 60) + '…' : contentText;
 
     // Anti-spam: solo crear notificación si no hay una pendiente del mismo chat
     const { data: existingNotif } = await supabase
@@ -3687,7 +3736,7 @@ app.put('/api/conversations/:id/read', authenticateToken, async (req, res) => {
 // TRADE OFFERS
 app.post('/api/vehicles/:id/trade-offer', authenticateToken, async (req, res) => {
   try {
-    if (req.user.is_banned === true || (req.user.is_banned === undefined && await isBanned(req.user.id))) return res.status(403).json({ error: 'Tu cuenta está suspendida' });
+    if (await isBanned(req.user.id, req.user.is_banned === true)) return res.status(403).json({ error: 'Tu cuenta está suspendida' });
     const targetVehicleId = req.params.id;
     const { offered_vehicle_id, message } = req.body;
     if (!offered_vehicle_id) return res.status(400).json({ error: 'Seleccioná un vehículo para ofrecer' });
@@ -4287,7 +4336,7 @@ app.get('/api/stats', authenticateToken, async (req, res) => {
 // ADMIN — listar todos los vehículos
 app.get('/api/admin/instagram-config', authenticateToken, async (req, res) => {
   try {
-    const admin = req.user.is_admin === true || (req.user.is_admin === undefined && await isAdmin(req.user.id));
+    const admin = await isAdmin(req.user.id, req.user.is_admin === true);
     if (!admin) return res.status(403).json({ error: 'Acceso denegado' });
 
     const instagramConfig = await resolveInstagramPublishConfig();
@@ -4312,7 +4361,7 @@ app.get('/api/admin/instagram-config', authenticateToken, async (req, res) => {
 
 app.put('/api/admin/instagram-config', authenticateToken, async (req, res) => {
   try {
-    const admin = req.user.is_admin === true || (req.user.is_admin === undefined && await isAdmin(req.user.id));
+    const admin = await isAdmin(req.user.id, req.user.is_admin === true);
     if (!admin) return res.status(403).json({ error: 'Acceso denegado' });
 
     const inputBusinessId = req.body?.business_account_id ?? req.body?.instagram_business_account_id;
@@ -4377,7 +4426,7 @@ app.put('/api/admin/instagram-config', authenticateToken, async (req, res) => {
 app.post('/api/admin/vehicles/:id/publish-instagram', authenticateToken, async (req, res) => {
   let publishStage = 'init';
   try {
-    const admin = req.user.is_admin === true || (req.user.is_admin === undefined && await isAdmin(req.user.id));
+    const admin = await isAdmin(req.user.id, req.user.is_admin === true);
     if (!admin) return res.status(403).json({ error: 'Acceso denegado' });
 
     const instagramConfig = await resolveInstagramPublishConfig();
@@ -4608,7 +4657,7 @@ app.post('/api/admin/vehicles/:id/publish-instagram', authenticateToken, async (
 
 app.get('/api/admin/vehicles', authenticateToken, async (req, res) => {
   try {
-    const admin = req.user.is_admin === true || (req.user.is_admin === undefined && await isAdmin(req.user.id));
+    const admin = await isAdmin(req.user.id, req.user.is_admin === true);
     if (!admin) return res.status(403).json({ error: 'Acceso denegado' });
 
     const { page = 1, search = '' } = req.query;
@@ -4656,7 +4705,7 @@ app.get('/api/admin/vehicles', authenticateToken, async (req, res) => {
 // ADMIN
 app.get('/api/admin/reports', authenticateToken, async (req, res) => {
   try {
-    const admin = req.user.is_admin === true || (req.user.is_admin === undefined && await isAdmin(req.user.id));
+    const admin = await isAdmin(req.user.id, req.user.is_admin === true);
     if (!admin) return res.status(403).json({ error: 'Acceso denegado' });
 
     const { data, error } = await supabase
@@ -4689,7 +4738,7 @@ app.get('/api/admin/reports', authenticateToken, async (req, res) => {
 
 app.put('/api/admin/reports/:id', authenticateToken, async (req, res) => {
   try {
-    const admin = req.user.is_admin === true || (req.user.is_admin === undefined && await isAdmin(req.user.id));
+    const admin = await isAdmin(req.user.id, req.user.is_admin === true);
     if (!admin) return res.status(403).json({ error: 'Acceso denegado' });
 
     const { status } = req.body;
@@ -4713,7 +4762,7 @@ app.put('/api/admin/reports/:id', authenticateToken, async (req, res) => {
 
 app.get('/api/admin/contact-requests', authenticateToken, async (req, res) => {
   try {
-    const admin = req.user.is_admin === true || (req.user.is_admin === undefined && await isAdmin(req.user.id));
+    const admin = await isAdmin(req.user.id, req.user.is_admin === true);
     if (!admin) return res.status(403).json({ error: 'Acceso denegado' });
 
     const requestedStatus = String(req.query.status || 'all').trim().toLowerCase();
@@ -4760,7 +4809,7 @@ app.get('/api/admin/contact-requests', authenticateToken, async (req, res) => {
 
 app.put('/api/admin/contact-requests/:id', authenticateToken, async (req, res) => {
   try {
-    const admin = req.user.is_admin === true || (req.user.is_admin === undefined && await isAdmin(req.user.id));
+    const admin = await isAdmin(req.user.id, req.user.is_admin === true);
     if (!admin) return res.status(403).json({ error: 'Acceso denegado' });
 
     const status = String(req.body?.status || '').trim().toLowerCase();
@@ -4807,7 +4856,7 @@ app.put('/api/admin/contact-requests/:id', authenticateToken, async (req, res) =
 
 app.get('/api/admin/users', authenticateToken, async (req, res) => {
   try {
-    const admin = req.user.is_admin === true || (req.user.is_admin === undefined && await isAdmin(req.user.id));
+    const admin = await isAdmin(req.user.id, req.user.is_admin === true);
     if (!admin) return res.status(403).json({ error: 'Acceso denegado' });
 
     const { page = 1, search = '' } = req.query;
@@ -4853,7 +4902,7 @@ app.get('/api/admin/users', authenticateToken, async (req, res) => {
 
 app.get('/api/admin/users/:id/profile', authenticateToken, async (req, res) => {
   try {
-    const admin = req.user.is_admin === true || (req.user.is_admin === undefined && await isAdmin(req.user.id));
+    const admin = await isAdmin(req.user.id, req.user.is_admin === true);
     if (!admin) return res.status(403).json({ error: 'Acceso denegado' });
 
     const targetUser = parseInt(req.params.id, 10);
@@ -4886,7 +4935,7 @@ app.get('/api/admin/users/:id/profile', authenticateToken, async (req, res) => {
 
 app.put('/api/admin/users/:id/profile', authenticateToken, async (req, res) => {
   try {
-    const admin = req.user.is_admin === true || (req.user.is_admin === undefined && await isAdmin(req.user.id));
+    const admin = await isAdmin(req.user.id, req.user.is_admin === true);
     if (!admin) return res.status(403).json({ error: 'Acceso denegado' });
 
     const targetUser = parseInt(req.params.id, 10);
@@ -4966,7 +5015,7 @@ app.put('/api/admin/users/:id/profile', authenticateToken, async (req, res) => {
 
 app.put('/api/admin/users/:id/admin', authenticateToken, async (req, res) => {
   try {
-    const admin = req.user.is_admin === true || (req.user.is_admin === undefined && await isAdmin(req.user.id));
+    const admin = await isAdmin(req.user.id, req.user.is_admin === true);
     if (!admin) return res.status(403).json({ error: 'Acceso denegado' });
 
     if (String(req.params.id) === String(req.user.id)) {
@@ -4988,7 +5037,7 @@ app.put('/api/admin/users/:id/admin', authenticateToken, async (req, res) => {
 
 app.get('/api/admin/stats', authenticateToken, async (req, res) => {
   try {
-    const admin = req.user.is_admin === true || (req.user.is_admin === undefined && await isAdmin(req.user.id));
+    const admin = await isAdmin(req.user.id, req.user.is_admin === true);
     if (!admin) return res.status(403).json({ error: 'Acceso denegado' });
 
     const { count: users } = await supabase.from('users').select('*', { count: 'exact', head: true });
@@ -5049,9 +5098,11 @@ app.get('/api/body-type-cache', async (req, res) => {
   }
 });
 
-// Sync from Mercado Libre and store local cache (available to all users)
-app.post('/api/body-type-cache/sync', async (req, res) => {
+// Sync from Mercado Libre and store local cache (admin only).
+app.post('/api/body-type-cache/sync', authenticateToken, bodyTypeCacheSyncLimiter, async (req, res) => {
   try {
+    const admin = await isAdmin(req.user.id, req.user.is_admin === true);
+    if (!admin) return res.status(403).json({ error: 'Solo admin' });
     const brand = String(req.body?.brand || '').trim();
     const model = String(req.body?.model || '').trim();
     const force = req.body?.force === true;
@@ -5242,7 +5293,7 @@ app.get('/api/deruedas-versions', async (req, res) => {
 // DIAGNOSTIC: check which FK tables reference a vehicle (temp endpoint)
 app.get('/api/admin/debug-vehicle/:id', authenticateToken, async (req, res) => {
   if (process.env.NODE_ENV === 'production') return res.status(404).json({ error: 'Not found' });
-  if (!(req.user.is_admin === true || (req.user.is_admin === undefined && await isAdmin(req.user.id)))) return res.status(403).json({ error: 'Solo admin' });
+  if (!(await isAdmin(req.user.id, req.user.is_admin === true))) return res.status(403).json({ error: 'Solo admin' });
   const vid = parseInt(req.params.id);
   const [convs, imgs, favs, reps, trades] = await Promise.all([
     supabase.from('conversations').select('id', { count: 'exact', head: true }).eq('vehicle_id', vid),

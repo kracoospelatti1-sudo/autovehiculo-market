@@ -382,12 +382,15 @@ function inferImageMimeType(url = '') {
 }
 
 function updateSEOMeta(vehicle, imageUrl) {
-  const price = Number(vehicle.price).toLocaleString('es-AR');
+  const fixedArs = Number(vehicle?.price_original || 0);
+  const convertedArs = dolarRate?.venta ? Number(vehicle.price || 0) * Number(dolarRate.venta) : 0;
+  const priceArsValue = fixedArs > 0 ? fixedArs : (convertedArs > 0 ? convertedArs : Number(vehicle.price || 0));
+  const priceArs = Math.round(priceArsValue).toLocaleString('es-AR');
   const mileage = Number(vehicle.mileage).toLocaleString('es-AR');
   const location = vehicle.city + (vehicle.province ? ', ' + vehicle.province : '');
-  const title = `${vehicle.title} | USD ${price} | ${mileage} km`;
+  const title = `${vehicle.title} | ARS ${priceArs} | ${mileage} km`;
   const desc = `${vehicle.brand} ${vehicle.model} ${vehicle.year} - ${mileage} km${vehicle.fuel ? ` - ${vehicle.fuel}` : ''}${vehicle.transmission ? ` - ${vehicle.transmission}` : ''}${location ? ` - ${location}` : ''}. Ver publicacion en Autoventa.`;
-  const imageAlt = `${vehicle.title} - USD ${price} - ${mileage} km`;
+  const imageAlt = `${vehicle.title} - ARS ${priceArs} - ${mileage} km`;
   const url = `https://autoventa.online/?vehicle=${vehicle.id}`;
   const ogImage = String(imageUrl || 'https://autoventa.online/og-default.png');
   const ogImageType = inferImageMimeType(ogImage);
@@ -422,10 +425,10 @@ function updateSEOMeta(vehicle, imageUrl) {
     "vehicleTransmission": vehicle.transmission,
     "image": imageUrl,
     "description": vehicle.description || '',
-    "url": url,
+      "url": url,
     "offers": {
       "@type": "Offer",
-      "price": vehicle.price,
+      "price": Math.round(priceArsValue || 0),
       "priceCurrency": "ARS",
       "availability": vehicle.status === 'active' ? "https://schema.org/InStock" : "https://schema.org/SoldOut",
       "url": url
@@ -987,7 +990,10 @@ function collectVehiclesFilterState() {
 function applyVehiclesFilterState(filters = {}) {
   const vehicleTypeEl = document.getElementById('filterVehicleType');
   if (vehicleTypeEl) {
-    const nextType = String(filters.filterVehicleType || vehicleTypeEl.value || 'auto');
+    const hasStoredType = Object.prototype.hasOwnProperty.call(filters, 'filterVehicleType');
+    const nextType = hasStoredType
+      ? String(filters.filterVehicleType || '')
+      : String(vehicleTypeEl.value || '');
     if (vehicleTypeEl.value !== nextType) {
       vehicleTypeEl.value = nextType;
       initBrandFilters();
@@ -2162,10 +2168,11 @@ function applyFiltersNow() {
 }
 
 function clearFilters() {
-  ['filterMinPrice', 'filterMaxPrice', 'filterMinYear', 'filterMaxYear', 'filterBrand', 'filterModel', 'filterFuel', 'filterTransmission', 'filterCity', 'filterMaxMileage', 'filterProvince', 'filterSort'].forEach(id => {
+  ['filterVehicleType', 'filterMinPrice', 'filterMaxPrice', 'filterMinYear', 'filterMaxYear', 'filterBrand', 'filterModel', 'filterFuel', 'filterTransmission', 'filterCity', 'filterMaxMileage', 'filterProvince', 'filterSort'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
+  initBrandFilters();
   const filterModelEl = document.getElementById('filterModel');
   if (filterModelEl) filterModelEl.innerHTML = '<option value="">Todos</option>';
   const filterCityEl = document.getElementById('filterCity');
@@ -2468,9 +2475,24 @@ function updateFilterModels() {
   const brand = document.getElementById('filterBrand').value;
   const modelSelect = document.getElementById('filterModel');
   modelSelect.innerHTML = '<option value="">Todos</option>';
-  const type = document.getElementById('filterVehicleType')?.value || 'auto';
-  const brands = getBrandsForType(type);
-  if (brand && brands[brand]) brands[brand].forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = m; modelSelect.appendChild(o); });
+  const type = document.getElementById('filterVehicleType')?.value || '';
+  let models = [];
+  if (brand) {
+    if (type) {
+      const brands = getBrandsForType(type);
+      models = Array.isArray(brands[brand]) ? brands[brand] : [];
+    } else {
+      const merged = [
+        ...(carBrands[brand] || []),
+        ...(utilitarioBrands[brand] || []),
+        ...(motoBrands[brand] || []),
+        ...(cuatriBrands[brand] || []),
+        ...(camionBrands[brand] || [])
+      ];
+      models = [...new Set(merged)];
+    }
+  }
+  models.forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = m; modelSelect.appendChild(o); });
 }
 
 function populateSelect(selectEl, options, placeholder) {
@@ -2829,7 +2851,7 @@ ${vehicle.accepts_trade && isLoggedIn && !isOwner && vehicle.status === 'active'
 
           <div class="detail-actions-zone">
             <div class="detail-actions" style="margin-top:1.5rem;display:flex;gap:1rem;flex-direction:column;">
-              <button class="btn btn-secondary share-btn" onclick="shareVehicle(${vehicle.id}, '${escapeHtml(vehicle.title).replace(/'/g, '&#39;')}', ${vehicle.price})"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="margin-right:0.5rem;"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>Compartir</button>
+              <button class="btn btn-secondary share-btn" onclick="shareVehicle(${vehicle.id}, '${escapeHtml(vehicle.title).replace(/'/g, '&#39;')}', ${Number(vehicle.price || 0)}, ${Number(vehicle.price_original || 0)})"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="margin-right:0.5rem;"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>Compartir</button>
               ${isAdminView ? `
                 <button id="igPublishBtn" class="btn btn-secondary" onclick="publishVehicleToInstagram(${vehicle.id}, event)"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="margin-right:0.5rem;"><path d="M7.75 2h8.5A5.75 5.75 0 0 1 22 7.75v8.5A5.75 5.75 0 0 1 16.25 22h-8.5A5.75 5.75 0 0 1 2 16.25v-8.5A5.75 5.75 0 0 1 7.75 2zm0 1.5A4.25 4.25 0 0 0 3.5 7.75v8.5a4.25 4.25 0 0 0 4.25 4.25h8.5a4.25 4.25 0 0 0 4.25-4.25v-8.5a4.25 4.25 0 0 0-4.25-4.25h-8.5zM17.5 6.25a1.25 1.25 0 1 1 0 2.5 1.25 1.25 0 0 1 0-2.5zM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 1.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z"/></svg>Publicar en Instagram</button>
                 <button class="btn btn-ghost" onclick="configureInstagramFromAdmin(event)">Config Instagram</button>
@@ -3949,10 +3971,23 @@ function appendMessageToDOM(message, readAt) {
     const extraText = firstNewline === -1 ? '' : raw.slice(firstNewline + 1).trim();
     try {
       const v = JSON.parse(jsonPart);
-      const isOwner = v.owner_id && currentUser?.id === v.owner_id;
-      const offerId = v.offer_id || null;
+      const toPositiveInt = (value) => {
+        const rawValue = String(value ?? '').trim();
+        if (!/^\d+$/.test(rawValue)) return null;
+        const parsed = Number(rawValue);
+        return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
+      };
+      const currentUserId = toPositiveInt(currentUser?.id);
+      const ownerId = toPositiveInt(v.owner_id);
+      const vehicleId = toPositiveInt(v.id);
+      const offerId = toPositiveInt(v.offer_id);
+      const isOwner = ownerId !== null && currentUserId !== null && ownerId === currentUserId;
+      const safePrice = Number(v.price);
+      const priceLabel = Number.isFinite(safePrice) ? formatNumber(Math.round(safePrice)) : '0';
+      const provinceLabel = String(v.province || '').replace(/\s*\(.*?\)/g, '').trim();
+      const viewAction = vehicleId ? `viewVehicle(${vehicleId})` : 'void 0';
       html += `
-        <div class="trade-card" data-offer-id="${offerId || ''}" onclick="event.target.closest('button') || viewVehicle(${v.id})">
+        <div class="trade-card" data-offer-id="${offerId || ''}" onclick="event.target.closest('button') || ${viewAction}">
           <div class="trade-card-badge">🔄 Propuesta de permuta</div>
           <div class="trade-card-img">
             <img src="${escapeHtml(v.image) || PLACEHOLDER_IMG}" onerror="this.src=PLACEHOLDER_IMG" alt="${escapeHtml(v.title)}" loading="lazy">
@@ -3960,8 +3995,8 @@ function appendMessageToDOM(message, readAt) {
           <div class="trade-card-body">
             <div class="trade-card-title">${escapeHtml(v.title)}</div>
             <div class="trade-card-sub">${escapeHtml(v.brand)} ${escapeHtml(v.model)} · ${escapeHtml(String(v.year))}</div>
-            <div class="trade-card-price">$${formatNumber(v.price)}</div>
-            ${v.city ? `<div class="trade-card-location"> ${escapeHtml(v.city)}${v.province ? ', ' + escapeHtml(v.province.replace(/\s*\(.*?\)/g,'').trim()) : ''}</div>` : ''}
+            <div class="trade-card-price">$${priceLabel}</div>
+            ${v.city ? `<div class="trade-card-location"> ${escapeHtml(v.city)}${provinceLabel ? ', ' + escapeHtml(provinceLabel) : ''}</div>` : ''}
             ${isOwner && offerId ? `
             <div class="trade-card-actions" id="trade-actions-${offerId}">
               <button class="btn btn-primary btn-sm" style="margin-right:0.4rem;" onclick="respondToTradeInChat(${offerId}, 'accepted')">✅ Aceptar</button>
@@ -6034,9 +6069,12 @@ function shareHomepage() {
 }
 window.shareHomepage = shareHomepage;
 
-function shareVehicle(id, title, price) {
+function shareVehicle(id, title, priceUsd, priceArs = 0) {
   const url = `${window.location.origin}${window.location.pathname}?vehicle=${id}`;
-  const text = `${title}\nUSD ${Number(price).toLocaleString('es-AR')}\n${url}`;
+  const fixedArs = Number(priceArs || 0);
+  const convertedArs = dolarRate?.venta ? Number(priceUsd || 0) * Number(dolarRate.venta) : 0;
+  const resolvedArs = fixedArs > 0 ? fixedArs : (convertedArs > 0 ? convertedArs : Number(priceUsd || 0));
+  const text = `${title}\nARS ${Math.round(resolvedArs).toLocaleString('es-AR')}\n${url}`;
   const waUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
   const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
 
