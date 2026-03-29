@@ -385,8 +385,9 @@ function updateSEOMeta(vehicle, imageUrl) {
   const price = Number(vehicle.price).toLocaleString('es-AR');
   const mileage = Number(vehicle.mileage).toLocaleString('es-AR');
   const location = vehicle.city + (vehicle.province ? ', ' + vehicle.province : '');
-  const title = `${vehicle.title} — $${price} | Autoventa`;
-  const desc = `${vehicle.brand} ${vehicle.model} ${vehicle.year}, ${mileage}km, ${vehicle.fuel}, ${vehicle.transmission}. En ${location}.`;
+  const title = `${vehicle.title} | USD ${price} | ${mileage} km`;
+  const desc = `${vehicle.brand} ${vehicle.model} ${vehicle.year} - ${mileage} km${vehicle.fuel ? ` - ${vehicle.fuel}` : ''}${vehicle.transmission ? ` - ${vehicle.transmission}` : ''}${location ? ` - ${location}` : ''}. Ver publicacion en Autoventa.`;
+  const imageAlt = `${vehicle.title} - USD ${price} - ${mileage} km`;
   const url = `https://autoventa.online/?vehicle=${vehicle.id}`;
   const ogImage = String(imageUrl || 'https://autoventa.online/og-default.png');
   const ogImageType = inferImageMimeType(ogImage);
@@ -396,6 +397,7 @@ function updateSEOMeta(vehicle, imageUrl) {
   setMeta('property', 'og:description', desc);
   setMeta('property', 'og:image', ogImage);
   setMeta('property', 'og:image:type', ogImageType);
+  setMeta('property', 'og:image:alt', imageAlt);
   setMeta('property', 'og:url', url);
   setMeta('name', 'twitter:title', title);
   setMeta('name', 'twitter:description', desc);

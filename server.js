@@ -219,13 +219,13 @@ function isLikelyRealAddress(address = '') {
 
 app.get('/', async (req, res, next) => {
   const vehicleId = parseInt(req.query.vehicle);
-  if (!vehicleId || isNaN(vehicleId) || !BOT_UA.test(req.headers['user-agent'] || '')) return next();
+  if (!vehicleId || isNaN(vehicleId)) return next();
   try {
     const { data: vehicle } = await supabase
       .from('vehicles')
       .select('id, title, brand, model, year, price, mileage, fuel, transmission, city, province, description, status, updated_at')
       .eq('id', vehicleId)
-      .eq('status', 'active')
+      .in('status', ['active', 'reserved'])
       .maybeSingle();
     if (!vehicle) return next();
     const { data: imgs } = await supabase
@@ -239,13 +239,21 @@ app.get('/', async (req, res, next) => {
     const imageUrl = primaryImageUrl;
     const imageType = inferImageMimeType(imageUrl);
     const twitterImageUrl = imageUrl;
-    const title = `${vehicle.title} — $${Number(vehicle.price).toLocaleString('es-AR')} | Autoventa`;
-    const desc = `${vehicle.brand} ${vehicle.model} ${vehicle.year}, ${Number(vehicle.mileage).toLocaleString('es-AR')}km, ${vehicle.fuel}. En ${vehicle.city}${vehicle.province ? ', ' + vehicle.province : ''}.`;
+    const price = Number(vehicle.price || 0).toLocaleString('es-AR');
+    const mileage = Number(vehicle.mileage || 0).toLocaleString('es-AR');
+    const fuel = String(vehicle.fuel || '').trim();
+    const city = String(vehicle.city || '').trim();
+    const province = String(vehicle.province || '').trim();
+    const location = [city, province].filter(Boolean).join(', ');
+    const title = `${vehicle.title} | USD ${price} | ${mileage} km`;
+    const desc = `${vehicle.brand} ${vehicle.model} ${vehicle.year} - ${mileage} km${fuel ? ` - ${fuel}` : ''}${location ? ` - ${location}` : ''}. Ver publicacion en Autoventa.`;
+    const imageAlt = `${vehicle.title} - USD ${price} - ${mileage} km`;
     const url = `https://autoventa.online/?vehicle=${vehicle.id}`;
     const titleEsc = escapeHtml(title);
     const descEsc = escapeHtml(desc);
     const imageUrlEsc = escapeHtml(imageUrl);
     const twitterImageEsc = escapeHtml(twitterImageUrl);
+    const imageAltEsc = escapeHtml(imageAlt);
     const urlEsc = escapeHtml(url);
     const fs = require('fs');
     const path = require('path');
@@ -257,6 +265,7 @@ app.get('/', async (req, res, next) => {
       .replace(/(<meta property="og:description" content=")[^"]*(")/,`$1${descEsc}$2`)
       .replace(/(<meta property="og:image" content=")[^"]*(")/,     `$1${imageUrlEsc}$2`)
       .replace(/(<meta property="og:image:type" content=")[^"]*(")/, `$1${imageType}$2`)
+      .replace(/(<meta property="og:image:alt" content=")[^"]*(")/,  `$1${imageAltEsc}$2`)
       .replace(/(<meta property="og:url" content=")[^"]*(")/,       `$1${urlEsc}$2`)
       .replace(/(<meta name="twitter:title" content=")[^"]*(")/,    `$1${titleEsc}$2`)
       .replace(/(<meta name="twitter:description" content=")[^"]*(")/,`$1${descEsc}$2`)
