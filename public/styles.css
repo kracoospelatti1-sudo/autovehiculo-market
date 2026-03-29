@@ -3622,9 +3622,18 @@ select {
 }
 
 .publish-preview-open .modal-overlay {
-  background: rgba(0, 0, 0, 0.68);
+  background: rgba(0, 0, 0, 0.46);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
+}
+
+#publishPreviewModal .modal-content {
+  background: linear-gradient(180deg, #171b2b 0%, #111423 100%);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+#publishPreviewModal .modal-body {
+  background: rgba(255, 255, 255, 0.015);
 }
 
 .publish-preview-loading {
