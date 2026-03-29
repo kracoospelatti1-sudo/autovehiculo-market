@@ -11,6 +11,8 @@ let searchTimeout = null;
 let adminSearchTimeout = null;
 let uploadedImages = [];
 let editUploadedImages = [];
+let publishImageDragSourceIndex = null;
+let publishImageTouchDropIndex = null;
 let reportVehicleId = null;
 let rateConversationId = null;
 let rateRecipientId = null;
@@ -46,6 +48,8 @@ let currentSectionId = 'home';
 let vehiclesCurrentPage = 1;
 let vehiclesHistorySyncTimer = null;
 let isHandlingPopState = false;
+let searchCorrectionDictionary = [];
+let searchCorrectionDisplayMap = new Map();
 
 const VEHICLES_STATE_STORAGE_KEY = 'vehicles:list-state:v1';
 const VEHICLES_FILTER_IDS = [
@@ -215,7 +219,7 @@ async function handleGoogleLoginCredentialResponse(response) {
       method: 'POST',
       body: JSON.stringify({ credential })
     });
-    localStorage.setItem('token', data.token);
+    setAuthToken(data.token);
     currentUser = await request('/user');
     if (!heartbeatInterval) heartbeatInterval = setInterval(() => { if (currentUser && document.visibilityState === 'visible') request('/ping', { method: 'PUT' }).catch(() => {}); }, 30000);
     if (!notifInterval) notifInterval = setInterval(() => { if (currentUser) { loadCounts(); } }, 30000);
@@ -368,6 +372,15 @@ function makeCacheToken(value = '') {
   return (h >>> 0).toString(36);
 }
 
+function inferImageMimeType(url = '') {
+  const clean = String(url || '').split('?')[0].toLowerCase();
+  if (clean.endsWith('.png')) return 'image/png';
+  if (clean.endsWith('.webp')) return 'image/webp';
+  if (clean.endsWith('.gif')) return 'image/gif';
+  if (clean.endsWith('.svg')) return 'image/svg+xml';
+  return 'image/jpeg';
+}
+
 function updateSEOMeta(vehicle, imageUrl) {
   const price = Number(vehicle.price).toLocaleString('es-AR');
   const mileage = Number(vehicle.mileage).toLocaleString('es-AR');
@@ -375,18 +388,18 @@ function updateSEOMeta(vehicle, imageUrl) {
   const title = `${vehicle.title} — $${price} | Autoventa`;
   const desc = `${vehicle.brand} ${vehicle.model} ${vehicle.year}, ${mileage}km, ${vehicle.fuel}, ${vehicle.transmission}. En ${location}.`;
   const url = `https://autoventa.online/?vehicle=${vehicle.id}`;
-  const ogVersion = makeCacheToken(`${vehicle.updated_at || ''}|${imageUrl || ''}`);
-  const ogImage = `https://autoventa.online/og/vehicle/${vehicle.id}.svg?v=${ogVersion}`;
+  const ogImage = String(imageUrl || 'https://autoventa.online/og-default.png');
+  const ogImageType = inferImageMimeType(ogImage);
   document.title = title;
   setMeta('name', 'description', desc);
   setMeta('property', 'og:title', title);
   setMeta('property', 'og:description', desc);
   setMeta('property', 'og:image', ogImage);
-  setMeta('property', 'og:image:type', 'image/svg+xml');
+  setMeta('property', 'og:image:type', ogImageType);
   setMeta('property', 'og:url', url);
   setMeta('name', 'twitter:title', title);
   setMeta('name', 'twitter:description', desc);
-  setMeta('name', 'twitter:image', imageUrl);
+  setMeta('name', 'twitter:image', ogImage);
   setMeta('name', 'robots', 'index, follow');
   const canonical = document.querySelector('link[rel="canonical"]');
   if (canonical) canonical.href = url;
@@ -467,6 +480,7 @@ fetch('/brands-data.json?v=3').then(r => r.json()).then(d => {
   utilitarioBrands = d.utilitarioBrands || {};
   cuatriBrands = d.cuatriBrands || {};
   camionBrands = d.camionBrands || {};
+  buildSearchCorrectionDictionary();
   if (typeof initBrandFilters === 'function') initBrandFilters();
   if (typeof updatePublishBrands === 'function') updatePublishBrands();
 }).catch(() => {});
@@ -1248,6 +1262,112 @@ function normalizeTextForCompare(value = '') {
     .replace(/\s+/g, ' ');
 }
 
+function buildSearchCorrectionDictionary() {
+  const tokenMap = new Map();
+  const addTermTokens = (term) => {
+    const pieces = String(term || '').match(/[A-Za-zÀ-ÿ0-9]+/g) || [];
+    for (const piece of pieces) {
+      if (piece.length < 2) continue;
+      const normalized = normalizeTextForCompare(piece);
+      if (!normalized || normalized.length < 2) continue;
+      if (!tokenMap.has(normalized)) tokenMap.set(normalized, piece);
+    }
+  };
+  const addBrandMap = (brandsMap) => {
+    Object.entries(brandsMap || {}).forEach(([brand, models]) => {
+      addTermTokens(brand);
+      (models || []).forEach(addTermTokens);
+    });
+  };
+  addBrandMap(carBrands);
+  addBrandMap(motoBrands);
+  addBrandMap(utilitarioBrands);
+  addBrandMap(cuatriBrands);
+  addBrandMap(camionBrands);
+  searchCorrectionDisplayMap = tokenMap;
+  searchCorrectionDictionary = Array.from(tokenMap.keys());
+}
+
+function levenshteinDistance(a = '', b = '', maxDistance = Infinity) {
+  if (a === b) return 0;
+  const aLen = a.length;
+  const bLen = b.length;
+  if (aLen === 0) return bLen;
+  if (bLen === 0) return aLen;
+  if (Math.abs(aLen - bLen) > maxDistance) return maxDistance + 1;
+
+  let prev = Array.from({ length: bLen + 1 }, (_, i) => i);
+  for (let i = 1; i <= aLen; i++) {
+    const curr = [i];
+    let minInRow = curr[0];
+    for (let j = 1; j <= bLen; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      curr[j] = Math.min(
+        prev[j] + 1,
+        curr[j - 1] + 1,
+        prev[j - 1] + cost
+      );
+      if (curr[j] < minInRow) minInRow = curr[j];
+    }
+    if (minInRow > maxDistance) return maxDistance + 1;
+    prev = curr;
+  }
+  return prev[bLen];
+}
+
+function findBestSearchTokenMatch(normalizedToken = '') {
+  if (!normalizedToken || searchCorrectionDictionary.length === 0) return null;
+  if (searchCorrectionDisplayMap.has(normalizedToken)) return null;
+  const maxDistance = normalizedToken.length <= 4 ? 1 : normalizedToken.length <= 7 ? 2 : 3;
+  let bestToken = null;
+  let bestDistance = Infinity;
+  for (const candidate of searchCorrectionDictionary) {
+    if (Math.abs(candidate.length - normalizedToken.length) > maxDistance) continue;
+    if (normalizedToken.length > 3 && candidate.charAt(0) !== normalizedToken.charAt(0)) continue;
+    const distance = levenshteinDistance(normalizedToken, candidate, maxDistance);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestToken = candidate;
+    }
+    if (distance === 1) break;
+  }
+  if (!bestToken || bestDistance > maxDistance) return null;
+  const similarity = 1 - (bestDistance / Math.max(bestToken.length, normalizedToken.length));
+  if (similarity < 0.58) return null;
+  return searchCorrectionDisplayMap.get(bestToken) || null;
+}
+
+function normalizeSearchQueryWithTypos(rawQuery = '') {
+  const source = String(rawQuery || '').trim();
+  if (!source) return { query: '', corrected: false };
+  const tokens = source.split(/\s+/);
+  let corrected = false;
+  const resolvedTokens = tokens.map((token) => {
+    const normalized = normalizeTextForCompare(token);
+    if (!normalized || normalized.length < 3 || /^\d+$/.test(normalized)) return token;
+    const replacement = findBestSearchTokenMatch(normalized);
+    if (!replacement) return token;
+    corrected = corrected || normalizeTextForCompare(token) !== normalizeTextForCompare(replacement);
+    return replacement;
+  });
+  return {
+    query: resolvedTokens.join(' ').trim(),
+    corrected
+  };
+}
+
+function updateSearchCorrectionHint(rawQuery = '', correctedQuery = '', corrected = false) {
+  const hint = document.getElementById('searchCorrectionHint');
+  if (!hint) return;
+  if (!corrected || !correctedQuery || normalizeTextForCompare(rawQuery) === normalizeTextForCompare(correctedQuery)) {
+    hint.style.display = 'none';
+    hint.textContent = '';
+    return;
+  }
+  hint.textContent = `Mostrando resultados para: ${correctedQuery}`;
+  hint.style.display = 'block';
+}
+
 function isPickupBodyType(bodyType = '') {
   const v = normalizeTextForCompare(bodyType);
   if (!v) return false;
@@ -1390,8 +1510,34 @@ function verifiedImageBadge(extraClass = '') {
   return `<span class="${cls}" title="Verificado" aria-label="Verificado"><img src="/icons/verificar.png" alt="" loading="lazy"><span>Verificado</span></span>`;
 }
 
+let authTokenMemory = '';
+
+function getAuthToken() {
+  if (authTokenMemory) return authTokenMemory;
+  try {
+    authTokenMemory = String(localStorage.getItem('token') || '').trim();
+  } catch {
+    authTokenMemory = '';
+  }
+  return authTokenMemory;
+}
+
+function setAuthToken(token = '') {
+  authTokenMemory = String(token || '').trim();
+  try {
+    if (authTokenMemory) localStorage.setItem('token', authTokenMemory);
+    else localStorage.removeItem('token');
+  } catch {
+    // If storage is blocked, keep in-memory token for this session.
+  }
+}
+
+function clearAuthToken() {
+  setAuthToken('');
+}
+
 async function request(endpoint, options = {}) {
-  const token = localStorage.getItem('token');
+  const token = getAuthToken();
   const headers = { 'Content-Type': 'application/json', ...options.headers };
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const response = await fetch(`${API_URL}${endpoint}`, { ...options, headers, signal: options.signal });
@@ -1460,7 +1606,15 @@ function showSection(sectionId, options = {}) {
     if (sectionId === 'home') { loadHomeRecent(); }
     else if (sectionId === 'vehicles') loadVehicles(vehiclesPage, false, { skipStateSync: !pushHistory });
     else if (sectionId === 'my-vehicles') loadMyVehicles();
-    else if (sectionId === 'messages') { document.querySelector('.messages-container')?.classList.remove('chat-open'); loadConversations(); }
+    else if (sectionId === 'messages') {
+      if (!getAuthToken()) {
+        showToast('Iniciá sesión para usar el chat', 'warning');
+        showSection('login');
+      } else {
+        document.querySelector('.messages-container')?.classList.remove('chat-open');
+        loadConversations();
+      }
+    }
     else if (sectionId === 'favorites') loadFavorites();
     else if (sectionId === 'notifications') loadNotifications();
     else if (sectionId === 'following-feed') loadFollowingFeed(1, true);
@@ -1696,7 +1850,7 @@ async function handleRegister(e) {
       showToast('¡Cuenta creada! Te enviamos un email de verificación. Revisá tu bandeja de entrada.', 'success');
     } else {
       // fallback por si el email no está configurado
-      localStorage.setItem('token', data.token);
+      setAuthToken(data.token);
       currentUser = data.user;
       if (!heartbeatInterval) heartbeatInterval = setInterval(() => { if (currentUser && document.visibilityState === 'visible') request('/ping', { method: 'PUT' }).catch(() => {}); }, 30000);
       if (!notifInterval) notifInterval = setInterval(() => { if (currentUser) { loadCounts(); } }, 30000);
@@ -1726,7 +1880,7 @@ async function handleLogin(e) {
   const password = document.getElementById('loginPassword').value;
   try {
     const data = await request('/login', { method: 'POST', body: JSON.stringify({ email, password }) });
-    localStorage.setItem('token', data.token);
+    setAuthToken(data.token);
     currentUser = await request('/user');
     if (!heartbeatInterval) heartbeatInterval = setInterval(() => { if (currentUser && document.visibilityState === 'visible') request('/ping', { method: 'PUT' }).catch(() => {}); }, 30000);
     if (!notifInterval) notifInterval = setInterval(() => { if (currentUser) { loadCounts(); } }, 30000);
@@ -1817,7 +1971,7 @@ async function resendVerification(email) {
 }
 
 function logout() {
-  localStorage.removeItem('token');
+  clearAuthToken();
   currentUser = null;
   uploadedImages = [];
   userFavoriteIds = new Set();
@@ -1857,8 +2011,10 @@ async function loadVehicles(page = 1, scrollToResults = false, options = {}) {
   }
   try {
     const params = new URLSearchParams();
-    const search = document.getElementById('searchInput')?.value;
-    if (search) params.append('search', search);
+    const search = document.getElementById('searchInput')?.value || '';
+    const normalizedSearch = normalizeSearchQueryWithTypos(search);
+    if (normalizedSearch.query) params.append('search', normalizedSearch.query);
+    updateSearchCorrectionHint(search, normalizedSearch.query, normalizedSearch.corrected);
     ['brand', 'model', 'minPrice', 'maxPrice', 'minYear', 'maxYear', 'minMileage', 'maxMileage', 'fuel', 'transmission', 'city', 'province', 'sort'].forEach(key => {
       const el = document.getElementById('filter' + key.charAt(0).toUpperCase() + key.slice(1));
       if (el?.value) params.append(key, el.value);
@@ -2413,7 +2569,7 @@ async function viewVehicle(id, options = {}) {
     const vehicle = await request(`/vehicles/${id}`);
     const isOwner = currentUser?.id === vehicle.seller_id || currentUser?.profile?.is_admin;
     const isAdminView = !!currentUser?.profile?.is_admin;
-    const isLoggedIn = !!localStorage.getItem('token');
+    const isLoggedIn = !!getAuthToken();
     let isFavorite = false;
     if (isLoggedIn) {
       try { const r = await request(`/favorites/${id}/check`); isFavorite = r.favorited; } catch {}
@@ -2809,7 +2965,7 @@ async function uploadImages() {
     if (img.url) { urls.push(img.url); continue; }
     const formData = new FormData();
     formData.append('image', img.file);
-    const res = await fetch('/api/upload', { method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }, body: formData });
+    const res = await fetch('/api/upload', { method: 'POST', headers: { 'Authorization': `Bearer ${getAuthToken()}` }, body: formData });
     if (!res.ok) throw new Error(await getUploadErrorMessage(res, `Error al subir la imagen ${i + 1}`));
     const data = await res.json();
     urls.push(data.url);
@@ -2839,7 +2995,7 @@ async function uploadEditImages() {
     if (img.url) { urls.push(img.url); continue; }
     const formData = new FormData();
     formData.append('image', img.file);
-    const res = await fetch('/api/upload', { method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }, body: formData });
+    const res = await fetch('/api/upload', { method: 'POST', headers: { 'Authorization': `Bearer ${getAuthToken()}` }, body: formData });
     if (!res.ok) throw new Error(await getUploadErrorMessage(res, `Error al subir la imagen ${i + 1}`));
     const data = await res.json();
     urls.push(data.url);
@@ -2884,35 +3040,132 @@ function removeEditImage(index) {
   renderEditImagePreviews();
 }
 
+function reorderUploadedImage(fromIndex, toIndex) {
+  if (!Number.isInteger(fromIndex) || !Number.isInteger(toIndex)) return false;
+  if (fromIndex < 0 || toIndex < 0 || fromIndex >= uploadedImages.length || toIndex >= uploadedImages.length) return false;
+  if (fromIndex === toIndex) return false;
+  const item = uploadedImages.splice(fromIndex, 1)[0];
+  uploadedImages.splice(toIndex, 0, item);
+  renderImagePreviews();
+  return true;
+}
+
+function clearPublishImageDragState(container) {
+  if (container) {
+    container.classList.remove('drag-sorting');
+    container.querySelectorAll('.preview-item').forEach((item) => item.classList.remove('dragging', 'drop-target'));
+  }
+  publishImageDragSourceIndex = null;
+  publishImageTouchDropIndex = null;
+}
+
+function setupPublishImageDragHandlers() {
+  const container = document.getElementById('imagePreview');
+  if (!container) return;
+  const items = Array.from(container.querySelectorAll('.preview-item'));
+  if (!items.length) {
+    clearPublishImageDragState(container);
+    return;
+  }
+
+  const resolvePreviewItem = (eventTarget) => eventTarget?.closest?.('.preview-item') || null;
+  const isControlTarget = (eventTarget) => !!eventTarget?.closest?.('.preview-controls, .preview-remove');
+
+  items.forEach((item) => {
+    const index = Number(item.dataset.index);
+    item.draggable = true;
+
+    item.addEventListener('dragstart', (event) => {
+      if (isControlTarget(event.target)) {
+        event.preventDefault();
+        return;
+      }
+      publishImageDragSourceIndex = index;
+      item.classList.add('dragging');
+      container.classList.add('drag-sorting');
+      if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = 'move';
+        try { event.dataTransfer.setData('text/plain', String(index)); } catch {}
+      }
+    });
+
+    item.addEventListener('dragover', (event) => {
+      event.preventDefault();
+      const target = resolvePreviewItem(event.target);
+      if (!target) return;
+      container.querySelectorAll('.preview-item').forEach((preview) => preview.classList.remove('drop-target'));
+      target.classList.add('drop-target');
+    });
+
+    item.addEventListener('drop', (event) => {
+      event.preventDefault();
+      const target = resolvePreviewItem(event.target);
+      if (!target) return;
+      const toIndex = Number(target.dataset.index);
+      reorderUploadedImage(publishImageDragSourceIndex, toIndex);
+    });
+
+    item.addEventListener('dragend', () => {
+      clearPublishImageDragState(container);
+    });
+
+    item.addEventListener('touchstart', (event) => {
+      if (isControlTarget(event.target)) return;
+      publishImageDragSourceIndex = index;
+      publishImageTouchDropIndex = index;
+      item.classList.add('dragging');
+      container.classList.add('drag-sorting');
+    }, { passive: true });
+
+    item.addEventListener('touchmove', (event) => {
+      if (publishImageDragSourceIndex === null) return;
+      const touch = event.touches?.[0];
+      if (!touch) return;
+      event.preventDefault();
+      const target = document.elementFromPoint(touch.clientX, touch.clientY)?.closest?.('#imagePreview .preview-item');
+      if (!target) return;
+      const toIndex = Number(target.dataset.index);
+      publishImageTouchDropIndex = Number.isInteger(toIndex) ? toIndex : null;
+      container.querySelectorAll('.preview-item').forEach((preview) => preview.classList.remove('drop-target'));
+      target.classList.add('drop-target');
+    }, { passive: false });
+
+    item.addEventListener('touchend', () => {
+      reorderUploadedImage(publishImageDragSourceIndex, publishImageTouchDropIndex);
+      clearPublishImageDragState(container);
+    });
+
+    item.addEventListener('touchcancel', () => {
+      clearPublishImageDragState(container);
+    });
+  });
+}
+
 function renderImagePreviews() {
   const container = document.getElementById('imagePreview');
+  if (!container) return;
   container.innerHTML = uploadedImages.map((img, i) => `
-    <div class="preview-item ${i === 0 ? 'primary' : ''}">
+    <div class="preview-item ${i === 0 ? 'primary' : ''}" data-index="${i}">
       <img src="${escapeHtml(img.preview || img.url || '')}" alt="" loading="lazy">
       <span class="preview-order-badge">${i + 1}</span>
-      <button class="preview-remove" onclick="removeImage(${i})">&times;</button>
+      <button class="preview-remove" type="button" onclick="removeImage(${i})">&times;</button>
       <div class="preview-controls">
-        <button class="preview-move" onclick="moveImage(${i}, -1)" ${i === 0 ? 'disabled' : ''} title="Mover antes" aria-label="Mover foto antes">&#8593;</button>
-        <button class="preview-move" onclick="moveImage(${i}, 1)" ${i === uploadedImages.length - 1 ? 'disabled' : ''} title="Mover después" aria-label="Mover foto después">&#8595;</button>
-        <button class="preview-cover ${i === 0 ? 'active' : ''}" onclick="setCoverImage(${i})">Portada</button>
+        <button class="preview-move" type="button" onclick="moveImage(${i}, -1)" ${i === 0 ? 'disabled' : ''} title="Mover antes" aria-label="Mover foto antes">&#8593;</button>
+        <button class="preview-move" type="button" onclick="moveImage(${i}, 1)" ${i === uploadedImages.length - 1 ? 'disabled' : ''} title="Mover después" aria-label="Mover foto después">&#8595;</button>
+        <button class="preview-cover ${i === 0 ? 'active' : ''}" type="button" onclick="setCoverImage(${i})">Portada</button>
       </div>
     </div>
   `).join('');
+  setupPublishImageDragHandlers();
 }
 
 function moveImage(index, direction) {
-  const newIndex = index + direction;
-  if (newIndex < 0 || newIndex >= uploadedImages.length) return;
-  const item = uploadedImages.splice(index, 1)[0];
-  uploadedImages.splice(newIndex, 0, item);
-  renderImagePreviews();
+  reorderUploadedImage(index, index + direction);
 }
 
 function setCoverImage(index) {
   if (index === 0) return; // already cover
-  const item = uploadedImages.splice(index, 1)[0];
-  uploadedImages.unshift(item);
-  renderImagePreviews();
+  reorderUploadedImage(index, 0);
 }
 
 function removeImage(index) {
@@ -3429,7 +3682,7 @@ async function loadFavorites() {
 
 async function toggleFavorite(id, e) {
   if (e) e.stopPropagation();
-  if (!localStorage.getItem('token')) { showToast('Inicia sesión para agregar favoritos', 'error'); return; }
+  if (!getAuthToken()) { showToast('Inicia sesión para agregar favoritos', 'error'); return; }
   try {
     const res = await request(`/favorites/${id}`, { method: 'POST' });
     showToast(res.favorited ? 'Agregado a favoritos' : 'Eliminado de favoritos', 'success');
@@ -3461,6 +3714,11 @@ async function toggleFavorite(id, e) {
 
 // CONTACT / CONVERSATIONS
 async function handleQuickMessage(vehicleId) {
+  if (!getAuthToken()) {
+    showToast('Iniciá sesión para escribir mensajes', 'warning');
+    showSection('login');
+    return;
+  }
   const input = document.getElementById('quickMsgInput');
   const msg = input.value.trim();
   if (!msg) return;
@@ -3474,6 +3732,11 @@ async function handleQuickMessage(vehicleId) {
 
 let conversationsPage = 1;
 async function loadConversations(page = 1) {
+  if (!getAuthToken()) {
+    showToast('Iniciá sesión para ver tus conversaciones', 'warning');
+    showSection('login');
+    return;
+  }
   try {
     const res = await request(`/conversations?page=${page}`);
     const conversations = res.conversations || res;
@@ -3824,7 +4087,7 @@ function wsSend(msg) {
 function initWebSocket() {
   if (!currentUser) return;
   if (wsConnection && wsConnection.readyState === WebSocket.OPEN) return;
-  const token = localStorage.getItem('token');
+  const token = getAuthToken();
   if (!token) return;
 
   clearTimeout(wsReconnectTimeout);
@@ -4256,7 +4519,7 @@ async function viewProfile(id) {
         </div>`;
       }
     }
-    const canFollow = !isOwn && !!localStorage.getItem('token');
+    const canFollow = !isOwn && !!getAuthToken();
     const canEditProfile = isOwn || !!currentUser?.profile?.is_admin;
     const cityMeta = AR_CITIES.find(c => c.city === profile.city);
     const profileProvince = cityMeta ? String(cityMeta.prov || '').replace(/\s*\(.*?\)/g, '').trim() : '';
@@ -4563,7 +4826,7 @@ async function saveProfile(e) {
       formData.append('image', compressed.file);
       const res = await fetch('/api/upload', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        headers: { 'Authorization': `Bearer ${getAuthToken()}` },
         body: formData
       });
       if (!res.ok) throw new Error(await getUploadErrorMessage(res, 'Error al subir la imagen de perfil'));
@@ -5406,9 +5669,11 @@ function closeAllModals() {
   if (isVisibleElement(document.getElementById('prestitoModal'))) closePrestitoQuoteModal();
   if (isVisibleElement(document.getElementById('confirmModal'))) closeConfirmModal();
   if (isVisibleElement(document.getElementById('editProfileModal'))) closeEditProfileModal();
+  if (isVisibleElement(document.getElementById('publishPreviewModal'))) closePublishPreviewModal();
   modalStack = [];
   syncModalOverlay();
   closeLightbox();
+  document.body.classList.remove('publish-preview-open');
   confirmCallback = null;
 }
 
@@ -6133,7 +6398,7 @@ function autoGenDescription() {
 }
 
 async function loadUserFavoriteIds() {
-  if (!localStorage.getItem('token')) return;
+  if (!getAuthToken()) return;
   try {
     const vehicles = await request('/favorites');
     userFavoriteIds = new Set((vehicles || []).map(v => v.id));
@@ -6141,8 +6406,8 @@ async function loadUserFavoriteIds() {
 }
 
 async function checkAuth() {
-  const token = localStorage.getItem('token');
-  if (token) {
+  const tokenAtStart = getAuthToken();
+  if (tokenAtStart) {
     try {
       currentUser = await request('/user');
       if (currentUser.profile?.is_admin) document.getElementById('navAdmin').style.display = 'inline';
@@ -6150,7 +6415,14 @@ async function checkAuth() {
       loadCounts();
       request('/ping', { method: 'PUT' }).catch(() => {});
       loadUserFavoriteIds();
-    } catch { localStorage.removeItem('token'); currentUser = null; }
+    } catch (err) {
+      const stillSameToken = getAuthToken() === tokenAtStart;
+      const unauthorized = err?.status === 401 || err?.status === 403;
+      if (stillSameToken && unauthorized) {
+        clearAuthToken();
+      }
+      currentUser = null;
+    }
   }
   updateNav();
 }
@@ -6405,7 +6677,15 @@ function forceAutoGenPublishDescription() {
 }
 
 // ─── PUBLISH PREVIEW MODAL ───────────────────────────────────────────────────
+function setPublishPreviewOpenState(isOpen) {
+  document.body.classList.toggle('publish-preview-open', !!isOpen);
+}
+
 function openPublishPreviewModal() {
+  setPublishPreviewOpenState(true);
+  openAccessibleModal('publishPreviewModal');
+  const contentEl = document.getElementById('publishPreviewContent');
+  if (contentEl) contentEl.innerHTML = '<div class="publish-preview-loading">Preparando vista previa...</div>';
   const brand = document.getElementById('publishBrand')?.value || '';
   const model = document.getElementById('publishModel')?.value || '';
   const version = getVersionValue('publish');
@@ -6430,7 +6710,7 @@ function openPublishPreviewModal() {
 
   const firstImage = uploadedImages.length > 0 ? uploadedImages[0] : null;
   const imgHtml = firstImage
-    ? `<img src="${firstImage.preview || ''}" alt="Preview" style="width:100%;max-height:220px;object-fit:cover;border-radius:var(--radius-md);margin-bottom:1rem;">`
+    ? `<img src="${firstImage.preview || ''}" alt="Preview" decoding="async" loading="eager" style="width:100%;max-height:220px;object-fit:cover;border-radius:var(--radius-md);margin-bottom:1rem;">`
     : `<div style="width:100%;height:120px;background:var(--dark-3);border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;color:var(--text-3);margin-bottom:1rem;font-size:0.9rem;">Sin fotos añadidas</div>`;
 
   const badges = [];
@@ -6477,13 +6757,11 @@ function openPublishPreviewModal() {
     ${descHtml}
   `;
 
-  const contentEl = document.getElementById('publishPreviewContent');
   if (contentEl) contentEl.innerHTML = content;
-
-  openAccessibleModal('publishPreviewModal');
 }
 
 function closePublishPreviewModal() {
+  setPublishPreviewOpenState(false);
   closeAccessibleModal('publishPreviewModal');
 }
 
@@ -6806,13 +7084,3 @@ async function loadSimilarVehicles(vehicleId) {
     document.getElementById('similarVehiclesSection')?.remove();
   }
 }
-
-
-
-
-
-
-
-
-
-

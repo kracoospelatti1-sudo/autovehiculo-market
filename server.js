@@ -156,6 +156,14 @@ const makeCacheToken = (value = '') => {
   }
   return (h >>> 0).toString(36);
 };
+const inferImageMimeType = (url = '') => {
+  const clean = String(url || '').split('?')[0].toLowerCase();
+  if (clean.endsWith('.png')) return 'image/png';
+  if (clean.endsWith('.webp')) return 'image/webp';
+  if (clean.endsWith('.gif')) return 'image/gif';
+  if (clean.endsWith('.svg')) return 'image/svg+xml';
+  return 'image/jpeg';
+};
 function buildVehicleOgSvg({ title, price, city, province, year, fuel, transmission, imageUrl }) {
   const safeTitle = escapeXml(trimEllipsis(title || 'Vehiculo destacado', 78));
   const safeLocation = escapeXml([city, province].filter(Boolean).join(', ') || 'Argentina');
@@ -228,9 +236,9 @@ app.get('/', async (req, res, next) => {
       .order('order_index', { ascending: true })
       .limit(1);
     const primaryImageUrl = imgs?.[0]?.url || 'https://autoventa.online/og-default.png';
-    const ogVersion = makeCacheToken(`${vehicle.updated_at || ''}|${primaryImageUrl}`);
-    const imageUrl = `https://autoventa.online/og/vehicle/${vehicle.id}.svg?v=${ogVersion}`;
-    const twitterImageUrl = primaryImageUrl;
+    const imageUrl = primaryImageUrl;
+    const imageType = inferImageMimeType(imageUrl);
+    const twitterImageUrl = imageUrl;
     const title = `${vehicle.title} — $${Number(vehicle.price).toLocaleString('es-AR')} | Autoventa`;
     const desc = `${vehicle.brand} ${vehicle.model} ${vehicle.year}, ${Number(vehicle.mileage).toLocaleString('es-AR')}km, ${vehicle.fuel}. En ${vehicle.city}${vehicle.province ? ', ' + vehicle.province : ''}.`;
     const url = `https://autoventa.online/?vehicle=${vehicle.id}`;
@@ -248,7 +256,7 @@ app.get('/', async (req, res, next) => {
       .replace(/(<meta property="og:title" content=")[^"]*(")/,     `$1${titleEsc}$2`)
       .replace(/(<meta property="og:description" content=")[^"]*(")/,`$1${descEsc}$2`)
       .replace(/(<meta property="og:image" content=")[^"]*(")/,     `$1${imageUrlEsc}$2`)
-      .replace(/(<meta property="og:image:type" content=")[^"]*(")/, `$1image/svg+xml$2`)
+      .replace(/(<meta property="og:image:type" content=")[^"]*(")/, `$1${imageType}$2`)
       .replace(/(<meta property="og:url" content=")[^"]*(")/,       `$1${urlEsc}$2`)
       .replace(/(<meta name="twitter:title" content=")[^"]*(")/,    `$1${titleEsc}$2`)
       .replace(/(<meta name="twitter:description" content=")[^"]*(")/,`$1${descEsc}$2`)

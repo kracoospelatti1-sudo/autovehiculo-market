@@ -53,8 +53,8 @@
   <!-- Fuentes: no-render-blocking -->
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=optional" onload="this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=optional"></noscript>
-  <link rel="preload" as="style" href="styles.css?v=67" onload="this.rel='stylesheet'" fetchpriority="high">
-  <noscript><link rel="stylesheet" href="styles.css?v=67"></noscript>
+  <link rel="preload" as="style" href="styles.css?v=68" onload="this.rel='stylesheet'" fetchpriority="high">
+  <noscript><link rel="stylesheet" href="styles.css?v=68"></noscript>
   <!-- JSON-LD: WebSite + Organization -->
   <script type="application/ld+json">
   {
@@ -518,6 +518,7 @@
           <i data-lucide="filter"></i>
           Filtros
         </button>
+        <p id="searchCorrectionHint" class="search-correction-hint" style="display:none;" aria-live="polite"></p>
       </div>
       <div class="filters-panel" id="filtersPanel" aria-hidden="true">
         <div class="filters-panel-header">
@@ -824,6 +825,7 @@
                 onchange="handleImageSelect(event)">
             </div>
             <div id="imagePreview" class="image-preview-grid"></div>
+            <p class="image-reorder-hint">Mantén presionada una foto y arrastrala para reordenarla.</p>
           </div>
           <div id="publishStepDescription" class="publish-step-anchor"></div>
           <div class="form-group">
@@ -1481,7 +1483,7 @@
       if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
     };
   </script>
-  <script src="app.js?v=99" defer></script>
+  <script src="app.js?v=100" defer></script>
   <script>
     // AdSense: cargar únicamente tras interacción real para mejorar score mobile inicial
     (function () {
