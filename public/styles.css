@@ -6740,6 +6740,11 @@ html[data-vehicle-card-experiment="v2"] body.day-mode .vehicles-grid .vehicle-me
   border-color: var(--danger, #ef4444) !important;
 }
 
+#publish .publish-field-error {
+  border-color: var(--danger, #ef4444) !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.16);
+}
+
 /* ── PUBLISH STEPPER MOBILE ───────────────────────────────────────────────── */
 @media (max-width: 480px) {
   .publish-stepper {

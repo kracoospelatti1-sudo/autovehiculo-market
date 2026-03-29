@@ -2824,13 +2824,65 @@ function removeImage(index) {
   renderImagePreviews();
 }
 
+function resolvePublishValidationElement(fieldId) {
+  if (fieldId === 'publishBrand') {
+    const select = document.getElementById('publishBrand');
+    return select?.parentElement?.querySelector('.brand-picker-trigger') || select || null;
+  }
+  return document.getElementById(fieldId);
+}
+
+function clearPublishValidationErrors() {
+  const fieldIds = [
+    'publishBrand',
+    'publishModel',
+    'publishYear',
+    'publishPrice',
+    'publishFuel',
+    'publishTransmission',
+    'publishProvince',
+    'publishCity',
+    'publishDescription',
+    'imageUploadArea',
+  ];
+  fieldIds.forEach((fieldId) => {
+    const el = resolvePublishValidationElement(fieldId);
+    if (!el) return;
+    el.classList.remove('publish-field-error', 'upload-error-shake');
+  });
+}
+
+function markPublishValidationError(fieldId, options = {}) {
+  const el = resolvePublishValidationElement(fieldId);
+  if (!el) return;
+  el.classList.add('publish-field-error');
+  if (options.shake) {
+    el.classList.add('upload-error-shake');
+    setTimeout(() => el.classList.remove('upload-error-shake'), 700);
+  }
+}
+
+function focusPublishValidationIssue(issue) {
+  if (!issue) return;
+  if (issue.anchorId) {
+    scrollToPublishSection(issue.anchorId);
+  }
+  const el = resolvePublishValidationElement(issue.fieldId);
+  if (!el || typeof el.focus !== 'function') return;
+  setTimeout(() => {
+    try {
+      el.focus({ preventScroll: true });
+    } catch {
+      el.focus();
+    }
+  }, 220);
+}
+
 async function handlePublish(e) {
   e.preventDefault();
-  const btn = document.getElementById('publishBtn');
 
   const province = document.getElementById('publishProvince').value;
   const city = document.getElementById('publishCity').value;
-  const title = document.getElementById('publishTitle').value.trim();
   const brand = document.getElementById('publishBrand').value;
   const model = document.getElementById('publishModel').value;
   const year = document.getElementById('publishYear').value;
@@ -2839,30 +2891,26 @@ async function handlePublish(e) {
   const transmission = document.getElementById('publishTransmission').value;
   const description = document.getElementById('publishDescription').value.trim();
 
-  const missing = [];
-  if (!title) missing.push('título');
-  if (!brand) missing.push('marca');
-  if (!model) missing.push('modelo');
-  if (!year) missing.push('año');
-  if (!price || isNaN(price) || price <= 0) missing.push('precio');
-  if ((document.getElementById('publishCurrency')?.value || 'USD') === 'ARS' && !dolarRate?.venta) missing.push('cotizacion del dolar');
-  if (!fuel) missing.push('combustible');
-  if (!transmission) missing.push('transmisión');
-  if (!province || !city) missing.push('ubicación');
-  if (!description) missing.push('descripción');
-  if (!uploadedImages.length) {
-    showToast('Agregá al menos una foto del vehículo', 'error');
-    const uploadArea = document.getElementById('imageUploadArea');
-    if (uploadArea) {
-      uploadArea.classList.add('upload-error-shake');
-      setTimeout(() => uploadArea.classList.remove('upload-error-shake'), 700);
-      document.getElementById('publishStepPhotos')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-    return;
+  clearPublishValidationErrors();
+  const issues = [];
+  if (!brand) issues.push({ fieldId: 'publishBrand', anchorId: 'publishStepVehicle' });
+  if (!model) issues.push({ fieldId: 'publishModel', anchorId: 'publishStepVehicle' });
+  if (!year) issues.push({ fieldId: 'publishYear', anchorId: 'publishStepVehicle' });
+  if (!price || isNaN(price) || price <= 0) issues.push({ fieldId: 'publishPrice', anchorId: 'publishStepPrice' });
+  if ((document.getElementById('publishCurrency')?.value || 'USD') === 'ARS' && !dolarRate?.venta) {
+    issues.push({ fieldId: 'publishPrice', anchorId: 'publishStepPrice' });
   }
+  if (!fuel) issues.push({ fieldId: 'publishFuel', anchorId: 'publishStepPrice' });
+  if (!transmission) issues.push({ fieldId: 'publishTransmission', anchorId: 'publishStepPrice' });
+  if (!province) issues.push({ fieldId: 'publishProvince', anchorId: 'publishStepPrice' });
+  if (!city) issues.push({ fieldId: 'publishCity', anchorId: 'publishStepPrice' });
+  if (!uploadedImages.length) issues.push({ fieldId: 'imageUploadArea', anchorId: 'publishStepPhotos', shake: true });
+  if (!description) issues.push({ fieldId: 'publishDescription', anchorId: 'publishStepDescription' });
 
-  if (missing.length) {
-    showToast(`Completá: ${missing.join(', ')}`, 'error');
+  if (issues.length) {
+    issues.forEach((issue) => markPublishValidationError(issue.fieldId, { shake: !!issue.shake }));
+    focusPublishValidationIssue(issues[0]);
+    showToast('Completa los campos marcados para continuar', 'error');
     return;
   }
 
@@ -6662,7 +6710,6 @@ async function loadSimilarVehicles(vehicleId) {
     document.getElementById('similarVehiclesSection')?.remove();
   }
 }
-
 
 
 
