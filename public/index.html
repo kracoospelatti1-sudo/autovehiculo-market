@@ -876,27 +876,10 @@
               </select>
             </div>
           </div>
-          <button type="submit" class="btn btn-primary" style="width:100%;" id="publishBtn">Vista previa y Publicar</button>
+          <button type="submit" class="btn btn-primary" style="width:100%;" id="publishBtn">Publicar Vehículo</button>
         </form>
       </div>
     </section>
-
-    <!-- PUBLISH PREVIEW MODAL -->
-    <div id="publishPreviewModal" class="modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="publishPreviewTitle">
-      <div class="modal-content" style="max-width:560px;width:94vw;">
-        <div class="modal-header">
-          <h3 id="publishPreviewTitle">Vista previa del anuncio</h3>
-          <button class="modal-close" onclick="closePublishPreviewModal()" aria-label="Cerrar">&times;</button>
-        </div>
-        <div class="modal-body" style="padding:1.25rem 1.5rem;max-height:70vh;overflow-y:auto;">
-          <div id="publishPreviewContent"></div>
-        </div>
-        <div style="padding:1rem 1.5rem;border-top:1px solid var(--border);display:flex;gap:0.75rem;">
-          <button class="btn btn-ghost" style="flex:1;" onclick="closePublishPreviewModal()">Editar</button>
-          <button class="btn btn-primary" style="flex:1;" id="publishPreviewConfirmBtn" onclick="confirmPublishFromPreview()">✓ Confirmar y Publicar</button>
-        </div>
-      </div>
-    </div>
 
     <!-- MY VEHICLES -->
     <section id="my-vehicles" class="section" style="display:none;">
@@ -1484,7 +1467,7 @@
       if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
     };
   </script>
-  <script src="app.js?v=101" defer></script>
+  <script src="app.js?v=102" defer></script>
   <script>
     // AdSense: cargar únicamente tras interacción real para mejorar score mobile inicial
     (function () {

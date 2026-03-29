@@ -3287,15 +3287,13 @@ async function handlePublish(e) {
     return;
   }
 
-  // Show preview modal before publishing
-  openPublishPreviewModal();
+  // Publicar directamente sin paso de vista previa
+  await _doPublish();
 }
 
 async function _doPublish() {
   const btn = document.getElementById('publishBtn');
-  const confirmBtn = document.getElementById('publishPreviewConfirmBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Publicando...'; }
-  if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.textContent = 'Publicando...'; }
   try {
     const province = document.getElementById('publishProvince').value;
     const city = document.getElementById('publishCity').value;
@@ -3346,9 +3344,7 @@ async function _doPublish() {
     showSection('my-vehicles');
   } catch (err) { showToast(err.message, 'error'); }
   finally {
-    // BUG-09: always re-enable the button, even on error
-    if (btn) { btn.disabled = false; btn.textContent = 'Vista previa y Publicar'; }
-    if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = '✓ Confirmar y Publicar'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Publicar Vehículo'; }
   }
 }
 
