@@ -19,9 +19,7 @@ const app = express();
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
 const SECRET_KEY = process.env.JWT_SECRET;
-const GOOGLE_CLIENT_ID = String(
-  process.env.GOOGLE_CLIENT_ID || '962986955651-dvcv7bfuk3098n9bfuabn6sjjhqtu86b.apps.googleusercontent.com'
-).trim();
+const GOOGLE_CLIENT_ID = String(process.env.GOOGLE_CLIENT_ID || '').trim();
 // Normalizar origen: quitar barra final y generar variantes http/https
 const _rawOrigin = (process.env.ALLOWED_ORIGIN || 'http://localhost:3000').replace(/\/$/, '');
 const ALLOWED_ORIGINS = [
