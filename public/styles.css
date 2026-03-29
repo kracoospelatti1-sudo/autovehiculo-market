@@ -1057,6 +1057,38 @@ textarea:focus-visible,
   margin-bottom: 1.5rem;
 }
 
+.google-login-wrap {
+  margin-top: 0.9rem;
+}
+
+.google-login-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin: 0.25rem 0 0.85rem;
+  color: var(--text-3);
+  font-size: 0.8rem;
+}
+
+.google-login-divider::before,
+.google-login-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.google-login-btn {
+  display: flex;
+  justify-content: center;
+}
+
+.google-login-btn > div {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
 /* ===== REGISTER FORM ===== */
 .register-header {
   text-align: center;

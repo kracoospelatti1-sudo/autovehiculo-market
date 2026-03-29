@@ -53,8 +53,8 @@
   <!-- Fuentes: no-render-blocking -->
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=optional" onload="this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=optional"></noscript>
-  <link rel="preload" as="style" href="styles.css?v=66" onload="this.rel='stylesheet'" fetchpriority="high">
-  <noscript><link rel="stylesheet" href="styles.css?v=66"></noscript>
+  <link rel="preload" as="style" href="styles.css?v=67" onload="this.rel='stylesheet'" fetchpriority="high">
+  <noscript><link rel="stylesheet" href="styles.css?v=67"></noscript>
   <!-- JSON-LD: WebSite + Organization -->
   <script type="application/ld+json">
   {
@@ -269,6 +269,10 @@
           <button type="submit" class="btn btn-primary" style="width:100%;margin-top:0.5rem;" id="loginBtn">Iniciar
             Sesión</button>
         </form>
+        <div id="googleLoginWrap" class="google-login-wrap" style="display:none;">
+          <div class="google-login-divider"><span>o</span></div>
+          <div id="googleLoginBtn" class="google-login-btn"></div>
+        </div>
         <p style="text-align:center;margin-top:0.75rem;">
           <a href="/?section=forgot-password" onclick="showSection('forgot-password');return false;" style="color:var(--primary-light);cursor:pointer;font-size:0.88rem;">¿Olvidaste tu contraseña?</a>
         </p>
@@ -1449,7 +1453,7 @@
     <span>© 2026 Autoventa</span>
     <a href="/?section=support" onclick="showSection('support');return false;" style="cursor:pointer;">Contacto admin</a>
     <a href="/?section=terms" onclick="showSection('terms');return false;" style="cursor:pointer;">Términos y Condiciones</a>
-    <span style="color:var(--text-3);font-size:0.75rem;">v1.0.18</span>
+    <span style="color:var(--text-3);font-size:0.75rem;">v1.0.19</span>
   </footer>
 
   <!-- Edit Profile Modal -->
@@ -1477,7 +1481,7 @@
       if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
     };
   </script>
-  <script src="app.js?v=98" defer></script>
+  <script src="app.js?v=99" defer></script>
   <script>
     // AdSense: cargar únicamente tras interacción real para mejorar score mobile inicial
     (function () {
@@ -1505,4 +1509,3 @@
 </body>
 
 </html>
-

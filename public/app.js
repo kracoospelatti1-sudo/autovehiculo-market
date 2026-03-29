@@ -30,6 +30,9 @@ let homeRecentLoadedAt = 0;
 let publicStatsLoadedAt = 0;
 let lucideLoadPromise = null;
 let hCaptchaLoadPromise = null;
+let googleIdentityLoadPromise = null;
+let googleLoginConfigPromise = null;
+let googleLoginInitialized = false;
 let myVehiclesPage = 1;
 let myVehiclesHasMore = false;
 let profileVehiclesPage = 1;
@@ -177,6 +180,96 @@ function resetHCaptchaWidget(containerId) {
   } catch {
     // no-op
   }
+}
+
+function loadGoogleIdentity() {
+  if (window.google?.accounts?.id) return Promise.resolve();
+  if (googleIdentityLoadPromise) return googleIdentityLoadPromise;
+  googleIdentityLoadPromise = new Promise((resolve) => {
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = resolve;
+    script.onerror = () => resolve();
+    document.head.appendChild(script);
+  });
+  return googleIdentityLoadPromise;
+}
+
+async function getGoogleLoginConfig() {
+  if (googleLoginConfigPromise) return googleLoginConfigPromise;
+  googleLoginConfigPromise = request('/auth/google/config')
+    .catch(() => ({ enabled: false, clientId: null }));
+  return googleLoginConfigPromise;
+}
+
+async function handleGoogleLoginCredentialResponse(response) {
+  const credential = String(response?.credential || '').trim();
+  if (!credential) {
+    showToast('No se pudo leer la credencial de Google', 'error');
+    return;
+  }
+  try {
+    const data = await request('/auth/google', {
+      method: 'POST',
+      body: JSON.stringify({ credential })
+    });
+    localStorage.setItem('token', data.token);
+    currentUser = await request('/user');
+    if (!heartbeatInterval) heartbeatInterval = setInterval(() => { if (currentUser && document.visibilityState === 'visible') request('/ping', { method: 'PUT' }).catch(() => {}); }, 30000);
+    if (!notifInterval) notifInterval = setInterval(() => { if (currentUser) { loadCounts(); } }, 30000);
+    updateNav();
+    loadUserFavoriteIds();
+    showToast('Bienvenido!', 'success');
+    showSection('home');
+  } catch (err) {
+    showToast(err.message || 'No se pudo iniciar sesion con Google', 'error');
+  }
+}
+
+async function initGoogleLoginButton() {
+  const wrap = document.getElementById('googleLoginWrap');
+  const mount = document.getElementById('googleLoginBtn');
+  if (!wrap || !mount) return;
+  if (currentUser) {
+    wrap.style.display = 'none';
+    return;
+  }
+
+  const config = await getGoogleLoginConfig();
+  const clientId = String(config?.clientId || '').trim();
+  if (!config?.enabled || !clientId) {
+    wrap.style.display = 'none';
+    return;
+  }
+
+  wrap.style.display = 'block';
+  await loadGoogleIdentity();
+  if (!window.google?.accounts?.id) {
+    wrap.style.display = 'none';
+    return;
+  }
+
+  if (!googleLoginInitialized) {
+    window.google.accounts.id.initialize({
+      client_id: clientId,
+      callback: handleGoogleLoginCredentialResponse,
+      auto_select: false,
+      cancel_on_tap_outside: true
+    });
+    googleLoginInitialized = true;
+  }
+
+  mount.innerHTML = '';
+  window.google.accounts.id.renderButton(mount, {
+    theme: 'outline',
+    size: 'large',
+    type: 'standard',
+    text: 'continue_with',
+    shape: 'pill',
+    width: Math.min(360, Math.max(240, window.innerWidth - 96))
+  });
 }
 
 function isVisibleElement(el) {
@@ -1372,6 +1465,9 @@ function showSection(sectionId, options = {}) {
     else if (sectionId === 'notifications') loadNotifications();
     else if (sectionId === 'following-feed') loadFollowingFeed(1, true);
     else if (sectionId === 'admin') loadAdmin();
+    else if (sectionId === 'login') {
+      initGoogleLoginButton();
+    }
     else if (sectionId === 'register') {
       ensureHCaptchaForSection('register');
     }
@@ -6710,9 +6806,6 @@ async function loadSimilarVehicles(vehicleId) {
     document.getElementById('similarVehiclesSection')?.remove();
   }
 }
-
-
-
 
 
 

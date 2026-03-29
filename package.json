@@ -1,6 +1,6 @@
 {
   "name": "autovehiculo-market",
-  "version": "2.0.7",
+  "version": "2.0.8",
   "description": "Mercado de vehículos con registro de usuarios, chat y sistema completo",
   "main": "server.js",
   "scripts": {

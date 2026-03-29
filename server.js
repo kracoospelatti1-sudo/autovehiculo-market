@@ -19,6 +19,9 @@ const app = express();
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
 const SECRET_KEY = process.env.JWT_SECRET;
+const GOOGLE_CLIENT_ID = String(
+  process.env.GOOGLE_CLIENT_ID || '962986955651-dvcv7bfuk3098n9bfuabn6sjjhqtu86b.apps.googleusercontent.com'
+).trim();
 // Normalizar origen: quitar barra final y generar variantes http/https
 const _rawOrigin = (process.env.ALLOWED_ORIGIN || 'http://localhost:3000').replace(/\/$/, '');
 const ALLOWED_ORIGINS = [
@@ -93,12 +96,12 @@ app.use((req, res, next) => {
   res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   res.setHeader('Content-Security-Policy',
     "default-src 'self'; " +
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://js.hcaptcha.com https://pagead2.googlesyndication.com https://googleads.g.doubleclick.net https://www.googletagmanager.com https://partner.googleadservices.com https://*.adtrafficquality.google; " +
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://js.hcaptcha.com https://accounts.google.com https://pagead2.googlesyndication.com https://googleads.g.doubleclick.net https://www.googletagmanager.com https://partner.googleadservices.com https://*.adtrafficquality.google; " +
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; " +
     "font-src 'self' https://fonts.gstatic.com; " +
     "img-src 'self' data: blob: https:; " +
-    "connect-src 'self' https://*.supabase.co wss: https://nominatim.openstreetmap.org https://*.hcaptcha.com https://*.adtrafficquality.google https://unpkg.com; " +
-    "frame-src https://newassets.hcaptcha.com https://tpc.googlesyndication.com https://googleads.g.doubleclick.net; " +
+    "connect-src 'self' https://*.supabase.co wss: https://nominatim.openstreetmap.org https://*.hcaptcha.com https://accounts.google.com https://oauth2.googleapis.com https://*.adtrafficquality.google https://unpkg.com; " +
+    "frame-src https://newassets.hcaptcha.com https://accounts.google.com https://tpc.googlesyndication.com https://googleads.g.doubleclick.net; " +
     "object-src 'none';"
   );
   next();
@@ -1444,7 +1447,164 @@ app.post('/api/partners/prestito/lead', async (req, res) => {
   }
 });
 
+const normalizeEmail = (value = '') => String(value || '').trim().toLowerCase();
+
+function makeUsernameBase(value = '') {
+  const raw = String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, '');
+  const clipped = raw.slice(0, 20);
+  if (clipped.length >= 3) return clipped;
+  if (clipped.length === 2) return `${clipped}01`;
+  if (clipped.length === 1) return `${clipped}001`;
+  return `user${Math.floor(1000 + Math.random() * 9000)}`;
+}
+
+async function generateAvailableUsername(seed = 'usuario') {
+  const base = makeUsernameBase(seed);
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const suffix = attempt === 0 ? '' : String(attempt + 1);
+    const candidate = `${base}${suffix}`.slice(0, 24);
+    const { data: existing, error } = await supabase
+      .from('users')
+      .select('id')
+      .ilike('username', candidate)
+      .maybeSingle();
+    if (error) throw error;
+    if (!existing) return candidate;
+  }
+  return `user${Date.now().toString().slice(-8)}`;
+}
+
+async function verifyGoogleCredential(credential) {
+  if (!GOOGLE_CLIENT_ID) throw new Error('Google login no configurado');
+  if (!credential || typeof credential !== 'string') throw new Error('Credencial de Google inválida');
+
+  const tokenInfoUrl = new URL('https://oauth2.googleapis.com/tokeninfo');
+  tokenInfoUrl.searchParams.set('id_token', credential);
+  const response = await fetch(tokenInfoUrl, { signal: AbortSignal.timeout(8000) });
+  if (!response.ok) throw new Error('Token de Google inválido');
+  const info = await response.json();
+
+  if (String(info.aud || '').trim() !== GOOGLE_CLIENT_ID) {
+    throw new Error('Token de Google con client_id inválido');
+  }
+  if (!info.email || String(info.email_verified || '').toLowerCase() !== 'true') {
+    throw new Error('Google no devolvió un email verificado');
+  }
+  return info;
+}
+
+function extractGoogleNames(info = {}) {
+  const givenName = String(info.given_name || '').trim();
+  const familyName = String(info.family_name || '').trim();
+  if (givenName || familyName) {
+    return { firstName: givenName || 'Usuario', lastName: familyName || '' };
+  }
+  const fullName = String(info.name || '').trim();
+  if (!fullName) return { firstName: 'Usuario', lastName: '' };
+  const parts = fullName.split(/\s+/).filter(Boolean);
+  return {
+    firstName: parts[0] || 'Usuario',
+    lastName: parts.slice(1).join(' ')
+  };
+}
+
 // AUTH
+app.get('/api/auth/google/config', (req, res) => {
+  res.json({
+    enabled: Boolean(GOOGLE_CLIENT_ID),
+    clientId: GOOGLE_CLIENT_ID || null
+  });
+});
+
+app.post('/api/auth/google', authLimiter, async (req, res) => {
+  try {
+    if (!GOOGLE_CLIENT_ID) {
+      return res.status(503).json({ error: 'Google login no está configurado' });
+    }
+
+    const { credential } = req.body || {};
+    const googleInfo = await verifyGoogleCredential(credential);
+    const email = normalizeEmail(googleInfo.email);
+
+    let { data: user, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .ilike('email', email)
+      .maybeSingle();
+
+    if (userError) throw userError;
+
+    if (!user) {
+      const { firstName, lastName } = extractGoogleNames(googleInfo);
+      const preferredSeed = String(googleInfo.email || '').split('@')[0] || String(googleInfo.name || 'usuario');
+      const username = await generateAvailableUsername(preferredSeed);
+      const randomPassword = crypto.randomBytes(32).toString('hex');
+      const hashedPassword = await bcrypt.hash(randomPassword, 10);
+
+      const { data: insertedUser, error: insertUserError } = await supabase
+        .from('users')
+        .insert({
+          username,
+          email,
+          password: hashedPassword,
+          email_verified: true
+        })
+        .select()
+        .single();
+
+      if (insertUserError) throw insertUserError;
+
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          user_id: insertedUser.id,
+          city: '',
+          bio: '',
+          phone: '',
+          first_name: firstName,
+          last_name: lastName
+        });
+
+      if (profileError) {
+        await supabase.from('users').delete().eq('id', insertedUser.id);
+        throw profileError;
+      }
+
+      user = insertedUser;
+    } else if (user.email_verified !== true) {
+      const { error: verifyUpdateError } = await supabase
+        .from('users')
+        .update({ email_verified: true })
+        .eq('id', user.id);
+      if (!verifyUpdateError) user.email_verified = true;
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('is_admin, is_banned')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    const token = jwt.sign({
+      id: user.id,
+      username: user.username,
+      is_admin: profile?.is_admin === true,
+      is_banned: profile?.is_banned === true
+    }, SECRET_KEY, { expiresIn: '30d' });
+
+    res.json({ token, user: { id: user.id, username: user.username, email: user.email } });
+  } catch (error) {
+    const known = /Google|credencial|token|email verificado/i.test(String(error?.message || ''));
+    const message = known ? error.message : 'No se pudo iniciar sesión con Google';
+    console.error('[/api/auth/google]', error?.message || error);
+    res.status(known ? 400 : 500).json({ error: message });
+  }
+});
+
 app.post('/api/register', async (req, res) => {
   try {
     const { username, email, password, captchaToken, firstName, lastName } = req.body;

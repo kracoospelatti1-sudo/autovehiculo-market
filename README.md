@@ -35,6 +35,7 @@ Plataforma moderna para la compra y venta de vehículos con sistema de registro,
    INSTAGRAM_ACCESS_TOKEN=tu_access_token_largo_de_meta
    INSTAGRAM_GRAPH_API_VERSION=v23.0
    INSTAGRAM_DEFAULT_HASHTAGS="#autoventa #autosusados #autos #argentina"
+   GOOGLE_CLIENT_ID=tu_google_oauth_web_client_id
    ```
 
 3. **Configurar la base de datos**:
