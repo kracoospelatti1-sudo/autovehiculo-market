@@ -4304,6 +4304,20 @@ select {
   .form-container {
     padding: 1.5rem 1rem;
     border-radius: var(--radius-lg);
+    margin: 0.75rem auto;
+  }
+
+  .form-container h2 {
+    font-size: 1.5rem;
+    margin-bottom: 0.3rem;
+  }
+
+  .subtitle {
+    margin-bottom: 1.25rem;
+  }
+
+  .form-group {
+    margin-bottom: 1rem;
   }
 
   .stats-dashboard {
